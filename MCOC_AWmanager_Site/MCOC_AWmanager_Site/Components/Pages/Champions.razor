@@ -1,0 +1,225 @@
+@page "/champions"
+@inject Services.LocalizationService L
+@implements IDisposable
+
+<PageTitle>@L.NavChampions - MCOC AW Manager</PageTitle>
+
+<section class="section">
+    <h1 class="section-title">@L.ChampionsTitle</h1>
+    <p class="section-subtitle">@L.ChampionsSubtitle</p>
+
+    <div class="champions-grid">
+        <div class="champion-class-card cosmic">
+            <div class="class-header">
+                <span class="class-icon">&#10030;</span>
+                <h2>Космос</h2>
+                <span class="class-tag">Cosmic</span>
+            </div>
+            <p class="text-secondary">Мощные воины с космической энергией. Высокий урон и баффы.</p>
+            <div class="class-stats">
+                <span>Чемпионов: <strong>35+</strong></span>
+            </div>
+        </div>
+
+        <div class="champion-class-card science">
+            <div class="class-header">
+                <span class="class-icon">&#9883;</span>
+                <h2>Наука</h2>
+                <span class="class-tag">Science</span>
+            </div>
+            <p class="text-secondary">Герои и злодеи, получившие силы благодаря науке. Дебаффы и контроль.</p>
+            <div class="class-stats">
+                <span>Чемпионов: <strong>30+</strong></span>
+            </div>
+        </div>
+
+        <div class="champion-class-card mystic">
+            <div class="class-header">
+                <span class="class-icon">&#9733;</span>
+                <h2>Мистика</h2>
+                <span class="class-tag">Mystic</span>
+            </div>
+            <p class="text-secondary">Мастера магии и тёмных искусств. Снятие баффов и контроль энергии.</p>
+            <div class="class-stats">
+                <span>Чемпионов: <strong>30+</strong></span>
+            </div>
+        </div>
+
+        <div class="champion-class-card skill">
+            <div class="class-header">
+                <span class="class-icon">&#9876;</span>
+                <h2>Способности</h2>
+                <span class="class-tag">Skill</span>
+            </div>
+            <p class="text-secondary">Мастера боевых искусств. Критические удары и кровотечения.</p>
+            <div class="class-stats">
+                <span>Чемпионов: <strong>30+</strong></span>
+            </div>
+        </div>
+
+        <div class="champion-class-card tech">
+            <div class="class-header">
+                <span class="class-icon">&#9881;</span>
+                <h2>Технологии</h2>
+                <span class="class-tag">Tech</span>
+            </div>
+            <p class="text-secondary">Роботы и киборги. Баффы техники и контроль дронов.</p>
+            <div class="class-stats">
+                <span>Чемпионов: <strong>30+</strong></span>
+            </div>
+        </div>
+
+        <div class="champion-class-card mutant">
+            <div class="class-header">
+                <span class="class-icon">&#9764;</span>
+                <h2>Братство</h2>
+                <span class="class-tag">Mutant</span>
+            </div>
+            <p class="text-secondary">Мутанты с уникальными способностями. Снежный ком и адаптация.</p>
+            <div class="class-stats">
+                <span>Чемпионов: <strong>30+</strong></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="champions-info">
+        <div class="info-card">
+            <h3>&#128295; Механические теги</h3>
+            <p class="text-secondary">
+                80+ тегов для описания игровых механик: иммунитеты, DOT-эффекты,
+                utility и offensive теги. Используются для советов по защите на военной карте.
+            </p>
+        </div>
+        <div class="info-card">
+            <h3>&#127775; Rarity и Ascension</h3>
+            <p class="text-secondary">
+                Поддержка 6- и 7-звёздных чемпионов. Система ascension (0-2) для усиления.
+                Только максимальная редкость допускается для военной карты.
+            </p>
+        </div>
+        <div class="info-card">
+            <h3>&#9989; White/Black List</h3>
+            <p class="text-secondary">
+                Помечайте чемпионов для рекомендаций: White List — лучшие варианты для защиты,
+                Black List — исключаются из автоподстановки.
+            </p>
+        </div>
+    </div>
+</section>
+
+<style>
+    .champions-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 20px;
+        margin-bottom: 50px;
+    }
+
+    .champion-class-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px;
+        padding: 28px;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .champion-class-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        border-radius: 12px 12px 0 0;
+    }
+
+    .champion-class-card.cosmic::before { background: linear-gradient(90deg, #9c27b0, #e040fb); }
+    .champion-class-card.science::before { background: linear-gradient(90deg, #2196f3, #42a5f5); }
+    .champion-class-card.mystic::before { background: linear-gradient(90deg, #9c27b0, #ce93d8); }
+    .champion-class-card.skill::before { background: linear-gradient(90deg, #e62427, #ff5252); }
+    .champion-class-card.tech::before { background: linear-gradient(90deg, #00bcd4, #26c6da); }
+    .champion-class-card.mutant::before { background: linear-gradient(90deg, #ff9800, #ffb74d); }
+
+    .champion-class-card:hover {
+        border-color: var(--border-color);
+        transform: translateY(-3px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .class-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+    .class-icon {
+        font-size: 2rem;
+    }
+
+    .class-header h2 {
+        font-size: 1.4rem;
+        margin: 0;
+    }
+
+    .class-tag {
+        font-size: 0.7rem;
+        padding: 3px 8px;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-left: auto;
+    }
+
+    .champion-class-card p {
+        font-size: 0.95rem;
+        line-height: 1.5;
+        margin-bottom: 16px;
+    }
+
+    .class-stats {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+    }
+
+    .class-stats strong {
+        color: var(--accent);
+    }
+
+    .champions-info {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+    }
+
+    .info-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px;
+        padding: 24px;
+    }
+
+    .info-card h3 {
+        font-size: 1.1rem;
+        margin-bottom: 10px;
+    }
+
+    .info-card p {
+        font-size: 0.9rem;
+        line-height: 1.6;
+    }
+</style>
+
+@code {
+    protected override void OnInitialized()
+    {
+        L.OnLanguageChanged += OnLangChanged;
+    }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => L.OnLanguageChanged -= OnLangChanged;
+}

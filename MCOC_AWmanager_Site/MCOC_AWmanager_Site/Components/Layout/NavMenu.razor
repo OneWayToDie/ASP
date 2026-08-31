@@ -1,0 +1,63 @@
+﻿@inject Services.LocalizationService L
+@implements IDisposable
+
+<nav class="nav-container">
+    <div class="nav-inner">
+        <a class="nav-brand" href="">
+            <span class="brand-icon">&#9876;</span>
+            <span class="brand-text">MCOC <span class="text-accent">AW</span> Manager</span>
+        </a>
+
+        <input type="checkbox" id="nav-toggle" class="nav-toggle-input" />
+        <label for="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+            <span></span><span></span><span></span>
+        </label>
+
+        <div class="nav-links">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                @L.NavHome
+            </NavLink>
+            <NavLink class="nav-link" href="features">
+                @L.NavFeatures
+            </NavLink>
+            <NavLink class="nav-link" href="demo">
+                @L.NavDemo
+            </NavLink>
+            <NavLink class="nav-link" href="champions">
+                @L.NavChampions
+            </NavLink>
+            <NavLink class="nav-link" href="faq">
+                @L.NavFaq
+            </NavLink>
+            <NavLink class="nav-link" href="contacts">
+                @L.NavContacts
+            </NavLink>
+        </div>
+
+        <button class="lang-toggle" @onclick="ToggleLang" title="Switch language">
+            @(L.IsRu ? "EN" : "RU")
+        </button>
+    </div>
+</nav>
+
+@code {
+    protected override void OnInitialized()
+    {
+        L.OnLanguageChanged += OnLangChanged;
+    }
+
+    private void ToggleLang()
+    {
+        L.ToggleLanguage();
+    }
+
+    private void OnLangChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        L.OnLanguageChanged -= OnLangChanged;
+    }
+}

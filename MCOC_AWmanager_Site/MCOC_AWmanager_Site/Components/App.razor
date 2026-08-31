@@ -1,0 +1,26 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MCOC AW Manager</title>
+    <meta name="description" content="MCOC AW Manager - полный контроль над вашим альянсом в Marvel Contest of Champions" />
+    <base href="/" />
+    <link rel="stylesheet" href="app.css" />
+    <link rel="stylesheet" href="MCOC_AWmanager_Site.styles.css" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <HeadOutlet />
+</head>
+
+<body>
+    <Routes />
+    <script src="_framework/blazor.web.js"></script>
+    <script>
+        window.toggleFaq = (element) => {
+            element.closest('.faq-item').classList.toggle('open');
+        };
+    </script>
+</body>
+
+</html>

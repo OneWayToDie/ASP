@@ -1,0 +1,12 @@
+﻿.factorial
+{
+	display:flex;
+}
+	.factorial input
+	{
+		width:128px;
+	}
+	.factorial h3
+	{
+		margin: 0px 16px;
+	}

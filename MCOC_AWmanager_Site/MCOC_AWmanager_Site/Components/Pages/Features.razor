@@ -1,0 +1,411 @@
+@page "/features"
+@inject Services.LocalizationService L
+@implements IDisposable
+
+<PageTitle>@L.FeaturesTitle - MCOC AW Manager</PageTitle>
+
+<section class="section">
+    <h1 class="section-title">@L.FeaturesTitle</h1>
+    <p class="section-subtitle">@L.FeaturesSubtitle</p>
+
+    <div class="features-list">
+
+        <div class="feature-row">
+            <div class="feature-info">
+                <div class="feature-icon">&#9876;</div>
+                <h2>Военная карта (AW Map)</h2>
+                <p class="text-secondary">
+                    Интерактивная карта на 50 узлов с тремя боевыми группами. Визуальное представление
+                    маршрутов, расстановка чемпионов на узлы, статусы узлов (свободен/занят/побеждён).
+                </p>
+                <ul class="feature-details">
+                    <li>Авто-расстановка по алгоритму оптимизации</li>
+                    <li>Советы по защите на основе тегов чемпионов</li>
+                    <li>Поддержка сезонных бустов</li>
+                    <li>Узлы 37-50: распределение мини-боссов и босса</li>
+                </ul>
+            </div>
+            <div class="feature-visual">
+                <div class="mock-map">
+                    <div class="mock-node start">&#9654;</div>
+                    <div class="mock-connector"></div>
+                    <div class="mock-node defender">&#9876;</div>
+                    <div class="mock-connector"></div>
+                    <div class="mock-node miniboss">&#9733;</div>
+                    <div class="mock-connector"></div>
+                    <div class="mock-node boss">&#9812;</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="feature-row reverse">
+            <div class="feature-info">
+                <div class="feature-icon">&#128172;</div>
+                <h2>Чат альянса</h2>
+                <p class="text-secondary">
+                    Мгновенный обмен сообщениями в реальном времени через WebSocket.
+                    Файловые вложения, уведомления о новых сообщениях, журнал активности.
+                </p>
+                <ul class="feature-details">
+                    <li>Реалтайм доставка сообщений</li>
+                    <li>Прикрепление файлов и изображений</li>
+                    <li>Отдельные каналы для смертей и распределения</li>
+                    <li>Отслеживание прочитанных сообщений</li>
+                </ul>
+            </div>
+            <div class="feature-visual">
+                <div class="mock-chat">
+                    <div class="mock-message">
+                        <span class="mock-avatar">&#128100;</span>
+                        <div class="mock-bubble">Расставляйте чемпионов на карту!</div>
+                    </div>
+                    <div class="mock-message self">
+                        <div class="mock-bubble accent">Готово, все узлы заняты</div>
+                        <span class="mock-avatar">&#128100;</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="feature-row">
+            <div class="feature-info">
+                <div class="feature-icon">&#128214;</div>
+                <h2>Энциклопедия чемпионов</h2>
+                <p class="text-secondary">
+                    Полная база данных 200+ чемпионов с описаниями на русском языке.
+                    Способности, иммунитеты, специальные атаки, сигнатура.
+                </p>
+                <ul class="feature-details">
+                    <li>6 классов: Космос, Наука, Мистика, Способности, Технологии, Братство</li>
+                    <li>80+ механических тегов для советов по защите</li>
+                    <li>Оценка чемпионов по узлам карты</li>
+                    <li>White/Black List для стратегий</li>
+                </ul>
+            </div>
+            <div class="feature-visual">
+                <div class="mock-classes">
+                    <div class="class-badge cosmic">&#10030; Космос</div>
+                    <div class="class-badge science">&#9883; Наука</div>
+                    <div class="class-badge mystic">&#9733; Мистика</div>
+                    <div class="class-badge skill">&#9876; Способности</div>
+                    <div class="class-badge tech">&#9881; Технологии</div>
+                    <div class="class-badge mutant">&#9764; Братство</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="feature-row reverse">
+            <div class="feature-info">
+                <div class="feature-icon">&#128200;</div>
+                <h2>Статистика и рейтинг</h2>
+                <p class="text-secondary">
+                    Отслеживание боевой статистики каждого участника.
+                    Настраиваемая формула утилитарного рейтинга.
+                </p>
+                <ul class="feature-details">
+                    <li>Убийства, смерти, предупреждения</li>
+                    <li>Формула: kills / deaths * (1 + 0.5 * (3 - warnings))</li>
+                    <li>Распределение по боевым группам</li>
+                    <li>История участия в войнах</li>
+                </ul>
+            </div>
+            <div class="feature-visual">
+                <div class="mock-stats">
+                    <div class="mock-stat-row">
+                        <span>Убийства</span>
+                        <div class="mock-bar"><div class="mock-bar-fill" style="width: 85%"></div></div>
+                        <span class="text-accent">127</span>
+                    </div>
+                    <div class="mock-stat-row">
+                        <span>Смерти</span>
+                        <div class="mock-bar"><div class="mock-bar-fill red" style="width: 30%"></div></div>
+                        <span>12</span>
+                    </div>
+                    <div class="mock-stat-row">
+                        <span>Рейтинг</span>
+                        <div class="mock-bar"><div class="mock-bar-fill green" style="width: 92%"></div></div>
+                        <span class="text-accent">9.2</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="feature-row">
+            <div class="feature-info">
+                <div class="feature-icon">&#128227;</div>
+                <h2>Новости MCOC</h2>
+                <p class="text-secondary">
+                    Автоматический сбор новостей из нескольких источников.
+                    Ежедневное обновление, кэширование, удобный просмотр.
+                </p>
+                <ul class="feature-details">
+                    <li>WordPress REST API</li>
+                    <li>RSS-ленты</li>
+                    <li>HTML-парсинг как запасной вариант</li>
+                    <li>24-часовой локальный кэш</li>
+                </ul>
+            </div>
+            <div class="feature-visual">
+                <div class="mock-news">
+                    <div class="mock-news-item">
+                        <div class="mock-news-dot"></div>
+                        <div>
+                            <div class="mock-news-title">Новый чемпион добавлен!</div>
+                            <div class="mock-news-date">Сегодня</div>
+                        </div>
+                    </div>
+                    <div class="mock-news-item">
+                        <div class="mock-news-dot"></div>
+                        <div>
+                            <div class="mock-news-title">Сезонная акция в игре</div>
+                            <div class="mock-news-date">Вчера</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<style>
+    .features-list {
+        display: flex;
+        flex-direction: column;
+        gap: 60px;
+    }
+
+    .feature-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 50px;
+        align-items: center;
+    }
+
+    .feature-row.reverse {
+        direction: rtl;
+    }
+
+    .feature-row.reverse > * {
+        direction: ltr;
+    }
+
+    .feature-info h2 {
+        font-size: 1.8rem;
+        margin-bottom: 12px;
+    }
+
+    .feature-details {
+        list-style: none;
+        margin-top: 16px;
+    }
+
+    .feature-details li {
+        padding: 6px 0;
+        color: var(--text-secondary);
+        font-size: 0.95rem;
+    }
+
+    .feature-details li::before {
+        content: '✓ ';
+        color: var(--accent);
+        font-weight: 700;
+        margin-right: 6px;
+    }
+
+    /* Mock visuals */
+    .feature-visual {
+        background: var(--bg-card);
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px;
+        padding: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 200px;
+    }
+
+    .mock-map {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .mock-node {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        border: 2px solid var(--border-color);
+        background: rgba(230, 36, 39, 0.1);
+    }
+
+    .mock-node.start { border-color: #4caf50; background: rgba(76, 175, 80, 0.15); }
+    .mock-node.boss { border-color: #ff9800; background: rgba(255, 152, 0, 0.15); font-size: 1.4rem; }
+    .mock-node.miniboss { border-color: #e62427; background: rgba(230, 36, 39, 0.2); }
+
+    .mock-connector {
+        width: 30px;
+        height: 2px;
+        background: var(--border-color);
+    }
+
+    .mock-chat {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        width: 100%;
+    }
+
+    .mock-message {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .mock-message.self {
+        justify-content: flex-end;
+    }
+
+    .mock-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.08);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+    }
+
+    .mock-bubble {
+        padding: 10px 16px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.06);
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+    }
+
+    .mock-bubble.accent {
+        background: rgba(230, 36, 39, 0.2);
+        color: var(--text-primary);
+    }
+
+    .mock-classes {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+
+    .class-badge {
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-align: center;
+        border: 1px solid var(--border-subtle);
+    }
+
+    .class-badge.cosmic { background: rgba(156, 39, 176, 0.15); border-color: rgba(156, 39, 176, 0.3); }
+    .class-badge.science { background: rgba(33, 150, 243, 0.15); border-color: rgba(33, 150, 243, 0.3); }
+    .class-badge.mystic { background: rgba(156, 39, 176, 0.15); border-color: rgba(156, 39, 176, 0.3); }
+    .class-badge.skill { background: rgba(230, 36, 39, 0.15); border-color: rgba(230, 36, 39, 0.3); }
+    .class-badge.tech { background: rgba(0, 188, 212, 0.15); border-color: rgba(0, 188, 212, 0.3); }
+    .class-badge.mutant { background: rgba(255, 152, 0, 0.15); border-color: rgba(255, 152, 0, 0.3); }
+
+    .mock-stats {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        width: 100%;
+    }
+
+    .mock-stat-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+    }
+
+    .mock-stat-row span:first-child {
+        min-width: 80px;
+    }
+
+    .mock-bar {
+        flex: 1;
+        height: 8px;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .mock-bar-fill {
+        height: 100%;
+        background: var(--accent);
+        border-radius: 4px;
+        transition: width 0.5s ease;
+    }
+
+    .mock-bar-fill.red { background: #ff5252; }
+    .mock-bar-fill.green { background: #4caf50; }
+
+    .mock-news {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        width: 100%;
+    }
+
+    .mock-news-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 8px;
+    }
+
+    .mock-news-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--accent);
+        margin-top: 6px;
+        flex-shrink: 0;
+    }
+
+    .mock-news-title {
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+
+    .mock-news-date {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        margin-top: 2px;
+    }
+
+    @@media (max-width: 768px) {
+        .feature-row {
+            grid-template-columns: 1fr;
+        }
+
+        .feature-row.reverse {
+            direction: ltr;
+        }
+    }
+</style>
+
+@code {
+    protected override void OnInitialized()
+    {
+        L.OnLanguageChanged += OnLangChanged;
+    }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => L.OnLanguageChanged -= OnLangChanged;
+}
