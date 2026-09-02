@@ -1,10 +1,14 @@
 using TODOList.Components;
+using TODOList.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
 	.AddInteractiveServerComponents();
+
+builder.Services.AddSingleton<DataService>();
+builder.Services.AddSingleton<NotificationService>();
 
 var app = builder.Build();
 

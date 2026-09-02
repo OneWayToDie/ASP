@@ -1,0 +1,149 @@
+@page "/reminders"
+@inject TODOList.Services.DataService Data
+@inject TODOList.Services.NotificationService Notify
+@inject IJSRuntime JS
+
+<PageTitle>NIGHTFALL — Напоминания</PageTitle>
+
+<div class="fade-in">
+    <div class="flex-between">
+        <h1 class="page-title">Напоминания</h1>
+        <button class="btn-theme btn-primary" @onclick="RequestPermission">
+            <i class="bi bi-bell"></i> Вкл. уведомления
+        </button>
+    </div>
+
+    <div class="card-theme" style="margin-bottom:1.5rem;">
+        <div class="form-row">
+            <input class="input-theme" placeholder="Название" @bind="newTitle" style="grid-column: span 2;" />
+        </div>
+        <div class="form-row">
+            <input class="input-theme" placeholder="Сообщение (необязательно)" @bind="newMessage" />
+            <input class="input-theme" type="datetime-local" @bind="newTriggerAt" />
+        </div>        <div class="flex-between">
+            <select class="select-theme" style="flex:1;" @bind="newLinkedTaskId">
+                <option value="">Без привязки к задаче</option>
+                @foreach (var task in Data.Tasks)
+                {
+                    <option value="@task.Id">@task.Title</option>
+                }
+            </select>
+            <button class="btn-theme btn-primary" @onclick="AddReminder">
+                <i class="bi bi-plus-lg"></i> Добавить
+            </button>
+        </div>
+    </div>
+
+    @if (Data.Reminders.Any())
+    {
+        <div style="display:flex; flex-direction:column; gap:0.9rem;">
+            @foreach (var r in Data.Reminders.OrderBy(x => x.TriggerAt))
+            {
+                var id = r.Id;
+                var isOverdue = !r.IsFired && r.TriggerAt < DateTime.Now;
+                <div class="card-theme reminder-item">
+                    <div class="flex-between">
+                        <span style="font-weight:600; color:var(--text-heading);">
+                            <i class="bi bi-bell-fill" style="margin-right:0.4rem; color:@(isOverdue ? "var(--danger)" : "var(--accent)");"></i>
+                            @r.Title
+                        </span>
+                        <button class="icon-btn danger" @onclick="() => Delete(id)"><i class="bi bi-trash"></i></button>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(r.Message))
+                    {
+                        <div class="muted" style="margin-top:0.3rem;">@r.Message</div>
+                    }
+
+                    @if (r.LinkedTaskId.HasValue)
+                    {
+                        var linked = Data.Tasks.FirstOrDefault(t => t.Id == r.LinkedTaskId.Value);
+                        @if (linked != null)
+                        {
+                            <div style="margin-top:0.3rem;">
+                                <i class="bi bi-link-45deg muted"></i>
+                                <span class="chip" style="margin-left:0.3rem;">@linked.Title</span>
+                            </div>
+                        }
+                    }
+
+                    <div class="flex-between" style="margin-top:0.8rem;">
+                        <span class="reminder-fire"><i class="bi bi-alarm"></i> @r.TriggerAt.ToString("dd MMM yyyy HH:mm")</span>
+                        @if (r.IsFired)
+                        {
+                            <span class="chip chip-fired">сработало</span>
+                        }
+                        else if (isOverdue)
+                        {
+                            <span class="chip chip-pending">overdue</span>
+                        }
+                        else
+                        {
+                            <span class="chip chip-pending">ждёт</span>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="empty-state">
+            <i class="bi bi-bell"></i>
+            <div>Напоминаний пока нет.</div>
+        </div>
+    }
+</div>
+
+@code {
+    private string newTitle = "";
+    private string newMessage = "";
+    private DateTime? newTriggerAt;
+    private Guid? newLinkedTaskId;
+
+    protected override void OnInitialized()
+    {
+        Data.OnChange += StateHasChanged;
+    }
+
+    private async Task RequestPermission()
+    {
+        await JS.InvokeVoidAsync("nightfallNotify.requestPermission");
+        Notify.Push("Уведомления", "Разрешение запрошено. Проверь настройки браузера.");
+    }
+
+    private void AddReminder()
+    {
+        if (string.IsNullOrWhiteSpace(newTitle)) return;
+
+        if (!newTriggerAt.HasValue)
+        {
+            Notify.Push("Ошибка", "Укажи корректные дату и время.", true);
+            return;
+        }
+
+        Data.AddReminder(new TODOList.Models.Reminder
+        {
+            Title = newTitle.Trim(),
+            Message = string.IsNullOrWhiteSpace(newMessage) ? null : newMessage.Trim(),
+            TriggerAt = newTriggerAt.Value,
+            LinkedTaskId = newLinkedTaskId
+        });
+
+        Notify.Push("Напоминание создано", newTitle.Trim());
+        newTitle = "";
+        newMessage = "";
+        newTriggerAt = null;
+        newLinkedTaskId = null;
+    }
+
+    private void Delete(Guid id)
+    {
+        Data.RemoveReminder(id);
+    }
+
+    public void Dispose()
+    {
+        Data.OnChange -= StateHasChanged;
+    }
+}

@@ -1,0 +1,128 @@
+@page "/timer"
+@inject TODOList.Services.DataService Data
+@inject TODOList.Services.NotificationService Notify
+@inject IJSRuntime JS
+
+<PageTitle>NIGHTFALL — Таймер</PageTitle>
+
+<div class="fade-in" style="text-align:center;">
+    <h1 class="page-title">Таймер</h1>
+
+    <div style="display:flex; justify-content:center; margin-bottom:2rem;">
+        <button class="btn-theme btn-primary @(Data.Timer.Type == TODOList.Models.TimerType.Pomodoro ? "" : "")"
+                style="@(Data.Timer.Type == TODOList.Models.TimerType.Pomodoro ? "background:var(--accent); color:#000; border-color:var(--accent);" : "")"
+                @onclick="() => SelectType(TODOList.Models.TimerType.Pomodoro)">
+            <i class="bi bi-fire"></i> Помодоро
+        </button>
+        <button class="btn-theme" style="margin-left:0.5rem;
+                @(Data.Timer.Type == TODOList.Models.TimerType.Countdown ? "background:var(--accent); color:#000; border-color:var(--accent);" : "")"
+                @onclick="() => SelectType(TODOList.Models.TimerType.Countdown)">
+            <i class="bi bi-stopwatch"></i> Отсчёт
+        </button>
+    </div>
+
+    @if (Data.Timer.Type == TODOList.Models.TimerType.Pomodoro)
+    {
+        <div style="margin-bottom:1.5rem;">
+            <span class="chip @(Data.Timer.IsBreak ? "chip-pending" : "chip-fired")"
+                  style="@(Data.Timer.IsBreak ? "" : "color:var(--text-heading);")">
+                @(Data.Timer.IsBreak ? "Перерыв 5 мин" : "Фокус 25 мин")
+            </span>
+        </div>
+    }
+    else
+    {
+        <div style="margin-bottom:1.5rem;">
+            <div class="flex" style="justify-content:center;">
+                <input class="input-theme" type="number" min="1" max="120" style="width:90px;"
+                       value="@countdownMinutes" @onchange="e => { if (int.TryParse(e.Value?.ToString(), out var m) && m > 0) { countdownMinutes = m; if (!Data.Timer.IsRunning) Data.StartTimer(m * 60, TODOList.Models.TimerType.Countdown); } }" />
+                <span class="muted">минут</span>
+            </div>
+        </div>
+    }
+
+    <TimerDisplay Session="Data.Timer" TypeLabel="@(Data.Timer.IsBreak ? "Перерыв" : "Фокус")" />
+
+    <div class="flex" style="justify-content:center; margin-top:2rem;">
+        @if (Data.Timer.IsRunning)
+        {
+            <button class="btn-theme" @onclick="Pause">
+                <i class="bi bi-pause-fill"></i> Пауза
+            </button>
+        }
+        else
+        {
+            <button class="btn-theme btn-primary" @onclick="Start">
+                <i class="bi bi-play-fill"></i> Старт
+            </button>
+        }
+        <button class="btn-theme" @onclick="Reset">
+            <i class="bi bi-arrow-counterclockwise"></i> Сброс
+        </button>
+    </div>
+</div>
+
+@code {
+    private int countdownMinutes = 25;
+    private int _lastSeconds = -1;
+
+    protected override void OnInitialized()
+    {
+        Data.OnChange += StateHasChanged;
+        Data.OnTimerTick += OnTick;
+    }
+
+    private void OnTick()
+    {
+        if (Data.Timer.RemainingSeconds != _lastSeconds)
+        {
+            _lastSeconds = Data.Timer.RemainingSeconds;
+            StateHasChanged();
+            if (Data.Timer.RemainingSeconds >= 0 && Data.Timer.RemainingSeconds < 60 && Data.Timer.IsRunning)
+            {
+                _ = JS.InvokeVoidAsync("nightfallPlayBeep");
+            }
+        }
+    }
+
+    private void SelectType(TODOList.Models.TimerType type)
+    {
+        if (Data.Timer.Type != type)
+        {
+            Data.StartTimer(type == TODOList.Models.TimerType.Pomodoro ? 25 * 60 : countdownMinutes * 60, type);
+        }
+    }
+
+    private void Start()
+    {
+        if (Data.Timer.RemainingSeconds <= 0)
+        {
+            var secs = Data.Timer.Type == TODOList.Models.TimerType.Pomodoro ? 25 * 60 : countdownMinutes * 60;
+            Data.StartTimer(secs, Data.Timer.Type);
+        }
+        else
+        {
+            Data.NotifyChange();
+            // resume from paused
+            Data.Timer.IsRunning = true;
+            Data.NotifyChange();
+        }
+    }
+
+    private void Pause()
+    {
+        Data.StopTimer();
+    }
+
+    private void Reset()
+    {
+        Data.ResetTimer();
+        _lastSeconds = -1;
+    }
+
+    public void Dispose()
+    {
+        Data.OnChange -= StateHasChanged;
+        Data.OnTimerTick -= OnTick;
+    }
+}
