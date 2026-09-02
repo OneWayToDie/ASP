@@ -1,0 +1,190 @@
+@page "/tasks"
+@inject TODOList.Services.DataService Data
+@inject TODOList.Services.NotificationService Notify
+
+<PageTitle>NIGHTFALL — Задачи</PageTitle>
+
+<div class="fade-in">
+    <div class="flex-between">
+        <h1 class="page-title">Задачи</h1>
+        <span class="muted mono">@Data.Tasks.Count(t => !t.IsCompleted) / @Data.Tasks.Count()</span>
+    </div>
+
+    <div class="card-theme" style="margin-bottom:1.5rem;">
+        <div class="form-row">
+            <input class="input-theme" placeholder="Название задачи"
+                   style="grid-column: span 2;" @bind="newTitle" @onkeydown="OnTitleEnter" />
+        </div>
+        <div class="form-row">
+            <input class="input-theme" placeholder="Описание (необязательно)" @bind="newDescription" />
+            <input class="input-theme" type="datetime-local" @bind="newDueDate" />
+        </div>
+        <div class="form-row">
+            <select class="select-theme" @bind="newPriority">
+                <option value="@TODOList.Models.Priority.Low">Низкий</option>
+                <option value="@TODOList.Models.Priority.Medium">Средний</option>
+                <option value="@TODOList.Models.Priority.High">Высокий</option>
+            </select>
+            <input class="input-theme" placeholder="Категория" @bind="newCategory" />
+            <button class="btn-theme btn-primary" @onclick="AddTask">
+                <i class="bi bi-plus-lg"></i> Добавить
+            </button>
+        </div>
+    </div>
+
+    <div class="tab-bar">
+        <button class="tab-btn @(filter == "all" ? "active" : "")" @onclick="FilterAll">Все (@Data.Tasks.Count())</button>
+        <button class="tab-btn @(filter == "active" ? "active" : "")" @onclick="FilterActive">Активные (@Data.Tasks.Count(t => !t.IsCompleted))</button>
+        <button class="tab-btn @(filter == "done" ? "active" : "")" @onclick="FilterDone">Выполненные (@Data.Tasks.Count(t => t.IsCompleted))</button>
+    </div>
+
+    @if (visibleTasks.Any())
+    {
+        <div style="display:flex; flex-direction:column; gap:0.9rem;">
+            @foreach (var task in visibleTasks)
+            {
+                @if (editingId == task.Id)
+                {
+                    <div class="card-theme">
+                        <div class="form-row">
+                            <input class="input-theme" @bind="editTitle" placeholder="Название" />
+                            <input class="input-theme" @bind="editDescription" placeholder="Описание" />
+                        </div>
+                        <div class="form-row">
+                            <select class="select-theme" @bind="editPriority">
+                                <option value="@TODOList.Models.Priority.Low">Низкий</option>
+                                <option value="@TODOList.Models.Priority.Medium">Средний</option>
+                                <option value="@TODOList.Models.Priority.High">Высокий</option>
+                            </select>
+                            <input class="input-theme" type="datetime-local" value="@editDueDate" @onchange="e => editDueDate = e.Value?.ToString()" />
+                            <input class="input-theme" @bind="editCategory" placeholder="Категория" />
+                        </div>
+                        <div class="flex">
+                            <button class="btn-theme btn-primary" @onclick="() => SaveEdit(task.Id)">Сохранить</button>
+                            <button class="btn-theme" @onclick="() => CancelEdit()">Отмена</button>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <TaskCard Task="task"
+                              OnToggle="() => ToggleTask(task.Id)"
+                              OnEdit="() => StartEdit(task)"
+                              OnDelete="() => DeleteTask(task.Id)" />
+                }
+            }
+        </div>
+    }
+    else
+    {
+        <div class="empty-state">
+            <i class="bi bi-inbox"></i>
+            <div>Здесь пусто. Тишина и сталь.</div>
+        </div>
+    }
+</div>
+
+@code {
+    private string filter = "all";
+
+    private string newTitle = "";
+    private string newDescription = "";
+    private DateTime? newDueDate;
+    private TODOList.Models.Priority newPriority = TODOList.Models.Priority.Medium;
+    private string newCategory = "";
+
+    private Guid? editingId;
+    private string editTitle = "";
+    private string editDescription = "";
+    private TODOList.Models.Priority editPriority;
+    private string? editDueDate;
+    private string editCategory = "";
+
+    private List<TODOList.Models.TodoItem> visibleTasks => filter switch
+    {
+        "active" => Data.Tasks.Where(t => !t.IsCompleted).ToList(),
+        "done" => Data.Tasks.Where(t => t.IsCompleted).ToList(),
+        _ => Data.Tasks.ToList()
+    };
+
+    protected override void OnInitialized()
+    {
+        Data.OnChange += StateHasChanged;
+    }
+
+    private void OnTitleEnter(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") AddTask();
+    }
+
+    private void AddTask()
+    {
+        if (string.IsNullOrWhiteSpace(newTitle)) return;
+
+        Data.AddTask(new TODOList.Models.TodoItem
+        {
+            Title = newTitle.Trim(),
+            Description = string.IsNullOrWhiteSpace(newDescription) ? null : newDescription.Trim(),
+            DueDate = newDueDate,
+            Priority = newPriority,
+            Category = string.IsNullOrWhiteSpace(newCategory) ? null : newCategory.Trim()
+        });
+
+        Notify.Push("Задача добавлена", newTitle.Trim());
+        newTitle = "";
+        newDescription = "";
+        newDueDate = null;
+        newCategory = "";
+    }
+
+    private void FilterAll() => filter = "all";
+    private void FilterActive() => filter = "active";
+    private void FilterDone() => filter = "done";
+
+    private void ToggleTask(Guid id)
+    {
+        Data.ToggleTask(id);
+    }
+
+    private void DeleteTask(Guid id)
+    {
+        Data.RemoveTask(id);
+        Notify.Push("Задача удалена", "Уже не тащить этот груз.", true);
+    }
+
+    private void StartEdit(TODOList.Models.TodoItem task)
+    {
+        editingId = task.Id;
+        editTitle = task.Title;
+        editDescription = task.Description ?? "";
+        editPriority = task.Priority;
+        editDueDate = task.DueDate?.ToString("yyyy-MM-ddTHH:mm");
+        editCategory = task.Category ?? "";
+    }
+
+    private void SaveEdit(Guid id)
+    {
+        var task = Data.Tasks.FirstOrDefault(t => t.Id == id);
+        if (task == null) return;
+
+        task.Title = string.IsNullOrWhiteSpace(editTitle) ? task.Title : editTitle.Trim();
+        task.Description = string.IsNullOrWhiteSpace(editDescription) ? null : editDescription.Trim();
+        task.Priority = editPriority;
+        task.Category = string.IsNullOrWhiteSpace(editCategory) ? null : editCategory.Trim();
+
+        if (DateTime.TryParse(editDueDate, out var due))
+            task.DueDate = due;
+        else
+            task.DueDate = null;
+
+        Data.UpdateTask(task);
+        editingId = null;
+    }
+
+    private void CancelEdit() => editingId = null;
+
+    public void Dispose()
+    {
+        Data.OnChange -= StateHasChanged;
+    }
+}

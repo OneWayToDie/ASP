@@ -1,0 +1,145 @@
+@page "/"
+@inject TODOList.Services.DataService Data
+@inject TODOList.Services.NotificationService Notify
+
+<PageTitle>NIGHTFALL — Дашборд</PageTitle>
+
+<div class="fade-in">
+    <h1 class="page-title">Дашборд</h1>
+
+    <p class="muted" style="margin-bottom:2rem;">@Greeting() Ты на контроль всё дёржишь.</p>
+
+    <div class="stat-grid stagger">
+        <div class="card-theme stat-card">
+            <div class="stat-number">@Data.Tasks.Count(t => !t.IsCompleted)</div>
+            <div class="stat-label">Активных задач</div>
+        </div>
+        <div class="card-theme stat-card">
+            <div class="stat-number">@Data.Tasks.Count(t => t.IsCompleted)</div>
+            <div class="stat-label">Завершено</div>
+        </div>
+        <div class="card-theme stat-card">
+            <div class="stat-number">@Data.Reminders.Count(r => !r.IsFired)</div>
+            <div class="stat-label">Ожидают</div>
+        </div>
+        <div class="card-theme stat-card">
+            <div class="stat-number mono">@Data.Timer.FormattedTime</div>
+            <div class="stat-label">Таймер</div>
+        </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem;">
+        <div class="fade-in">
+            <div class="flex-between" style="margin-bottom:1rem;">
+                <h3 style="margin:0; font-size:1.1rem;">Ближайшие задачи</h3>
+                <a href="tasks" class="btn-theme btn-primary">Все →</a>
+            </div>
+
+            @if (upcoming.Any())
+            {
+                <div style="display:flex; flex-direction:column; gap:0.8rem;">
+                    @foreach (var task in upcoming)
+                    {
+                        <div class="card-theme task-item @(task.IsCompleted ? "task-completed" : "") @($"prio-{task.Priority.ToString().ToLower()}")">
+                            <input type="checkbox" class="task-check" checked="@task.IsCompleted"
+                                   @onchange="() => Data.ToggleTask(task.Id)" />
+                            <div>
+                                <div class="task-title">@task.Title</div>
+                                <div class="task-meta">
+                                    @if (task.DueDate.HasValue)
+                                    {
+                                        <span><i class="bi bi-calendar3"></i>@task.DueDate.Value.ToString("dd MMM HH:mm")</span>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="empty-state">
+                    <i class="bi bi-check2-circle"></i>
+                    <div>Задач нет. Всё сделано.</div>
+                </div>
+            }
+        </div>
+
+        <div class="fade-in">
+            <div class="flex-between" style="margin-bottom:1rem;">
+                <h3 style="margin:0; font-size:1.1rem;">Напоминания</h3>
+                <a href="reminders" class="btn-theme btn-primary">Все →</a>
+            </div>
+
+            @if (pendingReminders.Any())
+            {
+                <div style="display:flex; flex-direction:column; gap:0.8rem;">
+                    @foreach (var r in pendingReminders)
+                    {
+                        <div class="card-theme reminder-item">
+                            <div class="flex-between">
+                                <span style="font-weight:600; color:var(--text-heading);">@r.Title</span>
+                                <span class="chip chip-pending">ждёт</span>
+                            </div>
+                            <div class="reminder-fire" style="margin-top:0.4rem;">
+                                <i class="bi bi-alarm"></i> @r.TriggerAt.ToString("dd MMM yyyy HH:mm")
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="empty-state">
+                    <i class="bi bi-bell-slash"></i>
+                    <div>Напоминаний нет.</div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<TODOList.Models.TodoItem> upcoming = new();
+    private List<TODOList.Models.Reminder> pendingReminders = new();
+
+    protected override void OnInitialized()
+    {
+        Data.OnChange += StateHasChanged;
+        Refresh();
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        Refresh();
+    }
+
+    private void Refresh()
+    {
+        upcoming = Data.Tasks
+            .Where(t => !t.IsCompleted)
+            .OrderBy(t => t.DueDate ?? DateTime.MaxValue)
+            .Take(5)
+            .ToList();
+
+        pendingReminders = Data.Reminders
+            .Where(r => !r.IsFired)
+            .OrderBy(r => r.TriggerAt)
+            .Take(5)
+            .ToList();
+    }
+
+    private string Greeting()
+    {
+        var hour = DateTime.Now.Hour;
+        if (hour < 5) return "Ночь. Никто не смотрит.";
+        if (hour < 12) return "Утро. Холод и сталь.";
+        if (hour < 18) return "День. Держи темп.";
+        return "Вечер. Почти у финиша.";
+    }
+
+    public void Dispose()
+    {
+        Data.OnChange -= StateHasChanged;
+    }
+}

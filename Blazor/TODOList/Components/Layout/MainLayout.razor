@@ -1,23 +1,45 @@
 ﻿@inherits LayoutComponentBase
+@inject TODOList.Services.DataService Data
+@inject TODOList.Services.NotificationService Notify
+@inject IJSRuntime JS
 
-<div class="page">
+<div class="app-shell">
     <div class="sidebar">
         <NavMenu />
     </div>
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
-
-        <article class="content px-4">
+    <main class="app-main">
+        <article class="app-content">
             @Body
         </article>
     </main>
 </div>
+
+<NotificationsToast />
 
 <div id="blazor-error-ui">
     An unhandled error has occurred.
     <a href="" class="reload">Reload</a>
     <a class="dismiss">🗙</a>
 </div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Data.OnReminderDue += OnReminderDue;
+        Data.OnChange += StateHasChanged;
+    }
+
+    private void OnReminderDue(TODOList.Models.Reminder reminder)
+    {
+        Notify.Push(reminder.Title, reminder.Message ?? string.Empty);
+        _ = JS.InvokeVoidAsync("nightfallPlayBeep");
+        _ = JS.InvokeVoidAsync("nightfallNotify.show", reminder.Title, reminder.Message ?? string.Empty);
+    }
+
+    public void Dispose()
+    {
+        Data.OnReminderDue -= OnReminderDue;
+        Data.OnChange -= StateHasChanged;
+    }
+}

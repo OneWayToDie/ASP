@@ -1,0 +1,28 @@
+@using TODOList.Models
+
+<div class="timer-phase-label @(Session.IsBreak ? "muted" : "")">
+    @(Session.IsBreak ? "Перерыв" : TypeLabel)
+</div>
+
+<div class="timer-circle-wrap @(Session.IsRunning ? "timer-running" : "") @(Session.IsBreak ? "timer-break" : "")">
+    <svg class="timer-svg" width="300" height="300" viewBox="0 0 300 300">
+        <circle class="timer-ring-bg" cx="150" cy="150" r="135" fill="none" stroke-width="6" />
+        <circle class="timer-ring-fg"
+                cx="150" cy="150" r="135" fill="none" stroke-width="6"
+                stroke-linecap="round"
+                stroke-dasharray="@Circumference"
+                stroke-dashoffset="@DashOffset" />
+    </svg>
+    <div class="timer-time">
+        <span style="font-size:3.4rem;">@Session.FormattedTime</span>
+    </div>
+</div>
+
+@code {
+    [Parameter] public TimerSession Session { get; set; } = new();
+    [Parameter] public string TypeLabel { get; set; } = "Помодоро";
+
+    private const double Radius = 135;
+    private double Circumference => 2 * Math.PI * Radius;
+    private double DashOffset => Circumference * (1 - Session.Progress);
+}

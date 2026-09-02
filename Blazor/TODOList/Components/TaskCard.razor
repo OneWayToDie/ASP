@@ -1,0 +1,44 @@
+@using TODOList.Models
+
+<div class="card-theme task-item @(Task.IsCompleted ? "task-completed" : "") @($"prio-{Task.Priority.ToString().ToLower()}")">
+    <input type="checkbox" class="task-check" checked="@Task.IsCompleted" @onchange="Toggle" />
+
+    <div style="flex:1; min-width:0;">
+        <div class="task-title">@Task.Title</div>
+
+        @if (!string.IsNullOrEmpty(Task.Description))
+        {
+            <div class="muted" style="font-size:0.85rem; margin-top:0.25rem;">@Task.Description</div>
+        }
+
+        <div class="task-meta">
+            @if (Task.DueDate.HasValue)
+            {
+                <span><i class="bi bi-calendar3"></i>@Task.DueDate.Value.ToString("dd MMM yyyy HH:mm")</span>
+                <span style="margin-left:1rem;"><i class="bi bi-clock"></i>@(Task.DueDate.Value - DateTime.Now) осталось</span>
+            }
+            @if (!string.IsNullOrEmpty(Task.Category))
+            {
+                <span style="margin-left:1rem;"><i class="bi bi-tag"></i>@Task.Category</span>
+            }
+        </div>
+    </div>
+
+    <div class="task-actions">
+        <button class="icon-btn" title="Редактировать" @onclick="OnEdit"><i class="bi bi-pencil"></i></button>
+        <button class="icon-btn danger" title="Удалить" @onclick="OnDelete"><i class="bi bi-trash"></i></button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public TodoItem Task { get; set; } = new();
+    [Parameter] public EventCallback OnToggle { get; set; }
+    [Parameter] public EventCallback OnEdit { get; set; }
+    [Parameter] public EventCallback OnDelete { get; set; }
+
+    private void Toggle()
+    {
+        Task.IsCompleted = !Task.IsCompleted;
+        OnToggle.InvokeAsync(Task);
+    }
+}

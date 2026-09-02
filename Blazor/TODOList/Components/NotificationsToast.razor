@@ -1,0 +1,30 @@
+@inject TODOList.Services.NotificationService NotificationService
+
+<div class="toast-container">
+    @foreach (var toast in NotificationService.Toasts)
+    {
+        var id = toast.Id;
+        <div class="toast-card @(toast.IsError ? "is-error" : "")" @key="toast.Id">
+            <button class="toast-close" @onclick="() => Dismiss(id)">×</button>
+            <div class="toast-title">@toast.Title</div>
+            <div class="toast-msg">@toast.Message</div>
+        </div>
+    }
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        NotificationService.OnToastsChanged += StateHasChanged;
+    }
+
+    public void Dismiss(Guid id)
+    {
+        NotificationService.Dismiss(id);
+    }
+
+    public void Dispose()
+    {
+        NotificationService.OnToastsChanged -= StateHasChanged;
+    }
+}

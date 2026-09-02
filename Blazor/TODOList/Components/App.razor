@@ -5,7 +5,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
+    <base target="_blank" />
     <link rel="stylesheet" href="bootstrap/bootstrap.min.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
     <link rel="stylesheet" href="app.css" />
     <link rel="stylesheet" href="TODOList.styles.css" />
     <link rel="icon" type="image/png" href="favicon.png" />
@@ -15,6 +20,34 @@
 <body>
     <Routes />
     <script src="_framework/blazor.web.js"></script>
+    <script>
+        window.nightfallNotify = {
+            requestPermission: function () {
+                if (!('Notification' in window)) return Promise.resolve('unsupported');
+                return Notification.requestPermission();
+            },
+            show: function (title, message) {
+                if ('Notification' in window && Notification.permission === 'granted') {
+                    new Notification(title, { body: message });
+                }
+            }
+        };
+        window.nightfallPlayBeep = function () {
+            try {
+                var ctx = new (window.AudioContext || window.webkitAudioContext)();
+                var o = ctx.createOscillator();
+                var g = ctx.createGain();
+                o.connect(g);
+                g.connect(ctx.destination);
+                o.frequency.value = 880;
+                o.type = 'square';
+                g.gain.setValueAtTime(0.08, ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+                o.start();
+                o.stop(ctx.currentTime + 0.3);
+            } catch (e) {}
+        };
+    </script>
 </body>
 
 </html>
