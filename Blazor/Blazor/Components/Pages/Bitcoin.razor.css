@@ -1,2 +1,22 @@
-﻿body {
+﻿.bitcoin 
+{
+    max-width: 800px;
+    padding: 16px;
+    background-color: #fff9e6;
+    border: 1px solid #f0c040; 
+    border-radius: 4px;
+}
+
+.bitcoin h3 
+{
+    margin-top: 0;
+    color: #d4a017; 
+    
+}
+
+.bitcoin h4 
+{
+    line-height: 1.6;
+    font-weight: normal;
+    margin-bottom: 0;
 }

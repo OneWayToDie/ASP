@@ -1,2 +1,21 @@
-﻿body {
+﻿.litecoin 
+{
+    max-width: 800px;
+    padding: 16px;
+    background-color: #f5f5f5;
+    border: 1px solid #b0b0b0;
+    border-radius: 4px;
+}
+
+.litecoin h3 
+{
+    margin-top: 0;
+    color: #808080;
+}
+
+.litecoin h4 
+{
+    line-height: 1.6;
+    font-weight: normal;
+    margin-bottom: 0;
 }
