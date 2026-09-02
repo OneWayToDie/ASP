@@ -1,0 +1,36 @@
+﻿@page "/Tasklist"
+@rendermode InteractiveServer
+
+
+<h2>TaskList</h2>
+
+<input type="text" placeholder="Новая задача" @bind="description"/>
+<button @onclick="AddTask">Добавить</button>
+
+<ul>
+	@foreach (TODOList.Task task in list)
+	{		
+		<li>@task.Description</li>
+	}
+</ul>
+
+
+
+@code 
+{
+	List<TODOList.Task> list = new List<TODOList.Task>();
+
+	string description = ""; //RAII
+	void AddTask()
+	{
+		if (!string.IsNullOrEmpty(description) && !string.IsNullOrWhiteSpace(description))
+		{	
+			TODOList.Task task = new TODOList.Task { Description = description, DONE = false };
+			if (!list.Contains(task))
+			{
+				list.Add(task);
+				description = "";
+			}
+		}
+	}
+}
