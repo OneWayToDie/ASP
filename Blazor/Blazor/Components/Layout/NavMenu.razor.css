@@ -50,6 +50,15 @@
     background-image: url('/icons/756exclamationmark_100528.svg');
 }
 
+.bi-bitcoin
+{
+    background-image: url('/icons/bitcoin.svg');
+}
+.bi-litecoin
+{
+    background-image: url('/icons/litecoin.svg');
+}
+
 .nav-item {
     font-size: 0.9rem;
     padding-bottom: 0.5rem;
