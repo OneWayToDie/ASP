@@ -5,8 +5,10 @@
 
 .sidebar {
     width: 240px;
-    background: var(--bg-sidebar);
-    border-right: 1px solid var(--border);
+    background: rgba(14, 14, 14, 0.75);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
     position: sticky;
     top: 0;
     height: 100vh;
@@ -55,6 +57,7 @@
     position: fixed;
     width: 100%;
     z-index: 1000;
+    display: none;
 }
 
 #blazor-error-ui .dismiss {

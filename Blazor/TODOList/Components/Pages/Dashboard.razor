@@ -1,6 +1,8 @@
 @page "/"
+@implements IDisposable
 @inject TODOList.Services.DataService Data
 @inject TODOList.Services.NotificationService Notify
+@inject IJSRuntime JS
 
 <PageTitle>NIGHTFALL — Дашборд</PageTitle>
 
@@ -23,6 +25,14 @@
             <div class="stat-label">Ожидают</div>
         </div>
         <div class="card-theme stat-card">
+            <div class="stat-number">@Data.Logs.Count(l => l.Kind == TODOList.Models.LogKind.TaskDone && l.Timestamp.Date == DateTime.Today)</div>
+            <div class="stat-label">Сделано сегодня</div>
+        </div>
+        <div class="card-theme stat-card">
+            <div class="stat-number">@Data.Logs.Count(l => l.Kind == TODOList.Models.LogKind.Pomodoro)</div>
+            <div class="stat-label">Помодоро</div>
+        </div>
+        <div class="card-theme stat-card">
             <div class="stat-number mono">@Data.Timer.FormattedTime</div>
             <div class="stat-label">Таймер</div>
         </div>
@@ -40,9 +50,9 @@
                 <div style="display:flex; flex-direction:column; gap:0.8rem;">
                     @foreach (var task in upcoming)
                     {
-                        <div class="card-theme task-item @(task.IsCompleted ? "task-completed" : "") @($"prio-{task.Priority.ToString().ToLower()}")">
+                        <div id="dash-task-@task.Id" class="card-theme task-item @(task.IsCompleted ? "task-completed" : "") @($"prio-{task.Priority.ToString().ToLower()}")">
                             <input type="checkbox" class="task-check" checked="@task.IsCompleted"
-                                   @onchange="() => Data.ToggleTask(task.Id)" />
+                                   @onchange="() => ToggleTaskWithAnim(task.Id)" />
                             <div>
                                 <div class="task-title">@task.Title</div>
                                 <div class="task-meta">
@@ -105,8 +115,39 @@
 
     protected override void OnInitialized()
     {
-        Data.OnChange += StateHasChanged;
+        Data.OnChange += HandleChange;
         Refresh();
+    }
+
+    private void HandleChange() => InvokeAsync(StateHasChanged);
+
+    private Guid _pendingToggle;
+    private DotNetObjectReference<Dashboard>? _animRef;
+    private bool _animBusy;
+
+    private async Task ToggleTaskWithAnim(Guid id)
+    {
+        if (_animBusy) return;
+        _animBusy = true;
+        _pendingToggle = id;
+        try
+        {
+            _animRef ??= DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("nightfallTaskAnim.animateAndRemove", $"dash-task-{id}", _animRef, "OnAnimComplete");
+        }
+        catch
+        {
+            _animBusy = false;
+            Data.ToggleTask(id);
+        }
+    }
+
+    [Microsoft.JSInterop.JSInvokable]
+    public void OnAnimComplete()
+    {
+        var id = _pendingToggle;
+        _animBusy = false;
+        Data.ToggleTask(id);
     }
 
     protected override void OnAfterRender(bool firstRender)
@@ -140,6 +181,8 @@
 
     public void Dispose()
     {
-        Data.OnChange -= StateHasChanged;
+        Data.OnChange -= HandleChange;
+        _animRef?.Dispose();
+        _animRef = null;
     }
 }

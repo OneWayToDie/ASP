@@ -1,0 +1,275 @@
+@inject TODOList.Services.MusicService Music
+@inject TODOList.Services.DataService Data
+@inject IJSRuntime JS
+
+<div class="music-mini">
+    <audio id="nightfall-audio" style="display:none;"></audio>
+
+    @if (Music.Current != null)
+    {
+        <div class="mp-track">
+            <div class="mp-eq @(Music.IsPlaying ? "playing" : "")" title="@(Music.IsPlaying ? "сейчас играет" : "пауза")">
+                <span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <div class="mp-meta">
+                <div class="mp-title">@Music.Current.Title</div>
+                <div class="mp-artist">@Music.Current.Artist</div>
+            </div>
+        </div>
+
+        <div class="mp-controls">
+            <button class="mp-btn" @onclick="Prev" title="Предыдущий"><i class="bi bi-skip-start-fill"></i></button>
+            <button class="mp-btn mp-play" @onclick="TogglePlay" title="Играть/пауза">
+                @if (Music.IsPlaying)
+                {
+                    <i class="bi bi-pause-fill"></i>
+                }
+                else
+                {
+                    <i class="bi bi-play-fill"></i>
+                }
+            </button>
+            <button class="mp-btn" @onclick="Next" title="Следующий"><i class="bi bi-skip-end-fill"></i></button>
+            <button class="mp-btn @(Music.RepeatOne ? "active" : "")" @onclick="ToggleRepeat" title="Повтор трека"><i class="bi bi-arrow-repeat"></i></button>
+        </div>
+
+        <div class="mp-volume">
+            <i class="bi @(volumeIcon) mp-vol-icon" @onclick="ToggleMute" title="@(Music.Volume <= 0 ? "Включить звук" : "Выключить звук")"></i>
+            <input @ref="_volSlider" type="range" min="0" max="100" value="@volumePercent" @oninput="OnVolumeChange" />
+        </div>
+
+        <div class="mp-progress">
+            <input type="range" min="0" max="100" value="@progressValue" @oninput="OnSeek" />
+            <div class="mp-times">
+                <span class="mono">@Format(progress)</span>
+                <span class="mono">@Format(duration)</span>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="mp-empty muted">Нет треков в /music</div>
+    }
+</div>
+
+@code {
+    private double progress;
+    private double duration;
+    private bool _lastBreak;
+    private DotNetObjectReference<MusicPlayer>? _dotNetRef;
+    private bool _disposed;
+    private double _savedVolume = 1.0;
+    private ElementReference _volSlider;
+
+    protected override void OnInitialized()
+    {
+        Music.OnChange += HandleMusicChange;
+        Data.OnChange += OnTimerChanged;
+        _lastBreak = Data.Timer.IsBreak;
+    }
+
+    private void HandleMusicChange() => InvokeAsync(StateHasChanged);
+
+    private void OnTimerChanged()
+    {
+        _ = InvokeAsync(() =>
+        {
+            try
+            {
+                if (!Music.SyncWithTimer) return;
+
+                var nowBreak = Data.Timer.IsBreak;
+                if (nowBreak != _lastBreak && Data.Timer.Type == TODOList.Models.TimerType.Pomodoro && !Data.Timer.IsRunning)
+                {
+                    _lastBreak = nowBreak;
+                    var target = nowBreak ? TODOList.Models.PlaylistState.Break : TODOList.Models.PlaylistState.Focus;
+                    if (Music.EnsurePlaylist(target))
+                    {
+                        _ = PlayCurrent();
+                    }
+                }
+                else
+                {
+                    _lastBreak = nowBreak;
+                }
+            }
+            catch (Exception ex)
+            {
+                try { Console.Error.WriteLine("OnTimerChanged: " + ex); } catch { }
+            }
+        });
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                _dotNetRef = DotNetObjectReference.Create(this);
+                await JS.InvokeVoidAsync("nightfallAudio.init", _dotNetRef);
+                await JS.InvokeVoidAsync("nightfallAudio.setVolume", Music.Volume);
+                await JS.InvokeVoidAsync("nightfallAudio.setVolumeStyle", _volSlider, volumePercent);
+            }
+            catch (Exception ex)
+            {
+                try { Console.Error.WriteLine("nightfallAudio.init failed: " + ex); } catch { }
+            }
+        }
+    }
+
+    [Microsoft.JSInterop.JSInvokable]
+    public void OnEnded()
+    {
+        if (_disposed) return;
+        try
+        {
+            if (Music.RepeatOne)
+            {
+                _ = JS.InvokeVoidAsync("nightfallAudio.playTrack", $"/{Music.Current?.FileName}");
+            }
+            else
+            {
+                _ = Next();
+            }
+        }
+        catch (Exception ex)
+        {
+            try { Console.Error.WriteLine("OnEnded: " + ex); } catch { }
+        }
+    }
+
+    [Microsoft.JSInterop.JSInvokable]
+    public void OnTimeUpdate(double current, double total)
+    {
+        if (_disposed) return;
+        progress = current;
+        duration = total;
+        if (duration > 0) StateHasChanged();
+    }
+
+    [Microsoft.JSInterop.JSInvokable]
+    public void OnPlayingChanged(bool playing)
+    {
+        if (_disposed) return;
+        Music.SetPlaying(playing);
+    }
+
+    private int progressValue => (int)(duration > 0 ? progress / duration * 100 : 0);
+    private int volumePercent => (int)(Music.Volume * 100);
+    private string volumeIcon => Music.Volume <= 0 ? "bi-volume-mute" : Music.Volume < 0.5 ? "bi-volume-down" : "bi-volume-up";
+
+    private async Task OnVolumeChange(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var pct))
+        {
+            Music.Volume = pct / 100.0;
+            try
+            {
+                await JS.InvokeVoidAsync("nightfallAudio.setVolume", Music.Volume);
+                await JS.InvokeVoidAsync("nightfallAudio.setVolumeStyle", _volSlider, volumePercent);
+            }
+            catch { }
+        }
+    }
+
+    private async Task ToggleMute()
+    {
+        if (Music.Volume > 0)
+        {
+            _savedVolume = Music.Volume;
+            Music.Volume = 0;
+        }
+        else
+        {
+            Music.Volume = _savedVolume;
+        }
+        try
+        {
+            await JS.InvokeVoidAsync("nightfallAudio.setVolume", Music.Volume);
+            await JS.InvokeVoidAsync("nightfallAudio.setVolumeStyle", _volSlider, volumePercent);
+        }
+        catch { }
+    }
+
+    private async Task TogglePlay()
+    {
+        if (Music.Current == null) return;
+        if (Music.IsPlaying)
+        {
+            await JS.InvokeVoidAsync("nightfallAudio.pause");
+            Music.SetPlaying(false);
+        }
+        else
+        {
+            await PlayCurrent();
+        }
+    }
+
+    private async Task PlayCurrent()
+    {
+        try
+        {
+            if (Music.Current == null) return;
+            await JS.InvokeVoidAsync("nightfallAudio.playTrack", $"/{Music.Current.FileName}");
+            Music.SetPlaying(true);
+        }
+        catch (Exception ex)
+        {
+            try { Console.Error.WriteLine("PlayCurrent: " + ex); } catch { }
+        }
+    }
+
+    private async Task Next() => await ChangeTrack(true);
+    private async Task Prev() => await ChangeTrack(false);
+
+    private async Task ChangeTrack(bool next)
+    {
+        try
+        {
+            if (next) Music.PlayNext(); else Music.PlayPrevious();
+            if (Music.Current != null)
+            {
+                await JS.InvokeVoidAsync("nightfallAudio.playTrack", $"/{Music.Current.FileName}");
+                Music.SetPlaying(true);
+            }
+        }
+        catch (Exception ex)
+        {
+            try { Console.Error.WriteLine("ChangeTrack: " + ex); } catch { }
+        }
+    }
+
+    private void ToggleRepeat()
+    {
+        Music.RepeatOne = !Music.RepeatOne;
+    }
+
+    private async Task OnSeek(ChangeEventArgs e)
+    {
+        if (double.TryParse(e.Value?.ToString(), out var pct) && duration > 0)
+        {
+            var secs = pct / 100 * duration;
+            await JS.InvokeVoidAsync("nightfallAudio.seek", secs);
+        }
+    }
+
+    private string Format(double seconds)
+    {
+        if (seconds <= 0) return "0:00";
+        var ts = TimeSpan.FromSeconds(seconds);
+        return $"{Math.Floor(ts.TotalMinutes)}:{ts.Seconds:00}";
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        Music.OnChange -= HandleMusicChange;
+        Data.OnChange -= OnTimerChanged;
+        if (_dotNetRef != null)
+        {
+            try { _dotNetRef.Dispose(); } catch { }
+            _dotNetRef = null;
+        }
+    }
+}

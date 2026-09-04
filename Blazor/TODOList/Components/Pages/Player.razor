@@ -1,0 +1,223 @@
+@page "/player"
+@inject TODOList.Services.MusicService Music
+@inject IJSRuntime JS
+
+<PageTitle>NIGHTFALL — Плеер</PageTitle>
+
+<div class="fade-in">
+    <h1 class="page-title">Плеер</h1>
+
+    <div class="player-playlist-tabs" style="margin-bottom:1.5rem;">
+        @foreach (var state in new[] {
+            TODOList.Models.PlaylistState.All,
+            TODOList.Models.PlaylistState.Focus,
+            TODOList.Models.PlaylistState.Break,
+            TODOList.Models.PlaylistState.Depressed })
+        {
+            var s = state;
+            var label = state switch
+            {
+                TODOList.Models.PlaylistState.Focus => "FOCUS",
+                TODOList.Models.PlaylistState.Break => "BREAK",
+                TODOList.Models.PlaylistState.Depressed => "DEPRESSED",
+                _ => "ALL"
+            };
+            <button class="tab-btn @(currentList == state ? "active" : "")" @onclick="() => SetList(s)">
+                @label
+            </button>
+        }
+    </div>
+
+    <div class="player-stage">
+        <div class="player-canvas-wrap">
+            <canvas id="player-canvas" @ref="_canvasRef" class="player-canvas"></canvas>
+        </div>
+
+        @if (Music.Current != null)
+        {
+            <div>
+                <div class="player-current-title">@Music.Current.Title</div>
+                <div class="player-current-artist">@Music.Current.Artist</div>
+            </div>
+        }
+
+        <div class="flex" style="justify-content:center; gap:0.5rem;">
+            <button class="btn-theme" @onclick="Prev"><i class="bi bi-skip-start-fill"></i></button>
+            <button class="btn-theme btn-primary" @onclick="TogglePlay">
+                @if (Music.IsPlaying)
+                {
+                    <i class="bi bi-pause-fill"></i>
+                }
+                else
+                {
+                    <i class="bi bi-play-fill"></i>
+                }
+            </button>
+            <button class="btn-theme" @onclick="Next"><i class="bi bi-skip-end-fill"></i></button>
+        </div>
+
+        <div class="player-volume">
+            <i class="bi @(volumeIcon)" @onclick="ToggleMute" title="@(Music.Volume <= 0 ? "Включить звук" : "Выключить звук")"></i>
+            <input @ref="_volSlider" type="range" min="0" max="100" value="@volumePercent" @oninput="OnVolumeChange" />
+            <span class="mono player-vol-val">@volumePercent%</span>
+        </div>
+
+        <div class="player-sync">
+            <input type="checkbox" checked="@Music.SyncWithTimer" @onchange="ToggleSync" />
+            <span>Музыка по фазам таймера (FOCUS / BREAK)</span>
+        </div>
+    </div>
+
+    <div class="player-tracklist" style="margin-top:2rem;">
+        @foreach (var track in visibleTracks)
+        {
+            var t = track;
+            var isCurrent = Music.Current?.Id == track.Id;
+            <div class="pt-row @(isCurrent ? "current" : "")" @onclick="() => PlayTrack(t)">
+                <span class="pt-index">@((visibleTracks.IndexOf(track) + 1).ToString("00"))</span>
+                <span class="pt-title">@track.Title</span>
+                <span class="pt-artist">· @track.Artist</span>
+                <span class="pt-actions" style="margin-left:auto; display:flex; gap:0.3rem;">
+                    @if (isCurrent && Music.IsPlaying)
+                    {
+                        <span class="mp-eq playing"><span></span><span></span><span></span></span>
+                    }
+                </span>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private ElementReference _canvasRef;
+    private TODOList.Models.PlaylistState currentList = TODOList.Models.PlaylistState.All;
+    private List<TODOList.Models.Track> visibleTracks => Music.GetTracks(currentList).ToList();
+    private int volumePercent => (int)(Music.Volume * 100);
+    private string volumeIcon => Music.Volume <= 0 ? "bi-volume-mute" : Music.Volume < 0.5 ? "bi-volume-down" : "bi-volume-up";
+    private double _savedVolume = 1.0;
+    private ElementReference _volSlider;
+
+    private async Task OnVolumeChange(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var pct))
+        {
+            Music.Volume = pct / 100.0;
+            try
+            {
+                await JS.InvokeVoidAsync("nightfallAudio.setVolume", Music.Volume);
+                await JS.InvokeVoidAsync("nightfallAudio.setVolumeStyle", _volSlider, volumePercent);
+            }
+            catch { }
+        }
+    }
+
+    private async Task ToggleMute()
+    {
+        if (Music.Volume > 0)
+        {
+            _savedVolume = Music.Volume;
+            Music.Volume = 0;
+        }
+        else
+        {
+            Music.Volume = _savedVolume;
+        }
+        try
+        {
+            await JS.InvokeVoidAsync("nightfallAudio.setVolume", Music.Volume);
+            await JS.InvokeVoidAsync("nightfallAudio.setVolumeStyle", _volSlider, volumePercent);
+        }
+        catch { }
+    }
+
+    protected override void OnInitialized()
+    {
+        Music.OnChange += HandleChange;
+    }
+
+    private void HandleChange() => InvokeAsync(StateHasChanged);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                await Task.Delay(400);
+                await JS.InvokeVoidAsync("nightfallVisualizer.attach", _canvasRef, 64, "#ffffff");
+                await JS.InvokeVoidAsync("nightfallAudio.setVolumeStyle", _volSlider, volumePercent);
+            }
+            catch (Exception ex)
+            {
+                try { Console.Error.WriteLine("visualizer.attach failed: " + ex); } catch { }
+            }
+        }
+    }
+
+    private void SetList(TODOList.Models.PlaylistState state)
+    {
+        currentList = state;
+        Music.CurrentPlaylist = state;
+    }
+
+    private async Task TogglePlay()
+    {
+        try
+        {
+            if (Music.Current == null) return;
+            if (Music.IsPlaying)
+            {
+                await JS.InvokeVoidAsync("nightfallAudio.pause");
+                Music.SetPlaying(false);
+            }
+            else
+            {
+                await PlayCurrent();
+            }
+        }
+        catch (Exception ex)
+        {
+            try { Console.Error.WriteLine("Player.TogglePlay: " + ex); } catch { }
+        }
+    }
+
+    private async Task PlayTrack(TODOList.Models.Track track)
+    {
+        try
+        {
+            Music.SetCurrent(track);
+            await PlayCurrent();
+        }
+        catch (Exception ex)
+        {
+            try { Console.Error.WriteLine("Player.PlayTrack: " + ex); } catch { }
+        }
+    }
+
+    private async Task PlayCurrent()
+    {
+        try
+        {
+            if (Music.Current == null) return;
+            await JS.InvokeVoidAsync("nightfallAudio.playTrack", $"/{Music.Current.FileName}");
+            Music.SetPlaying(true);
+        }
+        catch (Exception ex)
+        {
+            try { Console.Error.WriteLine("Player.PlayCurrent: " + ex); } catch { }
+        }
+    }
+
+    private async Task Next() { try { Music.PlayNext(); await PlayCurrent(); } catch (Exception ex) { try { Console.Error.WriteLine("Player.Next: " + ex); } catch { } } }
+    private async Task Prev() { try { Music.PlayPrevious(); await PlayCurrent(); } catch (Exception ex) { try { Console.Error.WriteLine("Player.Prev: " + ex); } catch { } } }
+
+    private void ToggleSync()
+    {
+        Music.SyncWithTimer = !Music.SyncWithTimer;
+    }
+
+    public void Dispose()
+    {
+        Music.OnChange -= HandleChange;
+    }
+}

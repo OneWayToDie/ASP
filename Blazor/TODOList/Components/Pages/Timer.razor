@@ -68,9 +68,13 @@
 
     protected override void OnInitialized()
     {
-        Data.OnChange += StateHasChanged;
-        Data.OnTimerTick += OnTick;
+        Data.OnChange += HandleChange;
+        Data.OnTimerTick += HandleTick;
     }
+
+    private void HandleChange() => InvokeAsync(StateHasChanged);
+
+    private void HandleTick() => InvokeAsync(OnTick);
 
     private void OnTick()
     {
@@ -122,7 +126,7 @@
 
     public void Dispose()
     {
-        Data.OnChange -= StateHasChanged;
-        Data.OnTimerTick -= OnTick;
+        Data.OnChange -= HandleChange;
+        Data.OnTimerTick -= HandleTick;
     }
 }

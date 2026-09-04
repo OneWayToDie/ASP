@@ -103,8 +103,10 @@
 
     protected override void OnInitialized()
     {
-        Data.OnChange += StateHasChanged;
+        Data.OnChange += HandleChange;
     }
+
+    private void HandleChange() => InvokeAsync(StateHasChanged);
 
     private async Task RequestPermission()
     {
@@ -144,6 +146,6 @@
 
     public void Dispose()
     {
-        Data.OnChange -= StateHasChanged;
+        Data.OnChange -= HandleChange;
     }
 }

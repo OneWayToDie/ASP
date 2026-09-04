@@ -7,8 +7,14 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
 	.AddInteractiveServerComponents();
 
+builder.Services.AddServerSideBlazor(options =>
+{
+	options.DetailedErrors = true;
+});
+
 builder.Services.AddSingleton<DataService>();
 builder.Services.AddSingleton<NotificationService>();
+builder.Services.AddSingleton<MusicService>();
 
 var app = builder.Build();
 
@@ -27,5 +33,15 @@ app.UseAntiforgery();
 
 app.MapRazorComponents<App>()
 	.AddInteractiveServerRenderMode();
+
+AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+{
+	try { Console.Error.WriteLine("UNHANDLED: " + e.ExceptionObject); } catch { }
+};
+
+TaskScheduler.UnobservedTaskException += (_, e) =>
+{
+	try { Console.Error.WriteLine("UNOBSERVED TASK: " + e.Exception); } catch { }
+};
 
 app.Run();

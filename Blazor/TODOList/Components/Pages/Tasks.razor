@@ -25,11 +25,68 @@
                 <option value="@TODOList.Models.Priority.Medium">Средний</option>
                 <option value="@TODOList.Models.Priority.High">Высокий</option>
             </select>
-            <input class="input-theme" placeholder="Категория" @bind="newCategory" />
+            <select class="select-theme" @bind="newCategory">
+                <option value="">Без категории</option>
+                @foreach (var cat in Data.Categories)
+                {
+                    <option value="@cat.Name">@cat.Name</option>
+                }
+            </select>
             <button class="btn-theme btn-primary" @onclick="AddTask">
                 <i class="bi bi-plus-lg"></i> Добавить
             </button>
         </div>
+    </div>
+
+    <div class="card-theme" style="margin-bottom:1.5rem;">
+        <div class="flex-between">
+            <h3 style="margin:0; font-size:1rem;">Категории</h3>
+            <button class="btn-theme" @onclick="() => showCatEditor = !showCatEditor">
+                <i class="bi bi-gear"></i> Управление
+            </button>
+        </div>
+
+        <div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.8rem;">
+            <span class="chip @(catFilter == "" ? "active" : "")" @onclick="ClearCatFilter">Все</span>
+            @foreach (var cat in Data.Categories)
+            {
+                <span class="chip @(catFilter == cat.Name ? "active" : "")"
+                      style="border-color:@cat.Color; color:@cat.Color;"
+                      @onclick="() => SetCatFilter(cat.Name)">
+                    <i class="bi @cat.Icon" style="margin-right:0.3rem;"></i>@cat.Name
+                </span>
+            }
+        </div>
+
+        @if (showCatEditor)
+        {
+            <div class="card-theme" style="margin-top:1rem;">
+                <div class="form-row">
+                    <input class="input-theme" placeholder="Название категории" @bind="catName" />
+                    <input class="input-theme" type="color" value="@catColor" @onchange="e => catColor = e.Value?.ToString() ?? catColor" style="width:60px; padding:2px; height:38px;" />
+                    <select class="select-theme" @bind="catIcon">
+                        @foreach (var icon in AvailableIcons)
+                        {
+                            <option value="@icon">@icon</option>
+                        }
+                    </select>
+                    <button class="btn-theme btn-primary" @onclick="AddCategory">
+                        <i class="bi bi-plus-lg"></i> Добавить
+                    </button>
+                </div>
+
+                <div style="display:flex; flex-wrap:wrap; gap:0.6rem; margin-top:0.8rem;">
+                    @foreach (var cat in Data.Categories)
+                    {
+                        var c = cat;
+                        <div class="chip" style="border-color:@c.Color; color:@c.Color; align-items:center; gap:0.3rem;">
+                            <i class="bi @c.Icon"></i>@c.Name
+                            <button class="icon-btn danger" style="font-size:0.7rem;" title="Удалить" @onclick="() => RemoveCategory(c.Id)"><i class="bi bi-x-lg"></i></button>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
     </div>
 
     <div class="tab-bar">
@@ -38,10 +95,39 @@
         <button class="tab-btn @(filter == "done" ? "active" : "")" @onclick="FilterDone">Выполненные (@Data.Tasks.Count(t => t.IsCompleted))</button>
     </div>
 
+    <div class="card-theme" style="display:flex; flex-wrap:wrap; gap:0.6rem; align-items:center; margin-bottom:1rem;">
+        <span class="muted">Сортировка:</span>
+        <select class="select-theme" style="width:auto;" @bind="sortBy">
+            <option value="due">По дедлайну</option>
+            <option value="priority">По приоритету</option>
+            <option value="created">По созданию</option>
+            <option value="title">По названию</option>
+        </select>
+        <button class="btn-theme" @onclick="ToggleSort" title="Направление">
+            <i class="bi @(sortAsc ? "bi-sort-up" : "bi-sort-down")"></i>
+        </button>
+        <span class="muted" style="margin-left:0.5rem;">Группировка:</span>
+        <select class="select-theme" style="width:auto;" @bind="groupBy">
+            <option value="none">Без</option>
+            <option value="category">По категории</option>
+            <option value="date">По дате</option>
+        </select>
+    </div>
+
     @if (visibleTasks.Any())
     {
-        <div style="display:flex; flex-direction:column; gap:0.9rem;">
-            @foreach (var task in visibleTasks)
+        @foreach (var group in TaskGroups)
+        {
+            <div style="margin-bottom:1.5rem;">
+                @if (!group.Keyless)
+                {
+                    <h3 style="margin:0 0 0.5rem 0; font-size:0.95rem; text-transform:uppercase; letter-spacing:2px; color:var(--text-dim);">
+                        @group.Header
+                    </h3>
+                }
+
+                <div style="display:flex; flex-direction:column; gap:0.9rem;">
+            @foreach (var task in group.Items)
             {
                 @if (editingId == task.Id)
                 {
@@ -57,7 +143,13 @@
                                 <option value="@TODOList.Models.Priority.High">Высокий</option>
                             </select>
                             <input class="input-theme" type="datetime-local" value="@editDueDate" @onchange="e => editDueDate = e.Value?.ToString()" />
-                            <input class="input-theme" @bind="editCategory" placeholder="Категория" />
+                            <select class="select-theme" @bind="editCategory">
+                                <option value="">Без категории</option>
+                                @foreach (var cat in Data.Categories)
+                                {
+                                    <option value="@cat.Name">@cat.Name</option>
+                                }
+                            </select>
                         </div>
                         <div class="flex">
                             <button class="btn-theme btn-primary" @onclick="() => SaveEdit(task.Id)">Сохранить</button>
@@ -67,13 +159,19 @@
                 }
                 else
                 {
-                    <TaskCard Task="task"
+                    <TaskCard @key="task.Id"
+                              Task="task"
+                              ExitAnim="@(filter == "all" ? TODOList.Models.ExitAnim.None
+                                        : filter == "done" ? TODOList.Models.ExitAnim.Left
+                                        : TODOList.Models.ExitAnim.Right)"
                               OnToggle="() => ToggleTask(task.Id)"
                               OnEdit="() => StartEdit(task)"
-                              OnDelete="() => DeleteTask(task.Id)" />
+                               OnDelete="() => DeleteTask(task.Id)" />
                 }
             }
-        </div>
+                </div>
+            </div>
+        }
     }
     else
     {
@@ -93,6 +191,18 @@
     private TODOList.Models.Priority newPriority = TODOList.Models.Priority.Medium;
     private string newCategory = "";
 
+    private bool showCatEditor;
+    private string catName = "";
+    private string catColor = "#ffffff";
+    private string catIcon = "bi-tag";
+    private string catFilter = "";
+    private string[] AvailableIcons = new[]
+    {
+        "bi-tag", "bi-fire", "bi-lightning-charge", "bi-moon-stars",
+        "bi-briefcase", "bi-book", "bi-house", "bi-heart", "bi-star",
+        "bi-gift", "bi-cup-hot", "bi-cart", "bi-phone", "bi-trophy"
+    };
+
     private Guid? editingId;
     private string editTitle = "";
     private string editDescription = "";
@@ -100,17 +210,141 @@
     private string? editDueDate;
     private string editCategory = "";
 
-    private List<TODOList.Models.TodoItem> visibleTasks => filter switch
+    private string sortBy = "due";
+    private bool sortAsc = true;
+    private string groupBy = "none";
+
+    private class TaskGroup
     {
-        "active" => Data.Tasks.Where(t => !t.IsCompleted).ToList(),
-        "done" => Data.Tasks.Where(t => t.IsCompleted).ToList(),
-        _ => Data.Tasks.ToList()
-    };
+        public string Header { get; set; } = "";
+        public bool Keyless { get; set; }
+        public List<TODOList.Models.TodoItem> Items { get; set; } = new();
+    }
+
+    private List<TODOList.Models.TodoItem> visibleTasks
+    {
+        get
+        {
+            IEnumerable<TODOList.Models.TodoItem> query = filter switch
+            {
+                "active" => Data.Tasks.Where(t => !t.IsCompleted),
+                "done" => Data.Tasks.Where(t => t.IsCompleted),
+                _ => Data.Tasks.AsEnumerable()
+            };
+
+            if (!string.IsNullOrEmpty(catFilter))
+            {
+                query = query.Where(t => t.Category == catFilter);
+            }
+
+            return query.ToList();
+        }
+    }
+
+    private List<TaskGroup> TaskGroups
+    {
+        get
+        {
+            var sorted = visibleTasks.ToList();
+
+            sorted.Sort(groupBy switch
+            {
+                "category" => (a, b) => string.Compare(a.Category ?? "", b.Category ?? "", StringComparison.OrdinalIgnoreCase),
+                "date" => (a, b) => (a.DueDate ?? DateTime.MaxValue).CompareTo(b.DueDate ?? DateTime.MaxValue),
+                _ => (a, b) => 0
+            });
+
+            if (groupBy == "none")
+            {
+                ApplySort(sorted);
+                return new List<TaskGroup> { new TaskGroup { Keyless = true, Items = sorted } };
+            }
+
+            var groups = new List<TaskGroup>();
+
+            if (groupBy == "date")
+            {
+                var today = DateTime.Today;
+                var tomorrow = today.AddDays(1);
+                var later = tomorrow.AddDays(1);
+                var noDate = new TaskGroup { Header = "Без даты", Items = new List<TODOList.Models.TodoItem>() };
+                var gToday = new TaskGroup { Header = "Сегодня", Items = new List<TODOList.Models.TodoItem>() };
+                var gTomorrow = new TaskGroup { Header = "Завтра", Items = new List<TODOList.Models.TodoItem>() };
+                var gLater = new TaskGroup { Header = "Позже", Items = new List<TODOList.Models.TodoItem>() };
+
+                foreach (var t in sorted)
+                {
+                    if (t.DueDate.HasValue)
+                    {
+                        var d = t.DueDate.Value.Date;
+                        if (d == today) gToday.Items.Add(t);
+                        else if (d == tomorrow) gTomorrow.Items.Add(t);
+                        else if (d > tomorrow) gLater.Items.Add(t);
+                        else noDate.Items.Add(t);
+                    }
+                    else noDate.Items.Add(t);
+                }
+
+                foreach (var g in new[] { gToday, gTomorrow, gLater, noDate })
+                {
+                    if (g.Items.Count > 0) { ApplySort(g.Items); groups.Add(g); }
+                }
+            }
+            else
+            {
+                foreach (var cat in Data.Categories)
+                {
+                    var items = sorted.Where(t => t.Category == cat.Name).ToList();
+                    if (items.Count > 0)
+                    {
+                        ApplySort(items);
+                        groups.Add(new TaskGroup { Header = cat.Name, Items = items });
+                    }
+                }
+
+                var uncat = sorted.Where(t => string.IsNullOrEmpty(t.Category)).ToList();
+                if (uncat.Count > 0)
+                {
+                    ApplySort(uncat);
+                    groups.Add(new TaskGroup { Header = "Без категории", Items = uncat });
+                }
+            }
+
+            return groups;
+        }
+    }
+
+    private void ApplySort(List<TODOList.Models.TodoItem> items)
+    {
+        switch (sortBy)
+        {
+            case "priority":
+                items.Sort((a, b) => a.Priority.CompareTo(b.Priority));
+                break;
+            case "created":
+                items.Sort((a, b) => a.CreatedAt.CompareTo(b.CreatedAt));
+                break;
+            case "title":
+                items.Sort((a, b) => string.Compare(a.Title, b.Title, StringComparison.OrdinalIgnoreCase));
+                break;
+            default:
+                items.Sort((a, b) => (a.DueDate ?? DateTime.MaxValue).CompareTo(b.DueDate ?? DateTime.MaxValue));
+                break;
+        }
+        if (!sortAsc) items.Reverse();
+    }
+
+    private void ToggleSort()
+    {
+        sortAsc = !sortAsc;
+    }
 
     protected override void OnInitialized()
     {
-        Data.OnChange += StateHasChanged;
+        Data.OnChange += HandleChange;
     }
+
+    private void HandleChange() => InvokeAsync(StateHasChanged);
 
     private void OnTitleEnter(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
     {
@@ -152,6 +386,37 @@
         Notify.Push("Задача удалена", "Уже не тащить этот груз.", true);
     }
 
+    private void AddCategory()
+    {
+        var name = catName.Trim();
+        if (string.IsNullOrWhiteSpace(name)) return;
+        if (Data.Categories.Any(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase)))
+        {
+            Notify.Push("Категория", "Такая категория уже существует.", true);
+            return;
+        }
+        Data.AddCategory(new TODOList.Models.Category
+        {
+            Name = name,
+            Color = catColor,
+            Icon = catIcon
+        });
+        catName = "";
+    }
+
+    private void RemoveCategory(Guid id)
+    {
+        Data.RemoveCategory(id);
+        if (catFilter != "")
+        {
+            catFilter = "";
+        }
+    }
+
+    private void SetCatFilter(string name) => catFilter = name;
+
+    private void ClearCatFilter() => catFilter = "";
+
     private void StartEdit(TODOList.Models.TodoItem task)
     {
         editingId = task.Id;
@@ -185,6 +450,6 @@
 
     public void Dispose()
     {
-        Data.OnChange -= StateHasChanged;
+        Data.OnChange -= HandleChange;
     }
 }
