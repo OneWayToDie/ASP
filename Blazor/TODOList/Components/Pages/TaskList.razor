@@ -4,9 +4,9 @@
 
 <h1>TaskList</h1>
 <div class="statistics">
+	<h3>Общее количество задач: @list.Count</h3>
 	<h3>Выполнено: @list.Where(t =>t.DONE == true).ToList().Count  </h3>
 	<h3>Осталось:  @list.Where(t =>t.DONE == false).ToList().Count </h3>
-	<h3>Общее количество задач: @list.Count</h3>
 </div>
 
 
@@ -17,8 +17,11 @@
 	@foreach (TODOList.Task task in list)
 	{		
 		<li>
-			<input type="checkbox" @bind="@task.DONE" />
-			<span>@task.Description</span>
+			<input type="checkbox" @bind="@task.DONE" id="@task.Description"/>
+			<label for="@task.Description">
+				<span>@task.Description</span>
+				<span>@task.AssignTime</span>
+			</label>
 		</li>
 	}
 </ul>
@@ -40,7 +43,12 @@
 	{
 		if (!string.IsNullOrEmpty(description) && !string.IsNullOrWhiteSpace(description))
 		{	
-			TODOList.Task task = new TODOList.Task { Description = description, DONE = false };
+			TODOList.Task task = new TODOList.Task 
+			{ 
+				Description = description, 
+				DONE = false,
+				AssignTime = DateTime.Now
+			};
 			if (!list.Contains(task))
 			{
 				list.Add(task);
