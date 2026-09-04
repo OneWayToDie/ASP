@@ -23,8 +23,12 @@ namespace TODOList.Services
 
 			_ = Task.Run(async () =>
 			{
-				await Task.Delay(5000);
-				Dismiss(toast.Id);
+				try
+				{
+					await Task.Delay(5000);
+					Dismiss(toast.Id);
+				}
+				catch { }
 			});
 		}
 

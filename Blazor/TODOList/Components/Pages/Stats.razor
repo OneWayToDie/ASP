@@ -1,0 +1,150 @@
+@page "/stats"
+@inject TODOList.Services.DataService Data
+
+<PageTitle>NIGHTFALL — Статистика</PageTitle>
+
+<div class="fade-in">
+    <h1 class="page-title">Статистика</h1>
+
+    <div class="stat-grid stagger" style="margin-bottom:2rem;">
+        <div class="card-theme stat-card">
+            <div class="stat-number">@Data.Tasks.Count()</div>
+            <div class="stat-label">Всего задач</div>
+        </div>
+        <div class="card-theme stat-card">
+            <div class="stat-number">@Data.Tasks.Count(t => !t.IsCompleted)</div>
+            <div class="stat-label">Активных</div>
+        </div>
+        <div class="card-theme stat-card">
+            <div class="stat-number">@Data.Tasks.Count(t => t.IsCompleted)</div>
+            <div class="stat-label">Завершено</div>
+        </div>
+        <div class="card-theme stat-card">
+            <div class="stat-number">@DoneToday</div>
+            <div class="stat-label">Завершено сегодня</div>
+        </div>
+        <div class="card-theme stat-card">
+            <div class="stat-number">@DoneWeek</div>
+            <div class="stat-label">За неделю</div>
+        </div>
+        <div class="card-theme stat-card">
+            <div class="stat-number">@DonePct%</div>
+            <div class="stat-label">Выполнение</div>
+        </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem;">
+        <div class="fade-in">
+            <div class="card-theme" style="padding:1.2rem;">
+                <h3 style="margin:0 0 1rem 0; font-size:1.05rem;">Фокус (Pomodoro)</h3>
+                <div style="display:flex; gap:1.5rem; flex-wrap:wrap;">
+                    <div>
+                        <div class="stat-number" style="font-size:1.6rem;">@TotalPomodoros</div>
+                        <div class="stat-label">Помодоро всего</div>
+                    </div>
+                    <div>
+                        <div class="stat-number" style="font-size:1.6rem;">@FocusHours</div>
+                        <div class="stat-label">Время в фокусе (ч)</div>
+                    </div>
+                    <div>
+                        <div class="stat-number" style="font-size:1.6rem;">@BestDay</div>
+                        <div class="stat-label">Лучший день</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="fade-in">
+            <div class="card-theme" style="padding:1.2rem;">
+                <h3 style="margin:0 0 1rem 0; font-size:1.05rem;">Активность за 7 дней</h3>
+                <div style="display:flex; align-items:flex-end; gap:0.5rem; height:140px;">
+                    @foreach (var day in Last7Days)
+                    {
+                        <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%;">
+                            <div class="mono" style="font-size:0.7rem; color:var(--text-dim); margin-bottom:0.2rem;">@day.Value</div>
+                            <div style="width:100%; height:@(day.Tasks * 15)px; min-height:2px; background:linear-gradient(to top, var(--accent), rgba(255,255,255,0.2)); border-radius:4px 4px 0 0;"
+                                 title="@day.Tasks задач · @day.Pomodoros помодоро"></div>
+                            <div class="mono" style="font-size:0.65rem; color:var(--text-dim); margin-top:0.2rem;">@day.Label</div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private int DoneToday =>
+        Data.Logs.Count(l => l.Kind == TODOList.Models.LogKind.TaskDone && l.Timestamp.Date == DateTime.Today);
+
+    private int DoneWeek
+    {
+        get
+        {
+            var start = DateTime.Today.AddDays(-6);
+            return Data.Logs.Count(l => l.Kind == TODOList.Models.LogKind.TaskDone && l.Timestamp.Date >= start);
+        }
+    }
+
+    private int DonePct =>
+        Data.Tasks.Count() == 0 ? 0 : (int)Math.Round(100.0 * Data.Tasks.Count(t => t.IsCompleted) / Data.Tasks.Count());
+
+    private int TotalPomodoros => Data.Logs.Count(l => l.Kind == TODOList.Models.LogKind.Pomodoro);
+
+    private string FocusHours
+    {
+        get
+        {
+            var total = TotalPomodoros * 25;
+            return string.Format("{0:0.#}", total / 60.0);
+        }
+    }
+
+    private int BestDay =>
+        Data.Logs
+            .Where(l => l.Kind == TODOList.Models.LogKind.Pomodoro)
+            .GroupBy(l => l.Timestamp.Date)
+            .Select(g => g.Count())
+            .DefaultIfEmpty(0)
+            .Max();
+
+    private class DayStat
+    {
+        public string Label { get; set; } = "";
+        public string Value { get; set; } = "";
+        public int Tasks { get; set; }
+        public int Pomodoros { get; set; }
+    }
+
+    private List<DayStat> Last7Days
+    {
+        get
+        {
+            var days = new List<DayStat>();
+            for (int i = 6; i >= 0; i--)
+            {
+                var date = DateTime.Today.AddDays(-i);
+                days.Add(new DayStat
+                {
+                    Label = date.ToString("ddd"),
+                    Value = date.ToString("dd"),
+                    Tasks = Data.Logs.Count(l => l.Kind == TODOList.Models.LogKind.TaskDone && l.Timestamp.Date == date),
+                    Pomodoros = Data.Logs.Count(l => l.Kind == TODOList.Models.LogKind.Pomodoro && l.Timestamp.Date == date)
+                });
+            }
+            return days;
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        Data.OnChange += HandleChange;
+    }
+
+    private void HandleChange() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Data.OnChange -= HandleChange;
+    }
+}

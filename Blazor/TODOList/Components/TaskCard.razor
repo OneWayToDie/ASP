@@ -1,6 +1,8 @@
 @using TODOList.Models
+@inject IJSRuntime JS
+@implements IDisposable
 
-<div class="card-theme task-item @(Task.IsCompleted ? "task-completed" : "") @($"prio-{Task.Priority.ToString().ToLower()}")">
+<div @ref="_el" class="card-theme task-item @(Task.IsCompleted ? "task-completed" : "") @($"prio-{Task.Priority.ToString().ToLower()}")">
     <input type="checkbox" class="task-check" checked="@Task.IsCompleted" @onchange="Toggle" />
 
     <div style="flex:1; min-width:0;">
@@ -15,7 +17,7 @@
             @if (Task.DueDate.HasValue)
             {
                 <span><i class="bi bi-calendar3"></i>@Task.DueDate.Value.ToString("dd MMM yyyy HH:mm")</span>
-                <span style="margin-left:1rem;"><i class="bi bi-clock"></i>@(Task.DueDate.Value - DateTime.Now) осталось</span>
+                <span style="margin-left:1rem;"><i class="bi bi-clock"></i>@FormatRemaining(Task.DueDate.Value) осталось</span>
             }
             @if (!string.IsNullOrEmpty(Task.Category))
             {
@@ -35,10 +37,55 @@
     [Parameter] public EventCallback OnToggle { get; set; }
     [Parameter] public EventCallback OnEdit { get; set; }
     [Parameter] public EventCallback OnDelete { get; set; }
+    [Parameter] public ExitAnim ExitAnim { get; set; } = ExitAnim.Right;
 
-    private void Toggle()
+    private ElementReference _el;
+    private bool _leaving;
+    private DotNetObjectReference<TaskCard>? _dtRef;
+
+    [Microsoft.JSInterop.JSInvokable]
+    public void OnAnimComplete()
     {
-        Task.IsCompleted = !Task.IsCompleted;
-        OnToggle.InvokeAsync(Task);
+        _ = OnToggle.InvokeAsync(Task);
+    }
+
+    private async Task Toggle()
+    {
+        if (_leaving) return;
+
+        if (ExitAnim == ExitAnim.None)
+        {
+            await OnToggle.InvokeAsync(Task);
+            return;
+        }
+
+        _leaving = true;
+        try
+        {
+            _dtRef ??= DotNetObjectReference.Create(this);
+            var direction = ExitAnim == ExitAnim.Left ? "left" : "right";
+            await JS.InvokeVoidAsync("nightfallTaskAnim.animateAndRemove", _el, _dtRef, "OnAnimComplete", direction);
+        }
+        catch
+        {
+            _leaving = false;
+            await OnToggle.InvokeAsync(Task);
+        }
+    }
+
+    public void Dispose()
+    {
+        _dtRef?.Dispose();
+        _dtRef = null;
+    }
+
+    private string FormatRemaining(DateTime due)
+    {
+        var diff = due - DateTime.Now;
+        if (diff < TimeSpan.Zero) return "просрочено";
+        if (diff.TotalDays >= 1) return $"{(int)diff.TotalDays} дн {diff.Hours} ч";
+        if (diff.TotalHours >= 1) return $"{(int)diff.TotalHours} ч {diff.Minutes} мин";
+        if (diff.TotalMinutes >= 1) return $"{(int)diff.TotalMinutes} мин";
+        return "менее минуты";
     }
 }

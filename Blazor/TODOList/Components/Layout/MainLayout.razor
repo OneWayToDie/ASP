@@ -1,4 +1,5 @@
 ﻿@inherits LayoutComponentBase
+@implements IDisposable
 @inject TODOList.Services.DataService Data
 @inject TODOList.Services.NotificationService Notify
 @inject IJSRuntime JS
@@ -24,22 +25,91 @@
 </div>
 
 @code {
+    private bool _disposed;
+    private bool _loaded;
+
     protected override void OnInitialized()
     {
         Data.OnReminderDue += OnReminderDue;
-        Data.OnChange += StateHasChanged;
+        Data.OnChange += HandleChange;
+        Data.OnPersist += OnPersistNeeded;
+    }
+
+    private void HandleChange()
+    {
+        if (_disposed) return;
+        try { InvokeAsync(StateHasChanged); }
+        catch { }
+    }
+
+    private void OnPersistNeeded()
+    {
+        if (_disposed) return;
+        try
+        {
+            InvokeAsync(async () =>
+            {
+                if (_disposed) return;
+                try
+                {
+                    await JS.InvokeVoidAsync("nightfallPersist.save", "state", Data.SerializeState());
+                }
+                catch { }
+            });
+        }
+        catch { }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_loaded)
+        {
+            _loaded = true;
+            try
+            {
+                var json = await JS.InvokeAsync<string>("nightfallPersist.load", "state", null);
+                if (!string.IsNullOrEmpty(json) && json != "null")
+                {
+                    Data.RestoreState(json);
+                }
+            }
+            catch { }
+        }
     }
 
     private void OnReminderDue(TODOList.Models.Reminder reminder)
     {
-        Notify.Push(reminder.Title, reminder.Message ?? string.Empty);
-        _ = JS.InvokeVoidAsync("nightfallPlayBeep");
-        _ = JS.InvokeVoidAsync("nightfallNotify.show", reminder.Title, reminder.Message ?? string.Empty);
+        if (_disposed) return;
+        try
+        {
+            InvokeAsync(async () =>
+            {
+                if (_disposed) return;
+                try
+                {
+                    Notify.Push(reminder.Title, reminder.Message ?? string.Empty);
+                }
+                catch { }
+                try
+                {
+                    await JS.InvokeVoidAsync("nightfallPlayBeep");
+                }
+                catch { }
+                try
+                {
+                    await JS.InvokeVoidAsync("nightfallNotify.show", reminder.Title, reminder.Message ?? string.Empty);
+                }
+                catch { }
+            });
+        }
+        catch { }
     }
 
     public void Dispose()
     {
+        _disposed = true;
         Data.OnReminderDue -= OnReminderDue;
-        Data.OnChange -= StateHasChanged;
+        Data.OnChange -= HandleChange;
+        Data.OnPersist -= OnPersistNeeded;
     }
 }
