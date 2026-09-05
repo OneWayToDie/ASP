@@ -34,7 +34,7 @@
 
         <div class="mp-volume">
             <i class="bi @(volumeIcon) mp-vol-icon" @onclick="ToggleMute" title="@(Music.Volume <= 0 ? "Включить звук" : "Выключить звук")"></i>
-            <input @ref="_volSlider" type="range" min="0" max="100" value="@volumePercent" @oninput="OnVolumeChange" />
+            <input @ref="_volSlider" type="range" min="0" max="100" @oninput="OnVolumeChange" />
         </div>
 
         <div class="mp-progress">
@@ -58,6 +58,7 @@
     private bool _disposed;
     private double _savedVolume = 1.0;
     private ElementReference _volSlider;
+    private bool _volReady;
     private string? _themeGenre;
 
     protected override void OnInitialized()
@@ -67,11 +68,15 @@
 
     private void HandleMusicChange()
     {
-        _ = InvokeAsync(() =>
+        _ = InvokeAsync(async () =>
         {
             try
             {
                 UpdateThemeSlides();
+                if (_volReady)
+                {
+                    try { await JS.InvokeVoidAsync("nightfallAudio.applyVolume", _volSlider, Music.Volume); } catch { }
+                }
                 StateHasChanged();
             }
             catch { }
@@ -99,7 +104,8 @@
                 await JS.InvokeVoidAsync("nightfallAudio.init", _dotNetRef);
                 var saved = await JS.InvokeAsync<double>("nightfallAudio.getVolume");
                 Music.Volume = saved;
-                await JS.InvokeVoidAsync("nightfallAudio.setVolumeStyle", _volSlider, volumePercent);
+                await JS.InvokeVoidAsync("nightfallAudio.applyVolume", _volSlider, saved);
+                _volReady = true;
                 UpdateThemeSlides();
             }
             catch (Exception ex)
@@ -147,7 +153,7 @@
     }
 
     private int progressValue => (int)(duration > 0 ? progress / duration * 100 : 0);
-    private int volumePercent => (int)(Music.Volume * 100);
+    private int volumePercent => (int)Math.Round(Music.Volume * 100);
     private string volumeIcon => Music.Volume <= 0 ? "bi-volume-mute" : Music.Volume < 0.5 ? "bi-volume-down" : "bi-volume-up";
 
     private async Task OnVolumeChange(ChangeEventArgs e)
@@ -157,8 +163,7 @@
             Music.Volume = pct / 100.0;
             try
             {
-                await JS.InvokeVoidAsync("nightfallAudio.setVolume", Music.Volume);
-                await JS.InvokeVoidAsync("nightfallAudio.setVolumeStyle", _volSlider, volumePercent);
+                await JS.InvokeVoidAsync("nightfallAudio.applyVolume", _volSlider, pct / 100.0);
             }
             catch { }
         }
@@ -177,8 +182,7 @@
         }
         try
         {
-            await JS.InvokeVoidAsync("nightfallAudio.setVolume", Music.Volume);
-            await JS.InvokeVoidAsync("nightfallAudio.setVolumeStyle", _volSlider, volumePercent);
+            await JS.InvokeVoidAsync("nightfallAudio.applyVolume", _volSlider, Music.Volume);
         }
         catch { }
     }

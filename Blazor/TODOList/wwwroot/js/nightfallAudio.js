@@ -118,10 +118,25 @@ window.nightfallAudio = (function () {
         },
         getVolume() { return audio ? audio.volume : loadVolume(); },
         setVolumeStyle(el, pct) {
+            if (!el) return;
             var p = Math.max(0, Math.min(100, pct));
             var trackColor = 'rgba(255,255,255,0.08)';
             var fillColor = '#ffffff';
             el.style.background = 'linear-gradient(to right, ' + fillColor + ' 0%, ' + fillColor + ' ' + p + '%, ' + trackColor + ' ' + p + '%)';
+        },
+        // One-shot UI sync: sets audio volume, persists it, snaps the native
+        // range value and paints the fill gradient — all synchronously so the
+        // thumb and the white line never desync while dragging.
+        applyVolume(el, v) {
+            var clamped = Math.max(0, Math.min(1, v));
+            if (audio) audio.volume = clamped;
+            saveVolume(clamped);
+            var pct = Math.round(clamped * 100);
+            if (el) {
+                el.value = pct;
+                this.setVolumeStyle(el, pct);
+            }
+            return pct;
         },
         isInit() { return audio != null; }
     };
@@ -166,50 +181,74 @@ window.nightfallVisualizer = (function () {
     let timeData = null;
     let bars = 64;
     let color = '#ffffff';
+    let mode = 'bars'; // 'bars' (horizontal) | 'ring' (circular around a disc)
 
     function getAnalyser() {
         // The analyser lives in window.nightfallAudio module; grab it if created
         return window.nightfallAudioVisualizerAnalyser || null;
     }
 
+    function resolveCanvas(canvasEl, fallbackId) {
+        let el;
+        if (canvasEl) {
+            if (typeof canvasEl === 'object' && canvasEl.id) {
+                el = document.getElementById(canvasEl.id);
+            } else if (typeof canvasEl === 'string') {
+                el = document.getElementById(canvasEl);
+            } else if (canvasEl.tagName) {
+                el = canvasEl;
+            }
+        }
+        if (!el) el = document.getElementById(fallbackId || 'player-canvas');
+        return el;
+    }
+
+    function sizeCanvas(el) {
+        const rect = el.getBoundingClientRect();
+        el.width = rect.width || el.clientWidth || 800;
+        el.height = rect.height || el.clientHeight || 300;
+    }
+
+    function start() {
+        if (rafId) cancelAnimationFrame(rafId);
+        const loop = () => {
+            draw();
+            rafId = requestAnimationFrame(loop);
+        };
+        loop();
+    }
+
     return {
         attach(canvasEl, barCount, colorHex) {
-            let el;
-            if (canvasEl) {
-                // best-effort: Blazor ElementReference -> resolve by id if it has one
-                if (typeof canvasEl === 'object' && canvasEl.id) {
-                    el = document.getElementById(canvasEl.id);
-                } else if (typeof canvasEl === 'string') {
-                    el = document.getElementById(canvasEl);
-                } else if (canvasEl.tagName) {
-                    el = canvasEl;
-                }
-            }
-            if (!el) el = document.getElementById('player-canvas');
+            const el = resolveCanvas(canvasEl);
             if (!el) return;
             canvas = el;
             ctx = canvas.getContext('2d');
+            mode = 'bars';
             bars = barCount || 64;
             color = colorHex || '#ffffff';
-            analyser = window.nightfallAudioVisualizerAnalyser || null;
+            analyser = getAnalyser();
             if (analyser) {
                 dataArray = new Uint8Array(analyser.frequencyBinCount);
                 timeData = new Uint8Array(analyser.fftSize);
             }
-            // size canvas to its display size
-            const rect = canvas.getBoundingClientRect();
-            canvas.width = rect.width || canvas.clientWidth || 800;
-            canvas.height = rect.height || canvas.clientHeight || 300;
-            this.start();
+            sizeCanvas(canvas);
+            start();
         },
-        start() {
-            if (rafId) cancelAnimationFrame(rafId);
-            const loop = () => {
-                draw();
-                rafId = requestAnimationFrame(loop);
-            };
-            loop();
+        attachRing(canvasEl, colorHex) {
+            const el = resolveCanvas(canvasEl, 'player-ring-canvas');
+            if (!el) return;
+            canvas = el;
+            ctx = canvas.getContext('2d');
+            mode = 'ring';
+            bars = 72;
+            color = colorHex || '#ffffff';
+            analyser = getAnalyser();
+            if (analyser) dataArray = new Uint8Array(analyser.frequencyBinCount);
+            sizeCanvas(canvas);
+            start();
         },
+        start() { start(); },
         stop() {
             if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
         },
@@ -223,18 +262,31 @@ window.nightfallVisualizer = (function () {
 
     function draw() {
         if (!canvas || !ctx) return;
-        // (re)acquire analyser lazily in case audio wasn't initialized yet
-        if (!analyser) analyser = window.nightfallAudioVisualizerAnalyser || null;
-        if (!analyser) return;
+        if (!analyser) analyser = getAnalyser();
 
         const w = canvas.width;
         const h = canvas.height;
         if (w === 0 || h === 0) return;
 
-        if (!dataArray) dataArray = new Uint8Array(analyser.frequencyBinCount);
-        if (!timeData) timeData = new Uint8Array(analyser.fftSize);
-
         ctx.clearRect(0, 0, w, h);
+
+        if (mode === 'ring') {
+            drawRing(w, h);
+            return;
+        }
+
+        if (!analyser || !dataArray) {
+            // Idle placeholder: faint baseline bars for the rectangular canvas
+            ctx.fillStyle = 'rgba(255,255,255,0.35)';
+            const n = bars;
+            const barW = w / n;
+            for (let i = 0; i < n; i += 3) {
+                ctx.fillRect(i * barW + 1, h - 3, barW - 2, 3);
+            }
+            return;
+        }
+
+        if (!timeData) timeData = new Uint8Array(analyser.fftSize);
 
         analyser.getByteFrequencyData(dataArray);
         analyser.getByteTimeDomainData(timeData);
@@ -270,6 +322,50 @@ window.nightfallVisualizer = (function () {
         }
         ctx.stroke();
         ctx.shadowBlur = 0;
+    }
+
+    function drawRing(w, h) {
+        const cx = w / 2;
+        const cy = h / 2;
+        const maxR = Math.min(w, h) / 2;
+        const innerR = maxR * 0.45;   // just outside the disc
+        const outerR = maxR * 0.92;   // bars reach outward
+        const span = outerR - innerR;
+        const barWidth = (Math.PI * 2 * innerR / bars) * 0.7;
+
+        // Idle base ring so the player keeps a visible circle even when paused
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(cx, cy, innerR + span * 0.08, 0, Math.PI * 2);
+        ctx.stroke();
+
+        if (!analyser || !dataArray) return;
+
+        analyser.getByteFrequencyData(dataArray);
+
+        const n = bars;
+        for (let i = 0; i < n; i++) {
+            const idx = Math.floor((i / n) * dataArray.length);
+            const v = dataArray[idx] / 255;
+            const len = Math.max(2, v * span);
+
+            const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
+            const inner = innerR + span * 0.02;
+            const grd = ctx.createLinearGradient(0, cy - inner - len, 0, cy - inner);
+            grd.addColorStop(0, color);
+            grd.addColorStop(1, 'rgba(255,255,255,0.12)');
+            ctx.fillStyle = grd;
+            ctx.globalAlpha = 0.35 + 0.65 * v;
+
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(angle);
+            ctx.fillRect(inner, -barWidth / 2, len, barWidth);
+            ctx.restore();
+        }
+        ctx.globalAlpha = 1;
     }
 })();
 

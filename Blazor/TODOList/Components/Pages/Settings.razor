@@ -1,11 +1,46 @@
 @page "/settings"
 @inject TODOList.Services.MusicService Music
+@inject TODOList.Services.NotificationService Notify
 @inject IJSRuntime JS
 
 <PageTitle>NIGHTFALL — Настройки</PageTitle>
 
 <div class="fade-in">
     <h1 class="page-title">Настройки</h1>
+
+    <div class="card-theme" style="margin-bottom:1.5rem;">
+        <h3 style="margin:0 0 1rem 0; font-size:1.05rem;">Плеер</h3>
+
+        <div class="set-row">
+            <div>
+                <div class="set-label">Тема плеера</div>
+                <div class="muted" style="font-size:0.8rem;">«Пластинка» — изображение в круге + размытый фон; «Фон» — полноэкранные обои.</div>
+            </div>
+            <select @bind="settingsPlayerTheme" style="background:var(--bg-elevated); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:0.3rem 0.5rem; font-size:0.85rem;">
+                <option value="vinyl">Пластинка</option>
+                <option value="wallpaper">Полноэкранный фон</option>
+            </select>
+        </div>
+
+        <div class="set-row">
+            <div>
+                <div class="set-label">Вид фильтра жанров</div>
+                <div class="muted" style="font-size:0.8rem;">Стиль кнопок выбора жанра на всех страницах.</div>
+            </div>
+            <select @bind="settingsPickerVariant" style="background:var(--bg-elevated); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:0.3rem 0.5rem; font-size:0.85rem;">
+                @foreach (var v in PickerVariants)
+                {
+                    <option value="@v">@v</option>
+                }
+            </select>
+        </div>
+
+        <div style="margin-top:1rem; display:flex; gap:0.6rem; align-items:center;">
+            <button class="btn-theme btn-primary" @onclick="SaveSettings">
+                <i class="bi bi-check2-circle"></i> Сохранить настройки
+            </button>
+        </div>
+    </div>
 
     <div class="card-theme" style="margin-bottom:1.5rem;">
         <div class="flex-between">
@@ -21,7 +56,7 @@
         </div>
 
         <div style="margin-bottom:1rem;">
-            <GenrePicker Selected="@selectedGenre" ShowCount="true" Variant="pills" OnSelect="SelectGenre" />
+            <GenrePicker Selected="@selectedGenre" ShowCount="true" Variant="@Music.GenrePickerVariant" OnSelect="SelectGenre" />
         </div>
 
         @if (selectedGenre != null && wallpapers.Count > 0)
@@ -59,6 +94,10 @@
 </div>
 
 @code {
+    private static readonly string[] PickerVariants = { "pills", "dropdown", "sidebar", "tabs", "cards", "chips", "segmented", "strip", "radio", "arrows" };
+    private string settingsPickerVariant = "pills";
+    private string settingsPlayerTheme = "wallpaper";
+
     private string? selectedGenre;
     private List<string> wallpapers = new();
     private int currentIndex;
@@ -67,11 +106,27 @@
     protected override void OnInitialized()
     {
         Music.OnChange += HandleChange;
+        settingsPickerVariant = Music.GenrePickerVariant;
+        settingsPlayerTheme = Music.PlayerTheme;
         selectedGenre = Music.CurrentGenre ?? Music.Genres.FirstOrDefault();
         LoadWallpapers();
     }
 
     private void HandleChange() => InvokeAsync(StateHasChanged);
+
+    private async Task SaveSettings()
+    {
+        Music.GenrePickerVariant = settingsPickerVariant;
+        Music.PlayerTheme = settingsPlayerTheme;
+        Notify.Push("Настройки", "Сохранены");
+        try
+        {
+            await JS.InvokeVoidAsync("nightfallPersist.save", "genrePicker", settingsPickerVariant);
+            await JS.InvokeVoidAsync("nightfallPersist.save", "playerTheme", settingsPlayerTheme);
+            await JS.InvokeVoidAsync("nightfallTheme.setTheme", settingsPlayerTheme);
+        }
+        catch { }
+    }
 
     private void LoadWallpapers()
     {

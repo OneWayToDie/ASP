@@ -22,6 +22,30 @@ namespace TODOList.Services
 		public bool RepeatOne { get; set; }
 		public bool SyncWithTimer { get; set; } = true;
 
+		private string _genrePickerVariant = "pills";
+		public string GenrePickerVariant
+		{
+			get => _genrePickerVariant;
+			set
+			{
+				if (_genrePickerVariant == value) return;
+				_genrePickerVariant = value;
+				NotifyChange();
+			}
+		}
+
+		private string _playerTheme = "wallpaper";
+		public string PlayerTheme
+		{
+			get => _playerTheme;
+			set
+			{
+				if (_playerTheme == value) return;
+				_playerTheme = value;
+				NotifyChange();
+			}
+		}
+
 		private string? _currentGenre;
 		public string? CurrentGenre
 		{

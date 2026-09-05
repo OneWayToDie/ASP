@@ -1,28 +1,93 @@
 @inject TODOList.Services.MusicService Music
 
-<div class="gctl gctl-@Variant.ToString().ToLowerInvariant()">
+<div class="gctl gctl-@VariantCss">
     @if (Music.Genres.Any())
     {
-        <button class="gctl-item @(Selected == null ? "active" : "")" @onclick="() => OnSelect.InvokeAsync(null)">
-            <span class="gctl-label">Все</span>
-            @if (ShowCount)
-            {
-                <span class="gctl-count">@Music.Tracks.Count().ToString()</span>
-            }
-        </button>
-        @foreach (var genre in Music.Genres)
+        @if (IsArrows)
         {
-            var g = genre;
-            var accent = Music.GetGenreAccent(g);
-            <button class="gctl-item @(Selected == g ? "active" : "")"
-                    style="--gacc:@accent;"
-                    @onclick="() => OnSelect.InvokeAsync(g)">
-                <span class="gctl-label">@Music.GetGenreDisplay(g)</span>
+            var options = Options;
+            var cur = options[ArrowIndex];
+            var curAccent = cur == null ? "" : Music.GetGenreAccent(cur);
+            var curCount = cur == null ? Music.Tracks.Count() : Music.GetTracks(cur).Count();
+            <button class="gctl-item gctl-navbtn" @onclick="ArrowPrev" title="Предыдущий жанр">
+                <i class="bi bi-chevron-left"></i>
+            </button>
+            <button class="gctl-item active" style="--gacc:@curAccent;" @onclick="() => OnSelect.InvokeAsync(cur)">
+                <span class="gctl-label">@(cur == null ? "Все" : Music.GetGenreDisplay(cur))</span>
                 @if (ShowCount)
                 {
-                    <span class="gctl-count">@Music.GetTracks(g).Count().ToString()</span>
+                    <span class="gctl-count">@curCount.ToString()</span>
                 }
             </button>
+            <button class="gctl-item gctl-navbtn" @onclick="ArrowNext" title="Следующий жанр">
+                <i class="bi bi-chevron-right"></i>
+            </button>
+        }
+        else if (IsDropdown)
+        {
+            var cur = Selected;
+            var ddLabel = cur == null ? "Все" : Music.GetGenreDisplay(cur);
+            var ddCount = cur == null ? Music.Tracks.Count() : Music.GetTracks(cur).Count();
+            var ddAccent = cur == null ? "" : Music.GetGenreAccent(cur);
+            <div class="gctl-dd">
+                <button class="gctl-item gctl-dd-trigger @(_ddOpen ? "dd-open" : "dd-closed")" style="--gacc:@ddAccent;" @onclick="ToggleDropdown">
+                    <span class="gctl-label">@ddLabel</span>
+                    @if (ShowCount)
+                    {
+                        <span class="gctl-count">@ddCount.ToString()</span>
+                    }
+                    <i class="bi bi-chevron-down gctl-dd-caret"></i>
+                </button>
+                @if (_ddOpen)
+                {
+                    <div class="gctl-dd-backdrop" @onclick="CloseDropdown"></div>
+                    <div class="gctl-dd-menu">
+                        <button class="gctl-item @(Selected == null ? "active" : "")" @onclick="() => Select(null)">
+                            <span class="gctl-label">Все</span>
+                            @if (ShowCount)
+                            {
+                                <span class="gctl-count">@Music.Tracks.Count().ToString()</span>
+                            }
+                        </button>
+                        @foreach (var genre in Music.Genres)
+                        {
+                            var g = genre;
+                            var acc = Music.GetGenreAccent(g);
+                            <button class="gctl-item @(Selected == g ? "active" : "")" style="--gacc:@acc;" @onclick="() => Select(g)">
+                                <span class="gctl-label">@Music.GetGenreDisplay(g)</span>
+                                @if (ShowCount)
+                                {
+                                    <span class="gctl-count">@Music.GetTracks(g).Count().ToString()</span>
+                                }
+                            </button>
+                        }
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <button class="gctl-item @(Selected == null ? "active" : "")" @onclick="() => OnSelect.InvokeAsync(null)">
+                <span class="gctl-label">Все</span>
+                @if (ShowCount)
+                {
+                    <span class="gctl-count">@Music.Tracks.Count().ToString()</span>
+                }
+            </button>
+            @foreach (var genre in Music.Genres)
+            {
+                var g = genre;
+                var accent = Music.GetGenreAccent(g);
+                <button class="gctl-item @(Selected == g ? "active" : "")"
+                        style="--gacc:@accent;"
+                        @onclick="() => OnSelect.InvokeAsync(g)">
+                    <span class="gctl-label">@Music.GetGenreDisplay(g)</span>
+                    @if (ShowCount)
+                    {
+                        <span class="gctl-count">@Music.GetTracks(g).Count().ToString()</span>
+                    }
+                </button>
+            }
         }
     }
     else
@@ -34,6 +99,7 @@
 <style>
     .gctl { display: flex; flex-wrap: wrap; gap: 0.5rem; }
     .gctl-item {
+        position: relative;
         display: inline-flex; align-items: center; gap: 0.45rem;
         background: rgba(20,20,20,0.65);
         border: 1px solid var(--border);
@@ -65,10 +131,48 @@
     }
     .gctl-item.active .gctl-count { color: #fff; }
 
-    .gctl-dropdown { display: inline-flex; flex-wrap: wrap; }
-    .gctl-sidebar { flex-direction: column; flex-wrap: nowrap; }
-    .gctl-tabs { flex-wrap: nowrap; gap: 0; border-bottom: 1px solid var(--border); }
+    /* 1. pills — обычные круглые кнопки (по умолчанию) */
+
+    /* 2. dropdown — настоящий выпадающий список */
+    .gctl-dd { position: relative; display: inline-block; }
+    .gctl-dd-caret { font-size: 0.62rem; margin-left: 0.1rem; transition: transform .15s ease; }
+    .gctl-dd-trigger.dd-open .gctl-dd-caret { transform: rotate(180deg); }
+    .gctl-dd-trigger.dd-open {
+        background: color-mix(in srgb, var(--gacc, var(--accent)) 18%, rgba(20,20,20,0.8));
+        border-color: var(--gacc, var(--accent));
+        color: #fff;
+    }
+    .gctl-dd-backdrop { position: fixed; inset: 0; z-index: 40; }
+    .gctl-dd-menu {
+        position: absolute; top: calc(100% + 6px); left: 0; z-index: 41;
+        min-width: 250px; max-height: 340px; overflow-y: auto;
+        background: rgba(24,24,26,0.97);
+        border: 1px solid var(--border); border-radius: 12px;
+        padding: 0.4rem;
+        display: flex; flex-direction: column; gap: 0.2rem;
+        box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+    }
+    .gctl-dd-menu .gctl-item { justify-content: flex-start; width: 100%; }
+    .gctl-dd-menu .gctl-count { margin-left: auto; }
+    .gctl-dd-menu .gctl-item.active .gctl-label { color: #fff; }
+
+    /* 3. sidebar — вертикальный список с прокруткой */
+    .gctl-sidebar {
+        flex-direction: column; flex-wrap: nowrap;
+        align-items: stretch;
+        max-height: 360px; overflow-y: auto;
+        padding-right: 0.25rem;
+    }
+    .gctl-sidebar .gctl-item { justify-content: flex-start; border-radius: 8px; }
+
+    /* 4. tabs — вкладки с нижним подчёркиванием */
+    .gctl-tabs {
+        flex-wrap: nowrap; gap: 0;
+        border-bottom: 1px solid var(--border);
+        overflow-x: auto; max-width: 100%;
+    }
     .gctl-tabs .gctl-item {
+        flex: 0 0 auto;
         border-radius: 0; border: none; background: none;
         border-bottom: 2px solid transparent;
         color: var(--text-dim);
@@ -78,6 +182,91 @@
         border-bottom-color: var(--gacc, var(--accent));
         color: #fff;
     }
+
+    /* 5. cards — сетка карточек с цветной полосой жанра */
+    .gctl-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+        gap: 0.6rem;
+    }
+    .gctl-cards .gctl-item {
+        flex-direction: column; align-items: flex-start;
+        gap: 0.45rem; padding: 0;
+        border-radius: 12px; overflow: hidden;
+        height: 100%;
+    }
+    .gctl-cards .gctl-item::before {
+        content: '';
+        display: block; width: 100%; height: 38px;
+        background: linear-gradient(135deg, var(--gacc, var(--accent)),
+            color-mix(in srgb, var(--gacc, var(--accent)) 14%, #0a0a0a));
+        opacity: 0.55;
+        transition: opacity .15s ease;
+    }
+    .gctl-cards .gctl-item:hover::before { opacity: 0.9; }
+    .gctl-cards .gctl-label { padding: 0 0.7rem 0.7rem; max-width: 100%; }
+    .gctl-cards .gctl-count { position: absolute; top: 9px; right: 9px; z-index: 1; color: rgba(255,255,255,0.85); }
+    .gctl-cards .gctl-item.active {
+        background: color-mix(in srgb, var(--gacc, var(--accent)) 30%, rgba(20,20,20,0.85));
+    }
+
+    /* 6. chips — компактные чипы с цветной точкой */
+    .gctl-chips { gap: 0.4rem; }
+    .gctl-chips .gctl-item { padding: 0.35rem 0.7rem; font-size: 0.8rem; }
+    .gctl-chips .gctl-item::before {
+        content: '';
+        width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+        background: var(--gacc, var(--accent));
+        box-shadow: 0 0 6px color-mix(in srgb, var(--gacc, var(--accent)) 70%, transparent);
+    }
+
+    /* 7. segmented — соединённый сегментный контрол */
+    .gctl-segmented {
+        display: inline-flex; flex-wrap: wrap; gap: 0;
+        padding: 3px;
+        border: 1px solid var(--border); border-radius: 12px;
+        background: rgba(20,20,20,0.6);
+    }
+    .gctl-segmented .gctl-item { border: none; border-radius: 9px; background: none; }
+    .gctl-segmented .gctl-item:hover { background: rgba(255,255,255,0.06); transform: none; }
+    .gctl-segmented .gctl-item.active {
+        background: color-mix(in srgb, var(--gacc, var(--accent)) 32%, rgba(20,20,20,0.9));
+        border-color: transparent;
+    }
+
+    /* 8. strip — одна строка с горизонтальной прокруткой */
+    .gctl-strip {
+        flex-wrap: nowrap;
+        overflow-x: auto; max-width: 100%;
+        padding: 0.3rem 0.2rem 0.6rem;
+        scrollbar-width: thin;
+    }
+    .gctl-strip .gctl-item { flex: 0 0 auto; }
+    .gctl-strip .gctl-item.active {
+        transform: translateY(-2px) scale(1.04);
+        box-shadow: 0 0 16px color-mix(in srgb, var(--gacc, var(--accent)) 50%, transparent);
+    }
+
+    /* 9. radio — вертикальный список с радиокнопкой */
+    .gctl-radio { flex-direction: column; align-items: stretch; gap: 0.3rem; }
+    .gctl-radio .gctl-item { border-radius: 8px; justify-content: flex-start; }
+    .gctl-radio .gctl-item::before {
+        content: '';
+        width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0;
+        border: 2px solid var(--gacc, var(--accent));
+        box-sizing: border-box;
+        transition: box-shadow .12s ease, background .12s ease;
+    }
+    .gctl-radio .gctl-item.active::before {
+        background: var(--gacc, var(--accent));
+        box-shadow: 0 0 10px color-mix(in srgb, var(--gacc, var(--accent)) 75%, transparent);
+    }
+    .gctl-radio .gctl-count { margin-left: auto; }
+
+    /* 10. arrows — компактный переключатель: prev | current | next */
+    .gctl-arrows { display: inline-flex; align-items: center; gap: 0.45rem; }
+    .gctl-arrows .gctl-navbtn { padding: 0.4rem 0.6rem; font-size: 0.9rem; }
+    .gctl-arrows .gctl-item.active { min-width: 230px; justify-content: center; }
 </style>
 
 @code {
@@ -85,4 +274,36 @@
     [Parameter] public bool ShowCount { get; set; } = true;
     [Parameter] public EventCallback<string?> OnSelect { get; set; }
     [Parameter] public string Variant { get; set; } = "pills";
+
+    private string VariantCss => Variant.ToLowerInvariant();
+    private bool IsArrows => VariantCss == "arrows";
+    private bool IsDropdown => VariantCss == "dropdown";
+
+    private bool _ddOpen;
+
+    private void ToggleDropdown() => _ddOpen = !_ddOpen;
+
+    private void CloseDropdown() => _ddOpen = false;
+
+    private void Select(string? genre)
+    {
+        _ddOpen = false;
+        _ = OnSelect.InvokeAsync(genre);
+    }
+
+    private List<string?> Options =>
+        Music.Genres.Select(g => (string?)g).Prepend(null).ToList();
+
+    private int ArrowIndex { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        var options = Options;
+        var idx = Selected == null ? 0 : options.IndexOf(Selected);
+        ArrowIndex = idx < 0 ? 0 : idx;
+    }
+
+    private void ArrowPrev() => ArrowIndex = (ArrowIndex - 1 + Options.Count) % Options.Count;
+
+    private void ArrowNext() => ArrowIndex = (ArrowIndex + 1) % Options.Count;
 }

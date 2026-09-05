@@ -38,7 +38,7 @@ html, body {
 body {
     background-image:
         linear-gradient(rgba(10, 10, 10, 0.55), rgba(10, 10, 10, 0.65)),
-        var(--bg-cover, url('/image/4ede3d257070f23ecb212b899fc8bda6.jpg'));
+        var(--bg-cover, url('/image/default-bg-1440.jpg'));
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
@@ -993,7 +993,7 @@ h1 {
 .mp-volume input[type="range"]::-moz-range-progress {
     height: 3px;
     border-radius: 2px;
-    background: var(--accent);
+    background: #ffffff;
 }
 
 /* ============ PLAYER PAGE ============ */
@@ -1207,7 +1207,7 @@ h1 {
 .player-volume input[type="range"]::-moz-range-progress {
     height: 4px;
     border-radius: 2px;
-    background: var(--accent);
+    background: #ffffff;
 }
 
 .player-vol-val {
@@ -1221,6 +1221,143 @@ h1 {
 
 .player-volume:hover .player-vol-val {
     color: var(--text);
+}
+
+/* ============ PLAYER VINYL THEME ============ */
+/* In vinyl mode the loud fullscreen cover is replaced by the blurred
+   backdrop once a genre cover is available. Before that the classic
+   wallpaper stays visible. */
+html.theme-vinyl.has-cover body {
+    background-image: none;
+    background-color: transparent;
+}
+
+html.theme-vinyl:not(.has-cover) body {
+    background-image:
+        linear-gradient(rgba(10, 10, 10, 0.55), rgba(10, 10, 10, 0.65)),
+        var(--bg-cover, url('/image/default-bg-1440.jpg'));
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+}
+
+/* Full-screen blurred genre cover once a cover is active in vinyl mode. */
+html.theme-vinyl body::before {
+    content: '';
+    position: fixed;
+    inset: -10%;
+    z-index: -1;
+    background-image: var(--bg-cover);
+    background-size: cover;
+    background-position: center;
+    filter: blur(8px) saturate(1.2);
+    transform: scale(1.1);
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    pointer-events: none;
+}
+
+html.theme-vinyl.has-cover body::before {
+    opacity: 1;
+}
+
+html.theme-vinyl {
+    background-color: #0b0b0e;
+}
+
+.player-stage-vinyl {
+    position: relative;
+    min-height: 560px;
+}
+
+.player-vinyl {
+    position: relative;
+    width: 100%;
+    max-width: 760px;
+    margin: 0 auto;
+    min-height: 520px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+    overflow: hidden;
+    isolation: isolate;
+}
+
+.player-vinyl::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: radial-gradient(ellipse at center,
+        rgba(10, 10, 10, 0.10) 0%,
+        rgba(10, 10, 10, 0.55) 55%,
+        rgba(10, 10, 10, 0.92) 100%);
+}
+
+.player-ring-wrap {
+    position: relative;
+    width: min(560px, 86vw, 66vh);
+    aspect-ratio: 1;
+}
+
+.player-ring-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.player-disc {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 70%;
+    height: 70%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    will-change: transform;
+    box-shadow:
+        0 30px 60px rgba(0, 0, 0, 0.55),
+        0 0 40px rgba(0, 0, 0, 0.4),
+        inset 0 0 30px rgba(0, 0, 0, 0.6);
+}
+
+.player-disc.spinning {
+    animation: playerDiscSpin 22s linear infinite;
+}
+
+@keyframes playerDiscSpin {
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.player-disc-grooves {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: repeating-radial-gradient(circle at 50% 50%,
+        #17171b 0px, #1d1d22 2px, #141418 4px);
+}
+
+.player-disc-img {
+    position: absolute;
+    inset: 9%;
+    border-radius: 50%;
+    background-image: var(--bg-cover, radial-gradient(circle at 35% 30%, #3a3a40, #101014));
+    background-size: cover;
+    background-position: center;
+    box-shadow:
+        inset 0 0 0 3px rgba(255, 255, 255, 0.14),
+        inset 0 0 0 8px rgba(0, 0, 0, 0.35),
+        inset 0 0 30px rgba(0, 0, 0, 0.55),
+        0 0 0 2px rgba(0, 0, 0, 0.6);
+}
+
+@media (max-width: 640px) {
+    .player-stage-vinyl { min-height: 300px; }
+    .player-vinyl { min-height: 300px; }
 }
 
 /* Genre chips (scrollable) */
@@ -1270,5 +1407,25 @@ h1 {
 .wp-thumb.active {
     border-color: var(--accent);
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.25);
+}
+
+/* Settings rows */
+.set-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.set-row:last-of-type {
+    border-bottom: none;
+}
+
+.set-label {
+    color: var(--text-heading);
+    font-size: 0.9rem;
+    font-weight: 600;
 }
 

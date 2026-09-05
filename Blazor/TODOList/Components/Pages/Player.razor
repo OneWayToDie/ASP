@@ -7,14 +7,29 @@
 <div class="fade-in">
     <h1 class="page-title">Плеер</h1>
 
-    <div style="margin-bottom:1.5rem;">
-        <GenrePicker Selected="@currentGenre" ShowCount="true" Variant="pills" OnSelect="SelectGenre" />
+    <div style="margin-bottom:1rem;">
+        <GenrePicker Selected="@currentGenre" ShowCount="true" Variant="@Music.GenrePickerVariant" OnSelect="SelectGenre" />
     </div>
 
-    <div class="player-stage">
-        <div class="player-canvas-wrap">
-            <canvas id="player-canvas" @ref="_canvasRef" class="player-canvas"></canvas>
-        </div>
+    <div class="player-stage @(isVinyl ? "player-stage-vinyl" : "")">
+        @if (isVinyl)
+        {
+            <div class="player-vinyl">
+                <div class="player-ring-wrap">
+                    <canvas id="player-ring-canvas" @ref="_ringCanvasRef" class="player-ring-canvas"></canvas>
+                    <div class="player-disc @(Music.IsPlaying ? "spinning" : "")">
+                        <div class="player-disc-grooves"></div>
+                        <div class="player-disc-img"></div>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="player-canvas-wrap">
+                <canvas id="player-canvas" @ref="_canvasRef" class="player-canvas"></canvas>
+            </div>
+        }
 
         @if (Music.Current != null)
         {
@@ -41,7 +56,7 @@
 
         <div class="player-volume">
             <i class="bi @(volumeIcon)" @onclick="ToggleMute" title="@(Music.Volume <= 0 ? "Включить звук" : "Выключить звук")"></i>
-            <input @ref="_volSlider" type="range" min="0" max="100" value="@volumePercent" @oninput="OnVolumeChange" />
+            <input @ref="_volSlider" type="range" min="0" max="100" @oninput="OnVolumeChange" />
             <span class="mono player-vol-val">@volumePercent%</span>
         </div>
 
@@ -73,11 +88,15 @@
 
 @code {
     private ElementReference _canvasRef;
+    private ElementReference _ringCanvasRef;
+
+    private bool isVinyl => Music.PlayerTheme == "vinyl";
     private string? currentGenre;
     private List<TODOList.Models.Track> visibleTracks => Music.GetTracks(currentGenre).ToList();
-    private int volumePercent => (int)(Music.Volume * 100);
+    private int volumePercent => (int)Math.Round(Music.Volume * 100);
     private string volumeIcon => Music.Volume <= 0 ? "bi-volume-mute" : Music.Volume < 0.5 ? "bi-volume-down" : "bi-volume-up";
     private double _savedVolume = 1.0;
+    private bool _volReady;
     private ElementReference _volSlider;
 
     private async Task OnVolumeChange(ChangeEventArgs e)
@@ -87,8 +106,7 @@
             Music.Volume = pct / 100.0;
             try
             {
-                await JS.InvokeVoidAsync("nightfallAudio.setVolume", Music.Volume);
-                await JS.InvokeVoidAsync("nightfallAudio.setVolumeStyle", _volSlider, volumePercent);
+                await JS.InvokeVoidAsync("nightfallAudio.applyVolume", _volSlider, pct / 100.0);
             }
             catch { }
         }
@@ -107,8 +125,7 @@
         }
         try
         {
-            await JS.InvokeVoidAsync("nightfallAudio.setVolume", Music.Volume);
-            await JS.InvokeVoidAsync("nightfallAudio.setVolumeStyle", _volSlider, volumePercent);
+            await JS.InvokeVoidAsync("nightfallAudio.applyVolume", _volSlider, Music.Volume);
         }
         catch { }
     }
@@ -119,7 +136,21 @@
         currentGenre = Music.CurrentGenre ?? Music.Genres.FirstOrDefault();
     }
 
-    private void HandleChange() => InvokeAsync(StateHasChanged);
+    private void HandleChange()
+    {
+        try
+        {
+            InvokeAsync(async () =>
+            {
+                if (_volReady)
+                {
+                    try { await JS.InvokeVoidAsync("nightfallAudio.applyVolume", _volSlider, Music.Volume); } catch { }
+                }
+                StateHasChanged();
+            });
+        }
+        catch { }
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -128,8 +159,18 @@
             try
             {
                 await Task.Delay(400);
-                await JS.InvokeVoidAsync("nightfallVisualizer.attach", _canvasRef, 64, "#ffffff");
-                await JS.InvokeVoidAsync("nightfallAudio.setVolumeStyle", _volSlider, volumePercent);
+                if (isVinyl)
+                {
+                    await JS.InvokeVoidAsync("nightfallVisualizer.attachRing", _ringCanvasRef, "#ffffff");
+                }
+                else
+                {
+                    await JS.InvokeVoidAsync("nightfallVisualizer.attach", _canvasRef, 64, "#ffffff");
+                }
+                var saved = await JS.InvokeAsync<double>("nightfallAudio.getVolume");
+                Music.Volume = saved;
+                await JS.InvokeVoidAsync("nightfallAudio.applyVolume", _volSlider, saved);
+                _volReady = true;
             }
             catch (Exception ex)
             {
@@ -142,6 +183,15 @@
     {
         if (currentGenre == genre) return;
         currentGenre = genre;
+        if (!string.IsNullOrEmpty(genre))
+        {
+            try
+            {
+                var urls = Music.GetBackgrounds(genre).ToArray();
+                _ = JS.InvokeVoidAsync("nightfallTheme.setSlides", genre, urls);
+            }
+            catch { }
+        }
     }
 
     private async Task TogglePlay()

@@ -1,6 +1,7 @@
 ﻿@inherits LayoutComponentBase
 @implements IDisposable
 @inject TODOList.Services.DataService Data
+@inject TODOList.Services.MusicService Music
 @inject TODOList.Services.NotificationService Notify
 @inject IJSRuntime JS
 
@@ -72,6 +73,17 @@
                 {
                     Data.RestoreState(json);
                 }
+                var genrePicker = await JS.InvokeAsync<string>("nightfallPersist.load", "genrePicker", null);
+                if (!string.IsNullOrEmpty(genrePicker) && genrePicker != "null")
+                {
+                    Music.GenrePickerVariant = genrePicker;
+                }
+                var playerTheme = await JS.InvokeAsync<string>("nightfallPersist.load", "playerTheme", null);
+                if (!string.IsNullOrEmpty(playerTheme) && playerTheme != "null")
+                {
+                    Music.PlayerTheme = playerTheme;
+                }
+                await JS.InvokeVoidAsync("nightfallTheme.setTheme", Music.PlayerTheme);
             }
             catch { }
         }

@@ -16,9 +16,11 @@ window.nightfallTheme = (function () {
         const url = slides[index];
         if (!url) {
             document.documentElement.style.removeProperty(CSS_VAR);
+            document.documentElement.classList.remove('has-cover');
             return;
         }
         document.documentElement.style.setProperty(CSS_VAR, 'url("' + url + '")');
+        document.documentElement.classList.add('has-cover');
     }
 
     function stopTimer() {
@@ -55,8 +57,8 @@ window.nightfallTheme = (function () {
         },
         // Called when playback starts: reveal the wallpaper ("panda until music").
         play() {
-            if (!slides.length) return;
             armed = true;
+            if (!slides.length) return;
             apply();
             startTimer();
         },
@@ -93,6 +95,10 @@ window.nightfallTheme = (function () {
         },
         state() {
             return { genre: genre, count: slides.length, index: index, frozen: frozen, armed: armed };
+        },
+        // Toggle the vinyl player theme (hides the loud fullscreen cover).
+        setTheme(theme) {
+            document.documentElement.classList.toggle('theme-vinyl', theme === 'vinyl');
         }
     };
 })();
