@@ -1,0 +1,130 @@
+@page "/settings"
+@inject TODOList.Services.MusicService Music
+@inject IJSRuntime JS
+
+<PageTitle>NIGHTFALL — Настройки</PageTitle>
+
+<div class="fade-in">
+    <h1 class="page-title">Настройки</h1>
+
+    <div class="card-theme" style="margin-bottom:1.5rem;">
+        <div class="flex-between">
+            <h3 style="margin:0; font-size:1.05rem;">Фон и обои</h3>
+            <button class="btn-theme @(IsFrozen ? "" : "btn-primary")" @onclick="ToggleFreeze">
+                <i class="bi @(IsFrozen ? "bi-arrow-repeat" : "bi-snow")"></i>
+                @(IsFrozen ? "Слайд-шоу" : "Заморозить")
+            </button>
+        </div>
+
+        <div class="muted" style="margin:0.6rem 0 1rem 0; font-size:0.9rem;">
+            Обои берутся только из <span class="mono" style="color:var(--text-heading);">wwwroot/wallpapers/&lt;жанр&gt;/</span>. Обложки песен на фон не попадают.
+        </div>
+
+        <div style="margin-bottom:1rem;">
+            <GenrePicker Selected="@selectedGenre" ShowCount="true" Variant="pills" OnSelect="SelectGenre" />
+        </div>
+
+        @if (selectedGenre != null && wallpapers.Count > 0)
+        {
+            <div class="wp-grid">
+                @for (int i = 0; i < wallpapers.Count; i++)
+                {
+                    var url = "/" + wallpapers[i];
+                    var idx = i;
+                    <img class="wp-thumb @(currentIndex == idx ? "active" : "")"
+                         src="@url" loading="lazy"
+                         title="Слайд @(idx + 1)"
+                         @onclick="() => PinSlide(idx)" />
+                }
+            </div>
+            <div class="muted mono" style="margin-top:0.8rem;">
+                @selectedGenre · слайд @(currentIndex + 1)/@wallpapers.Count · @(IsFrozen ? "заморожено" : "авто")
+            </div>
+        }
+        else if (selectedGenre != null)
+        {
+            <div class="empty-state">
+                <i class="bi bi-image"></i>
+                <div>В жанре «@Music.GetGenreDisplay(selectedGenre)» нет обоев. Добавь файлы в <span class="mono">wallpapers/@selectedGenre/</span></div>
+            </div>
+        }
+        else
+        {
+            <div class="empty-state">
+                <i class="bi bi-image"></i>
+                <div>Нет данных. Разложи mp3 по папкам в /music.</div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private string? selectedGenre;
+    private List<string> wallpapers = new();
+    private int currentIndex;
+    private bool IsFrozen;
+
+    protected override void OnInitialized()
+    {
+        Music.OnChange += HandleChange;
+        selectedGenre = Music.CurrentGenre ?? Music.Genres.FirstOrDefault();
+        LoadWallpapers();
+    }
+
+    private void HandleChange() => InvokeAsync(StateHasChanged);
+
+    private void LoadWallpapers()
+    {
+        if (selectedGenre == null)
+        {
+            wallpapers = new List<string>();
+            return;
+        }
+        wallpapers = Music.GetWallpapers(selectedGenre).ToList();
+        currentIndex = 0;
+    }
+
+    private void SelectGenre(string? genre)
+    {
+        if (selectedGenre == genre) return;
+        selectedGenre = genre;
+        Music.CurrentGenre = genre;
+        IsFrozen = false;
+        LoadWallpapers();
+        _ = JS.InvokeVoidAsync("nightfallTheme.setSlides", genre, wallpapers);
+    }
+
+    private async Task PinSlide(int i)
+    {
+        if (selectedGenre == null || i < 0 || i >= wallpapers.Count) return;
+        currentIndex = i;
+        IsFrozen = true;
+        try
+        {
+            await JS.InvokeVoidAsync("nightfallTheme.pin", i);
+        }
+        catch { }
+    }
+
+    private async Task ToggleFreeze()
+    {
+        IsFrozen = !IsFrozen;
+        try
+        {
+            if (IsFrozen)
+            {
+                await JS.InvokeVoidAsync("nightfallTheme.freeze");
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("nightfallTheme.unfreeze");
+            }
+        }
+        catch { }
+    }
+
+    public void Dispose()
+    {
+        Music.OnChange -= HandleChange;
+    }
+}

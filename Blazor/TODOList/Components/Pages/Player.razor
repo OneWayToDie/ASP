@@ -7,25 +7,8 @@
 <div class="fade-in">
     <h1 class="page-title">Плеер</h1>
 
-    <div class="player-playlist-tabs" style="margin-bottom:1.5rem;">
-        @foreach (var state in new[] {
-            TODOList.Models.PlaylistState.All,
-            TODOList.Models.PlaylistState.Focus,
-            TODOList.Models.PlaylistState.Break,
-            TODOList.Models.PlaylistState.Depressed })
-        {
-            var s = state;
-            var label = state switch
-            {
-                TODOList.Models.PlaylistState.Focus => "FOCUS",
-                TODOList.Models.PlaylistState.Break => "BREAK",
-                TODOList.Models.PlaylistState.Depressed => "DEPRESSED",
-                _ => "ALL"
-            };
-            <button class="tab-btn @(currentList == state ? "active" : "")" @onclick="() => SetList(s)">
-                @label
-            </button>
-        }
+    <div style="margin-bottom:1.5rem;">
+        <GenrePicker Selected="@currentGenre" ShowCount="true" Variant="pills" OnSelect="SelectGenre" />
     </div>
 
     <div class="player-stage">
@@ -90,8 +73,8 @@
 
 @code {
     private ElementReference _canvasRef;
-    private TODOList.Models.PlaylistState currentList = TODOList.Models.PlaylistState.All;
-    private List<TODOList.Models.Track> visibleTracks => Music.GetTracks(currentList).ToList();
+    private string? currentGenre;
+    private List<TODOList.Models.Track> visibleTracks => Music.GetTracks(currentGenre).ToList();
     private int volumePercent => (int)(Music.Volume * 100);
     private string volumeIcon => Music.Volume <= 0 ? "bi-volume-mute" : Music.Volume < 0.5 ? "bi-volume-down" : "bi-volume-up";
     private double _savedVolume = 1.0;
@@ -133,6 +116,7 @@
     protected override void OnInitialized()
     {
         Music.OnChange += HandleChange;
+        currentGenre = Music.CurrentGenre ?? Music.Genres.FirstOrDefault();
     }
 
     private void HandleChange() => InvokeAsync(StateHasChanged);
@@ -154,10 +138,10 @@
         }
     }
 
-    private void SetList(TODOList.Models.PlaylistState state)
+    private void SelectGenre(string? genre)
     {
-        currentList = state;
-        Music.CurrentPlaylist = state;
+        if (currentGenre == genre) return;
+        currentGenre = genre;
     }
 
     private async Task TogglePlay()
@@ -169,6 +153,7 @@
             {
                 await JS.InvokeVoidAsync("nightfallAudio.pause");
                 Music.SetPlaying(false);
+                await JS.InvokeVoidAsync("nightfallTheme.pause");
             }
             else
             {
@@ -201,6 +186,7 @@
             if (Music.Current == null) return;
             await JS.InvokeVoidAsync("nightfallAudio.playTrack", $"/{Music.Current.FileName}");
             Music.SetPlaying(true);
+            await JS.InvokeVoidAsync("nightfallTheme.play");
         }
         catch (Exception ex)
         {

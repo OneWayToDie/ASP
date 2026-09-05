@@ -38,11 +38,12 @@ html, body {
 body {
     background-image:
         linear-gradient(rgba(10, 10, 10, 0.55), rgba(10, 10, 10, 0.65)),
-        url('/image/4ede3d257070f23ecb212b899fc8bda6.jpg');
+        var(--bg-cover, url('/image/4ede3d257070f23ecb212b899fc8bda6.jpg'));
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
     background-repeat: no-repeat;
+    transition: background-image 0.4s ease;
 }
 
 /* Grain noise overlay across whole page */
@@ -1220,5 +1221,54 @@ h1 {
 
 .player-volume:hover .player-vol-val {
     color: var(--text);
+}
+
+/* Genre chips (scrollable) */
+.genre-chips {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding: 0.2rem 0 0.6rem 0;
+    scrollbar-width: thin;
+}
+
+.genre-chips .chip {
+    flex: 0 0 auto;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.genre-chips .chip.active {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+}
+
+/* Wallpaper thumbnails */
+.wp-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.8rem;
+}
+
+.wp-thumb {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    background: var(--bg-elevated);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.wp-thumb:hover {
+    border-color: var(--border-hover);
+}
+
+.wp-thumb.active {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.25);
 }
 

@@ -1,0 +1,88 @@
+@inject TODOList.Services.MusicService Music
+
+<div class="gctl gctl-@Variant.ToString().ToLowerInvariant()">
+    @if (Music.Genres.Any())
+    {
+        <button class="gctl-item @(Selected == null ? "active" : "")" @onclick="() => OnSelect.InvokeAsync(null)">
+            <span class="gctl-label">Все</span>
+            @if (ShowCount)
+            {
+                <span class="gctl-count">@Music.Tracks.Count().ToString()</span>
+            }
+        </button>
+        @foreach (var genre in Music.Genres)
+        {
+            var g = genre;
+            var accent = Music.GetGenreAccent(g);
+            <button class="gctl-item @(Selected == g ? "active" : "")"
+                    style="--gacc:@accent;"
+                    @onclick="() => OnSelect.InvokeAsync(g)">
+                <span class="gctl-label">@Music.GetGenreDisplay(g)</span>
+                @if (ShowCount)
+                {
+                    <span class="gctl-count">@Music.GetTracks(g).Count().ToString()</span>
+                }
+            </button>
+        }
+    }
+    else
+    {
+        <span class="muted">Нет треков.</span>
+    }
+</div>
+
+<style>
+    .gctl { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .gctl-item {
+        display: inline-flex; align-items: center; gap: 0.45rem;
+        background: rgba(20,20,20,0.65);
+        border: 1px solid var(--border);
+        color: var(--text-dim);
+        padding: 0.4rem 0.8rem;
+        font-size: 0.85rem;
+        border-radius: 999px;
+        cursor: pointer;
+        transition: transform .12s ease, border-color .12s ease, color .12s ease, background .12s ease;
+        line-height: 1;
+    }
+    .gctl-item:hover {
+        border-color: var(--gacc, var(--accent));
+        color: var(--text-heading);
+        transform: translateY(-1px);
+    }
+    .gctl-item.active {
+        background: color-mix(in srgb, var(--gacc, var(--accent)) 22%, rgba(20,20,20,0.8));
+        border-color: var(--gacc, var(--accent));
+        color: #fff;
+    }
+    .gctl-count {
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        color: var(--gacc, var(--text-dim));
+        background: rgba(0,0,0,0.35);
+        border-radius: 999px;
+        padding: 0.08rem 0.45rem;
+    }
+    .gctl-item.active .gctl-count { color: #fff; }
+
+    .gctl-dropdown { display: inline-flex; flex-wrap: wrap; }
+    .gctl-sidebar { flex-direction: column; flex-wrap: nowrap; }
+    .gctl-tabs { flex-wrap: nowrap; gap: 0; border-bottom: 1px solid var(--border); }
+    .gctl-tabs .gctl-item {
+        border-radius: 0; border: none; background: none;
+        border-bottom: 2px solid transparent;
+        color: var(--text-dim);
+    }
+    .gctl-tabs .gctl-item.active {
+        background: none;
+        border-bottom-color: var(--gacc, var(--accent));
+        color: #fff;
+    }
+</style>
+
+@code {
+    [Parameter] public string? Selected { get; set; }
+    [Parameter] public bool ShowCount { get; set; } = true;
+    [Parameter] public EventCallback<string?> OnSelect { get; set; }
+    [Parameter] public string Variant { get; set; } = "pills";
+}

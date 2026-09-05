@@ -1,5 +1,4 @@
 @inject TODOList.Services.MusicService Music
-@inject TODOList.Services.DataService Data
 @inject IJSRuntime JS
 
 <div class="music-mini">
@@ -48,56 +47,46 @@
     }
     else
     {
-        <div class="mp-empty muted">Нет треков в /music</div>
+        <div class="mp-empty muted">Нет треков в /music/&lt;жанр&gt;</div>
     }
 </div>
 
 @code {
     private double progress;
     private double duration;
-    private bool _lastBreak;
     private DotNetObjectReference<MusicPlayer>? _dotNetRef;
     private bool _disposed;
     private double _savedVolume = 1.0;
     private ElementReference _volSlider;
+    private string? _themeGenre;
 
     protected override void OnInitialized()
     {
         Music.OnChange += HandleMusicChange;
-        Data.OnChange += OnTimerChanged;
-        _lastBreak = Data.Timer.IsBreak;
     }
 
-    private void HandleMusicChange() => InvokeAsync(StateHasChanged);
-
-    private void OnTimerChanged()
+    private void HandleMusicChange()
     {
         _ = InvokeAsync(() =>
         {
             try
             {
-                if (!Music.SyncWithTimer) return;
-
-                var nowBreak = Data.Timer.IsBreak;
-                if (nowBreak != _lastBreak && Data.Timer.Type == TODOList.Models.TimerType.Pomodoro && !Data.Timer.IsRunning)
-                {
-                    _lastBreak = nowBreak;
-                    var target = nowBreak ? TODOList.Models.PlaylistState.Break : TODOList.Models.PlaylistState.Focus;
-                    if (Music.EnsurePlaylist(target))
-                    {
-                        _ = PlayCurrent();
-                    }
-                }
-                else
-                {
-                    _lastBreak = nowBreak;
-                }
+                UpdateThemeSlides();
+                StateHasChanged();
             }
-            catch (Exception ex)
-            {
-                try { Console.Error.WriteLine("OnTimerChanged: " + ex); } catch { }
-            }
+            catch { }
         });
+    }
+
+    private void UpdateThemeSlides()
+    {
+        var genre = Music.Current?.Genre;
+        if (string.IsNullOrEmpty(genre)) return;
+        if (genre == _themeGenre) return;
+
+        _themeGenre = genre;
+        var urls = Music.GetBackgrounds(genre).ToArray();
+        _ = JS.InvokeVoidAsync("nightfallTheme.setSlides", genre, urls);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -108,8 +97,10 @@
             {
                 _dotNetRef = DotNetObjectReference.Create(this);
                 await JS.InvokeVoidAsync("nightfallAudio.init", _dotNetRef);
-                await JS.InvokeVoidAsync("nightfallAudio.setVolume", Music.Volume);
+                var saved = await JS.InvokeAsync<double>("nightfallAudio.getVolume");
+                Music.Volume = saved;
                 await JS.InvokeVoidAsync("nightfallAudio.setVolumeStyle", _volSlider, volumePercent);
+                UpdateThemeSlides();
             }
             catch (Exception ex)
             {
@@ -199,6 +190,7 @@
         {
             await JS.InvokeVoidAsync("nightfallAudio.pause");
             Music.SetPlaying(false);
+            await JS.InvokeVoidAsync("nightfallTheme.pause");
         }
         else
         {
@@ -213,6 +205,7 @@
             if (Music.Current == null) return;
             await JS.InvokeVoidAsync("nightfallAudio.playTrack", $"/{Music.Current.FileName}");
             Music.SetPlaying(true);
+            await JS.InvokeVoidAsync("nightfallTheme.play");
         }
         catch (Exception ex)
         {
@@ -232,6 +225,7 @@
             {
                 await JS.InvokeVoidAsync("nightfallAudio.playTrack", $"/{Music.Current.FileName}");
                 Music.SetPlaying(true);
+                await JS.InvokeVoidAsync("nightfallTheme.play");
             }
         }
         catch (Exception ex)
@@ -265,7 +259,6 @@
     {
         _disposed = true;
         Music.OnChange -= HandleMusicChange;
-        Data.OnChange -= OnTimerChanged;
         if (_dotNetRef != null)
         {
             try { _dotNetRef.Dispose(); } catch { }

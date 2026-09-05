@@ -8,6 +8,11 @@ namespace TODOList.Services
 		private readonly IWebHostEnvironment _env;
 		private readonly List<Track> _tracks = new();
 
+		private static readonly string[] ImageExtensions = new[]
+		{
+			".jpg", ".jpeg", ".jfif", ".png", ".webp", ".avif", ".gif"
+		};
+
 		public IReadOnlyList<Track> Tracks => _tracks;
 
 		private Track? _current;
@@ -16,7 +21,59 @@ namespace TODOList.Services
 		public bool IsPlaying { get; private set; }
 		public bool RepeatOne { get; set; }
 		public bool SyncWithTimer { get; set; } = true;
-		public PlaylistState CurrentPlaylist { get; set; } = PlaylistState.Focus;
+
+		private string? _currentGenre;
+		public string? CurrentGenre
+		{
+			get => _currentGenre;
+			set => _currentGenre = value;
+		}
+
+		private static readonly Dictionary<string, string> GenreDisplay = new(StringComparer.OrdinalIgnoreCase)
+		{
+			["Alt-Metal_Shoegaze-Metal"] = "Alt-Metal / Shoegaze",
+			["Atmospheric_Black_Post-Black_Blackgaze"] = "Atmospheric Black / Post-Black / Blackgaze",
+			["Black_Metal"] = "Black Metal",
+			["breakcore"] = "Breakcore",
+			["Death_Metal_Deathcore"] = "Death Metal / Deathcore",
+			["Doom_Metal"] = "Doom Metal",
+			["Emo-rock_Screamo"] = "Emo-rock / Screamo",
+			["Hard_Rock_Heavy_Metal"] = "Hard Rock / Heavy Metal",
+			["Industrial_Metal_Electrocore"] = "Industrial Metal / Electrocore",
+			["Lo-fi_Chill-hop"] = "Lo-fi / Chill-hop",
+			["Metalcore"] = "Metalcore",
+			["pop-rock"] = "Pop-rock",
+			["Post-Hardcore"] = "Post-Hardcore",
+			["Power_Symphonic_Metal"] = "Power / Symphonic Metal",
+			["Rapcore_Nu-metal"] = "Rapcore / Nu-metal",
+			["Sludge_Post-Metal"] = "Sludge / Post-Metal",
+			["Thrash_Groove_Metal"] = "Thrash / Groove Metal"
+		};
+
+		public string GetGenreDisplay(string genre)
+		{
+			if (GenreDisplay.TryGetValue(genre, out var name)) return name;
+			return genre.Replace("_", " / ");
+		}
+
+		public string GetGenreAccent(string genre)
+		{
+			var hash = 0;
+			foreach (var c in genre)
+			{
+				hash = (hash * 31 + c) & 0x7fffffff;
+			}
+			var hue = (hash % 360 + 360) % 360;
+			return $"hsl({hue} 65% 55%)";
+		}
+
+		public IEnumerable<string> Genres =>
+			_tracks
+				.Select(t => t.Genre)
+				.Where(g => !string.IsNullOrWhiteSpace(g))
+				.Select(g => g!)
+				.Distinct()
+				.OrderBy(g => g);
 
 		private double _volume = 1.0;
 		public double Volume
@@ -38,27 +95,34 @@ namespace TODOList.Services
 			var musicDir = Path.Combine(_env.WebRootPath, "music");
 			if (!Directory.Exists(musicDir)) return;
 
-			var files = Directory.GetFiles(musicDir, "*.mp3")
-				.OrderBy(f => Path.GetFileName(f))
-				.ToList();
-
-			foreach (var f in files)
+			var genreDirs = Directory.GetDirectories(musicDir).OrderBy(d => d).ToList();
+			foreach (var genreDir in genreDirs)
 			{
-				var fileName = Path.GetFileName(f);
-				var (title, artist) = ParseName(fileName);
+				var genre = Path.GetFileName(genreDir);
 
-				_tracks.Add(new Track
+				var files = Directory.GetFiles(genreDir, "*.mp3")
+					.OrderBy(f => Path.GetFileName(f))
+					.ToList();
+
+				foreach (var f in files)
 				{
-					Title = title,
-					Artist = artist,
-					FileName = $"music/{Uri.EscapeDataString(fileName)}",
-					Playlist = AssignPlaylist(title, artist)
-				});
+					var fileName = Path.GetFileName(f);
+					var (title, artist) = ParseName(fileName);
+
+					_tracks.Add(new Track
+					{
+						Title = title,
+						Artist = artist,
+						FileName = $"music/{Uri.EscapeDataString(genre)}/{Uri.EscapeDataString(fileName)}",
+						Genre = genre
+					});
+				}
 			}
 
 			if (_tracks.Any() && _current == null)
 			{
 				_current = _tracks.First();
+				_currentGenre = _current.Genre;
 			}
 		}
 
@@ -97,51 +161,70 @@ namespace TODOList.Services
 			return (title, artist);
 		}
 
-		private PlaylistState AssignPlaylist(string title, string artist)
+		public IReadOnlyList<Track> GetTracks(string? genre)
 		{
-			var text = (title + " " + artist).ToLowerInvariant();
-
-			// Keyed by content for the depressive/break vibes
-			if (text.Contains("numb") || text.Contains("suicide") || text.Contains("raya")
-				|| text.Contains("liar") || text.Contains("dying") || text.Contains("dark"))
-				return PlaylistState.Depressed;
-
-			if (text.Contains("rasstrel") || text.Contains("cut") || text.Contains("moon")
-				|| text.Contains("paranormal") || text.Contains("cloth") || text.Contains("omens"))
-				return PlaylistState.Focus;
-
-			return PlaylistState.Break;
+			if (string.IsNullOrEmpty(genre)) return _tracks;
+			return _tracks.Where(t => t.Genre == genre).ToList();
 		}
 
-		public IReadOnlyList<Track> GetTracks(PlaylistState state)
+		public IReadOnlyList<string> GetWallpapers(string genre)
 		{
-			if (state == PlaylistState.All) return _tracks;
-			return _tracks.Where(t => t.Playlist == state).ToList();
+			try
+			{
+				var wallDir = Path.Combine(_env.WebRootPath, "wallpapers", genre);
+				if (!Directory.Exists(wallDir)) return Array.Empty<string>();
+
+				return Directory.GetFiles(wallDir)
+					.Where(f => ImageExtensions.Contains(Path.GetExtension(f).ToLowerInvariant()))
+					.OrderBy(f => Path.GetFileName(f))
+					.Select(f => $"wallpapers/{Uri.EscapeDataString(genre)}/{Uri.EscapeDataString(Path.GetFileName(f))}")
+					.ToList();
+			}
+			catch
+			{
+				return Array.Empty<string>();
+			}
+		}
+
+		public IReadOnlyList<string> GetBackgrounds(string genre)
+		{
+			try
+			{
+				var wallDir = Path.Combine(_env.WebRootPath, "wallpapers", genre);
+				if (!Directory.Exists(wallDir)) return Array.Empty<string>();
+
+				var hdDir = Path.Combine(_env.WebRootPath, "wallpapers2560", genre);
+				var hasHd = Directory.Exists(hdDir);
+
+				return Directory.GetFiles(wallDir)
+					.Where(f => ImageExtensions.Contains(Path.GetExtension(f).ToLowerInvariant()))
+					.OrderBy(f => Path.GetFileName(f))
+					.Select(f =>
+					{
+						var fileName = Path.GetFileName(f);
+						if (hasHd)
+						{
+							var hdFile = Path.Combine(hdDir, Path.GetFileNameWithoutExtension(fileName) + ".jpg");
+							if (File.Exists(hdFile))
+							{
+								return $"wallpapers2560/{Uri.EscapeDataString(genre)}/{Uri.EscapeDataString(Path.GetFileName(hdFile))}";
+							}
+						}
+						return $"wallpapers/{Uri.EscapeDataString(genre)}/{Uri.EscapeDataString(fileName)}";
+					})
+					.ToList();
+			}
+			catch
+			{
+				return Array.Empty<string>();
+			}
 		}
 
 		public void SetCurrent(Track track)
 		{
 			_current = track;
-			CurrentPlaylist = track.Playlist;
+			_currentGenre = track.Genre;
 			NotifyChange();
-		}
-
-		public bool EnsurePlaylist(PlaylistState state)
-		{
-			if (CurrentPlaylist == state && _current != null) return false;
-
-			var pool = GetTracks(state);
-			if (!pool.Any())
-			{
-				pool = GetTracks(PlaylistState.All);
-				if (!pool.Any()) return false;
-				state = PlaylistState.All;
-			}
-
-			_current = pool.First();
-			CurrentPlaylist = state;
-			NotifyChange();
-			return true;
 		}
 
 		public void SetPlaying(bool playing)
@@ -152,31 +235,28 @@ namespace TODOList.Services
 
 		public void PlayNext()
 		{
-			var pool = GetTracks(CurrentPlaylist);
-			if (!pool.Any())
-			{
-				pool = GetTracks(PlaylistState.All);
-				if (!pool.Any()) return;
-			}
+			var genre = _current?.Genre;
+			var pool = GetTracks(genre).ToList();
+			if (!pool.Any()) pool = GetTracks(null).ToList();
+			if (!pool.Any()) return;
 
-			var index = _current == null ? -1 : pool.ToList().FindIndex(t => t.Id == _current.Id);
-			var next = pool[(index + 1) % pool.Count];
-			_current = next;
+			var index = _current == null ? -1 : pool.FindIndex(t => t.Id == _current.Id);
+			_current = pool[(index + 1) % pool.Count];
+			_currentGenre = _current.Genre;
 			NotifyChange();
 		}
 
 		public void PlayPrevious()
 		{
-			var pool = GetTracks(CurrentPlaylist);
-			if (!pool.Any())
-			{
-				pool = GetTracks(PlaylistState.All);
-				if (!pool.Any()) return;
-			}
+			var genre = _current?.Genre;
+			var pool = GetTracks(genre).ToList();
+			if (!pool.Any()) pool = GetTracks(null).ToList();
+			if (!pool.Any()) return;
 
-			var index = _current == null ? 0 : pool.ToList().FindIndex(t => t.Id == _current.Id);
+			var index = _current == null ? 0 : pool.FindIndex(t => t.Id == _current.Id);
 			var prev = pool[(index - 1 + pool.Count) % pool.Count];
 			_current = prev;
+			_currentGenre = _current.Genre;
 			NotifyChange();
 		}
 
