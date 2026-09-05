@@ -361,3 +361,8 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# NIGHTFALL media (kept out of git; synced separately via tools/sync-media.ps1)
+Blazor/TODOList/wwwroot/music/
+Blazor/TODOList/wwwroot/wallpapers/
+Blazor/TODOList/wwwroot/wallpapers2560/
