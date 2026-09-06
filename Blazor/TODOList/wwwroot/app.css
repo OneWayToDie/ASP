@@ -18,8 +18,8 @@
     --warning: #ffaa00;
     --success: #4ace6a;
 
-    --font-heading: 'Inter', 'Segoe UI', sans-serif;
-    --font-mono: 'JetBrains Mono', 'Consolas', monospace;
+    --font-heading: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+    --font-mono: 'Cascadia Mono', 'JetBrains Mono', 'Consolas', monospace;
 }
 
 * {
@@ -899,6 +899,17 @@ h1 {
     font-size: 0.75rem;
     text-align: center;
     padding: 0.5rem 0;
+}
+
+.mp-media-error {
+    font-size: 0.7rem;
+    text-align: center;
+    padding: 0.35rem 0.5rem;
+    margin: 0.3rem 0;
+    color: var(--danger, #ff6b6b);
+    background: rgba(255, 107, 107, 0.08);
+    border: 1px solid rgba(255, 107, 107, 0.25);
+    border-radius: 6px;
 }
 
 /* ============ MUSIC VOLUME (sidebar) ============ */

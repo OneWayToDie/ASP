@@ -1,19 +1,28 @@
-using System.Text.RegularExpressions;
+using System.Collections.Concurrent;
+using System.Text.Json;
 using TODOList.Models;
 
 namespace TODOList.Services
 {
-	public class MusicService
+	public class MusicService : IDisposable
 	{
 		private readonly IWebHostEnvironment _env;
-		private readonly List<Track> _tracks = new();
+		private readonly IRadioSource _source;
+
+		private readonly ConcurrentDictionary<string, IReadOnlyList<Track>> _genreTracks = new();
+		private readonly Dictionary<string, DateTime> _lastRefresh = new();
+		private readonly object _sync = new();
+		private readonly object _ioLock = new();
+		private readonly CancellationTokenSource _cts = new();
+		private readonly string _cachePath;
+
+		private static readonly TimeSpan RefreshInterval = TimeSpan.FromHours(6);
+		private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
 		private static readonly string[] ImageExtensions = new[]
 		{
 			".jpg", ".jpeg", ".jfif", ".png", ".webp", ".avif", ".gif"
 		};
-
-		public IReadOnlyList<Track> Tracks => _tracks;
 
 		private Track? _current;
 		public Track? Current => _current;
@@ -53,31 +62,12 @@ namespace TODOList.Services
 			set => _currentGenre = value;
 		}
 
-		private static readonly Dictionary<string, string> GenreDisplay = new(StringComparer.OrdinalIgnoreCase)
-		{
-			["Alt-Metal_Shoegaze-Metal"] = "Alt-Metal / Shoegaze",
-			["Atmospheric_Black_Post-Black_Blackgaze"] = "Atmospheric Black / Post-Black / Blackgaze",
-			["Black_Metal"] = "Black Metal",
-			["breakcore"] = "Breakcore",
-			["Death_Metal_Deathcore"] = "Death Metal / Deathcore",
-			["Doom_Metal"] = "Doom Metal",
-			["Emo-rock_Screamo"] = "Emo-rock / Screamo",
-			["Hard_Rock_Heavy_Metal"] = "Hard Rock / Heavy Metal",
-			["Industrial_Metal_Electrocore"] = "Industrial Metal / Electrocore",
-			["Lo-fi_Chill-hop"] = "Lo-fi / Chill-hop",
-			["Metalcore"] = "Metalcore",
-			["pop-rock"] = "Pop-rock",
-			["Post-Hardcore"] = "Post-Hardcore",
-			["Power_Symphonic_Metal"] = "Power / Symphonic Metal",
-			["Rapcore_Nu-metal"] = "Rapcore / Nu-metal",
-			["Sludge_Post-Metal"] = "Sludge / Post-Metal",
-			["Thrash_Groove_Metal"] = "Thrash / Groove Metal"
-		};
+		public IEnumerable<string> Genres => GenreCatalog.All.Select(g => g.Key);
 
 		public string GetGenreDisplay(string genre)
 		{
-			if (GenreDisplay.TryGetValue(genre, out var name)) return name;
-			return genre.Replace("_", " / ");
+			var def = GenreCatalog.Find(genre);
+			return def?.Display ?? genre.Replace("_", " / ");
 		}
 
 		public string GetGenreAccent(string genre)
@@ -91,14 +81,6 @@ namespace TODOList.Services
 			return $"hsl({hue} 65% 55%)";
 		}
 
-		public IEnumerable<string> Genres =>
-			_tracks
-				.Select(t => t.Genre)
-				.Where(g => !string.IsNullOrWhiteSpace(g))
-				.Select(g => g!)
-				.Distinct()
-				.OrderBy(g => g);
-
 		private double _volume = 1.0;
 		public double Volume
 		{
@@ -108,87 +90,34 @@ namespace TODOList.Services
 
 		public event Action? OnChange;
 
-		public MusicService(IWebHostEnvironment env)
+		public MusicService(IWebHostEnvironment env, IRadioSource source)
 		{
 			_env = env;
-			ScanMusic();
+			_source = source;
+			_cachePath = Path.Combine(env.ContentRootPath, "data", "radio-cache.json");
+			LoadCache();
+			_ = Task.Run(() => RunRefreshLoopAsync(_cts.Token));
 		}
 
-		private void ScanMusic()
-		{
-			var musicDir = Path.Combine(_env.WebRootPath, "music");
-			if (!Directory.Exists(musicDir)) return;
-
-			var genreDirs = Directory.GetDirectories(musicDir).OrderBy(d => d).ToList();
-			foreach (var genreDir in genreDirs)
-			{
-				var genre = Path.GetFileName(genreDir);
-
-				var files = Directory.GetFiles(genreDir, "*.mp3")
-					.OrderBy(f => Path.GetFileName(f))
-					.ToList();
-
-				foreach (var f in files)
-				{
-					var fileName = Path.GetFileName(f);
-					var (title, artist) = ParseName(fileName);
-
-					_tracks.Add(new Track
-					{
-						Title = title,
-						Artist = artist,
-						FileName = $"music/{Uri.EscapeDataString(genre)}/{Uri.EscapeDataString(fileName)}",
-						Genre = genre
-					});
-				}
-			}
-
-			if (_tracks.Any() && _current == null)
-			{
-				_current = _tracks.First();
-				_currentGenre = _current.Genre;
-			}
-		}
-
-		private (string title, string artist) ParseName(string fileName)
-		{
-			var name = Path.GetFileNameWithoutExtension(fileName);
-
-			// Remove common tags
-			name = Regex.Replace(name, @"\s*\(www\.[^)]+\)", "", RegexOptions.IgnoreCase);
-			name = Regex.Replace(name, @"\s*\[[^\]]*\]", "", RegexOptions.IgnoreCase);
-			name = name.Trim();
-
-			string artist = "Unknown";
-			string title = name;
-
-			// Normalize separators: "_-_" -> " - "
-			name = name.Replace("_-_", " - ");
-
-			var m = Regex.Match(name, @"^(.*?)\s*-\s*(.*?)$");
-			if (m.Success && !string.IsNullOrWhiteSpace(m.Groups[1].Value))
-			{
-				artist = m.Groups[1].Value.Trim();
-				title = m.Groups[2].Value.Trim();
-			}
-
-			// Clean underscores inside the title and artist
-			artist = artist.Replace('_', ' ').Replace("  ", " ").Trim();
-			title = title.Replace('_', ' ').Replace("  ", " ").Trim();
-
-			// Drop trailing numeric download ids
-			title = Regex.Replace(title, @"[\s]+[0-9]+$", "").Trim();
-
-			if (string.IsNullOrEmpty(artist)) artist = "Unknown";
-			if (string.IsNullOrEmpty(title)) title = name;
-
-			return (title, artist);
-		}
+		public IReadOnlyList<Track> Tracks => GetTracks(null);
 
 		public IReadOnlyList<Track> GetTracks(string? genre)
 		{
-			if (string.IsNullOrEmpty(genre)) return _tracks;
-			return _tracks.Where(t => t.Genre == genre).ToList();
+			if (string.IsNullOrEmpty(genre))
+			{
+				return _genreTracks.Values.SelectMany(l => l).ToList();
+			}
+			return _genreTracks.TryGetValue(genre, out var list) ? list : Array.Empty<Track>();
+		}
+
+		public Track? FindRadioTrack(string genreKey, long radioId)
+		{
+			if (!_genreTracks.TryGetValue(genreKey, out var list)) return null;
+			foreach (var t in list)
+			{
+				if (t.RadioId == radioId) return t;
+			}
+			return null;
 		}
 
 		public IReadOnlyList<string> GetWallpapers(string genre)
@@ -244,6 +173,15 @@ namespace TODOList.Services
 			}
 		}
 
+		public async Task EnsureGenreTracksAsync(string? genre)
+		{
+			if (string.IsNullOrEmpty(genre)) return;
+			var def = GenreCatalog.Find(genre);
+			if (def == null) return;
+			if (_genreTracks.ContainsKey(def.Key)) return;
+			await RefreshGenreAsync(def).ConfigureAwait(false);
+		}
+
 		public void SetCurrent(Track track)
 		{
 			_current = track;
@@ -261,8 +199,8 @@ namespace TODOList.Services
 		{
 			var genre = _current?.Genre;
 			var pool = GetTracks(genre).ToList();
-			if (!pool.Any()) pool = GetTracks(null).ToList();
-			if (!pool.Any()) return;
+			if (pool.Count == 0) pool = GetTracks(null).ToList();
+			if (pool.Count == 0) return;
 
 			var index = _current == null ? -1 : pool.FindIndex(t => t.Id == _current.Id);
 			_current = pool[(index + 1) % pool.Count];
@@ -274,16 +212,166 @@ namespace TODOList.Services
 		{
 			var genre = _current?.Genre;
 			var pool = GetTracks(genre).ToList();
-			if (!pool.Any()) pool = GetTracks(null).ToList();
-			if (!pool.Any()) return;
+			if (pool.Count == 0) pool = GetTracks(null).ToList();
+			if (pool.Count == 0) return;
 
 			var index = _current == null ? 0 : pool.FindIndex(t => t.Id == _current.Id);
-			var prev = pool[(index - 1 + pool.Count) % pool.Count];
-			_current = prev;
+			_current = pool[(index - 1 + pool.Count) % pool.Count];
 			_currentGenre = _current.Genre;
 			NotifyChange();
 		}
 
 		public void NotifyChange() => OnChange?.Invoke();
+
+		private bool NeedsRefresh(GenreDef def)
+		{
+			lock (_sync)
+			{
+				return !_lastRefresh.TryGetValue(def.Key, out var dt)
+					|| DateTime.UtcNow - dt > RefreshInterval;
+			}
+		}
+
+		private async Task RunRefreshLoopAsync(CancellationToken ct)
+		{
+			try
+			{
+				foreach (var def in GenreCatalog.All)
+				{
+					if (ct.IsCancellationRequested) return;
+					if (NeedsRefresh(def)) await RefreshGenreAsync(def, ct).ConfigureAwait(false);
+					await Task.Delay(1500, ct).ConfigureAwait(false);
+				}
+
+				while (!ct.IsCancellationRequested)
+				{
+					await Task.Delay(RefreshInterval, ct).ConfigureAwait(false);
+					foreach (var def in GenreCatalog.All)
+					{
+						if (ct.IsCancellationRequested) return;
+						if (NeedsRefresh(def)) await RefreshGenreAsync(def, ct).ConfigureAwait(false);
+						await Task.Delay(1500, ct).ConfigureAwait(false);
+					}
+				}
+			}
+			catch (OperationCanceledException) { }
+			catch (Exception ex)
+			{
+				try { Console.Error.WriteLine("radio refresh loop: " + ex); } catch { }
+			}
+		}
+
+		private async Task RefreshGenreAsync(GenreDef def, CancellationToken ct = default)
+		{
+			IReadOnlyList<Track>? tracks;
+			try
+			{
+				tracks = await _source.LoadGenreAsync(def, ct).ConfigureAwait(false);
+			}
+			catch (OperationCanceledException) { return; }
+			catch (Exception ex)
+			{
+				try { Console.Error.WriteLine("radio load " + def.Key + ": " + ex.Message); } catch { }
+				return;
+			}
+
+			if (tracks == null || tracks.Count == 0) return;
+
+			_genreTracks[def.Key] = tracks;
+			lock (_sync) { _lastRefresh[def.Key] = DateTime.UtcNow; }
+			SaveCache();
+
+			if (_current == null)
+			{
+				_current = tracks[0];
+				_currentGenre = def.Key;
+			}
+			NotifyChange();
+		}
+
+		private void LoadCache()
+		{
+			try
+			{
+				if (!File.Exists(_cachePath)) return;
+				var json = File.ReadAllText(_cachePath);
+				var dto = JsonSerializer.Deserialize<CacheDto>(json, JsonOptions);
+				if (dto?.Genres == null) return;
+
+				foreach (var group in dto.Genres)
+				{
+					if (group == null || string.IsNullOrEmpty(group.Key) || group.Tracks == null) continue;
+					if (group.Tracks.Count == 0) continue;
+
+					foreach (var t in group.Tracks)
+					{
+						t.Genre = group.Key;
+						t.FileName = HitmoSource.BuildPlayPath(group.Key, t.RadioId);
+					}
+					_genreTracks[group.Key] = group.Tracks;
+
+					if (DateTime.TryParse(group.RefreshedUtc, out var dt))
+					{
+						lock (_sync) { _lastRefresh[group.Key] = dt; }
+					}
+				}
+			}
+			catch (Exception ex)
+			{
+				try { Console.Error.WriteLine("radio cache load: " + ex.Message); } catch { }
+			}
+		}
+
+		private void SaveCache()
+		{
+			lock (_ioLock)
+			{
+				try
+				{
+					var groups = new List<CacheGenre>();
+					lock (_sync)
+					{
+						foreach (var kv in _genreTracks)
+						{
+							_lastRefresh.TryGetValue(kv.Key, out var dt);
+							groups.Add(new CacheGenre
+							{
+								Key = kv.Key,
+								RefreshedUtc = dt.ToString("O"),
+								Tracks = kv.Value.ToList()
+							});
+						}
+					}
+
+					var dir = Path.GetDirectoryName(_cachePath);
+					if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+
+					var tmp = _cachePath + ".tmp";
+					File.WriteAllText(tmp, JsonSerializer.Serialize(new CacheDto { Genres = groups }, JsonOptions));
+					File.Move(tmp, _cachePath, true);
+				}
+				catch (Exception ex)
+				{
+					try { Console.Error.WriteLine("radio cache save: " + ex.Message); } catch { }
+				}
+			}
+		}
+
+		private sealed class CacheDto
+		{
+			public List<CacheGenre>? Genres { get; set; }
+		}
+
+		private sealed class CacheGenre
+		{
+			public string Key { get; set; } = string.Empty;
+			public string RefreshedUtc { get; set; } = string.Empty;
+			public List<Track>? Tracks { get; set; }
+		}
+
+		public void Dispose()
+		{
+			try { _cts.Cancel(); _cts.Dispose(); } catch { }
+		}
 	}
 }

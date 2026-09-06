@@ -11,6 +11,10 @@
     <div class="card-theme" style="margin-bottom:1.5rem;">
         <h3 style="margin:0 0 1rem 0; font-size:1.05rem;">Плеер</h3>
 
+        <div class="muted" style="margin:0 0 1rem 0; font-size:0.9rem;">
+            Музыка — радио-поток по жанрам (источник <span class="mono" style="color:var(--text-heading);">ru.hitmoz.org</span>, без локальных файлов). Обои и обложки — по жанру.
+        </div>
+
         <div class="set-row">
             <div>
                 <div class="set-label">Тема плеера</div>
@@ -80,14 +84,14 @@
         {
             <div class="empty-state">
                 <i class="bi bi-image"></i>
-                <div>В жанре «@Music.GetGenreDisplay(selectedGenre)» нет обоев. Добавь файлы в <span class="mono">wallpapers/@selectedGenre/</span></div>
+                <div>Нет обоев в «@Music.GetGenreDisplay(selectedGenre)». Добавь картинки в <span class="mono">wallpapers/@selectedGenre/</span></div>
             </div>
         }
         else
         {
             <div class="empty-state">
                 <i class="bi bi-image"></i>
-                <div>Нет данных. Разложи mp3 по папкам в /music.</div>
+                <div>Выбери жанр, чтобы увидеть его обои из <span class="mono">wwwroot/wallpapers/&lt;жанр&gt;/</span>.</div>
             </div>
         }
     </div>

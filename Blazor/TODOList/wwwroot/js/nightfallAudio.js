@@ -5,6 +5,7 @@ window.nightfallAudio = (function () {
     let dataArray = null;
     let timeData = null;
     let buffers = null;
+    let wired = false;
     const VOL_KEY = 'nf-volume';
 
     function ensureContext() {
@@ -30,17 +31,91 @@ window.nightfallAudio = (function () {
         window.nightfallAudioVisualizerAnalyser = analyser;
     }
 
+    // Lazy init: find the audio element and wire the Web Audio graph. Safe to
+    // call repeatedly (already-wired element / context are reused).
+    function ensureInit() {
+        const el = document.getElementById('nightfall-audio');
+        if (!el) return false;
+        if (!audio) {
+            try {
+                connect(el);
+            } catch (e) {
+                try { console.error('nightfallAudio.connect failed', e); } catch (_) {}
+                return false;
+            }
+        }
+        if (!wired) {
+            wired = true;
+            el.addEventListener('ended', function () {
+                if (window._nightfallAudioRef) window._nightfallAudioRef.invokeMethodAsync('OnEnded');
+            });
+            el.addEventListener('timeupdate', function () {
+                if (window._nightfallAudioRef) window._nightfallAudioRef.invokeMethodAsync('OnTimeUpdate', el.currentTime, el.duration);
+            });
+            el.addEventListener('play', function () {
+                if (window._nightfallAudioRef) window._nightfallAudioRef.invokeMethodAsync('OnPlayingChanged', true);
+            });
+            el.addEventListener('pause', function () {
+                if (window._nightfallAudioRef) window._nightfallAudioRef.invokeMethodAsync('OnPlayingChanged', false);
+            });
+            audio.volume = loadVolume();
+        }
+        return audio != null;
+    }
+
+    function waitCanPlay(el, ms) {
+        return new Promise(function (resolve) {
+            if (el.readyState >= 2) { resolve(true); return; }
+            let done = false;
+            const finish = function (ok) {
+                if (done) return;
+                done = true;
+                clearTimeout(timer);
+                el.removeEventListener('canplay', doneCanplay);
+                el.removeEventListener('error', doneError);
+                resolve(ok);
+            };
+            const doneCanplay = function () { finish(true); };
+            const doneError = function () { finish(false); };
+            const timer = setTimeout(function () { finish(false); }, ms || 10000);
+            el.addEventListener('canplay', doneCanplay, { once: true });
+            el.addEventListener('error', doneError, { once: true });
+        });
+    }
+
     async function playTrack(src) {
-        if (!audio) return;
+        if (!src) return;
+        if (!ensureInit()) return;
         const origin = window.location.origin;
         const fullSrc = (src.indexOf('http') === 0) ? src : origin + src;
         if (audio.src !== fullSrc) {
             audio.src = src;
+            try { audio.load(); } catch (e) {}
+            var canPlay = await waitCanPlay(audio, 12000);
+            if (!canPlay && window._nightfallAudioRef) {
+                // Source not loadable (proxy 502/404, upstream down, etc.).
+                // Diagnose the real HTTP status so it is never a mystery.
+                var status = -1;
+                try {
+                    var head = await fetch(fullSrc, { method: 'HEAD' });
+                    status = head ? head.status : -1;
+                } catch (e2) { status = 0; }
+                try { console.warn('[nightfall] source unavailable', fullSrc, 'HTTP', status); } catch (_) {}
+                try {
+                    window._nightfallAudioRef.invokeMethodAsync('OnMediaError', status);
+                } catch (_) {}
+            }
         }
         if (audioCtx && audioCtx.state === 'suspended') {
             try { await audioCtx.resume(); } catch (e) {}
         }
-        try { await audio.play(); } catch (e) {}
+        try {
+            if (window._nightfallAudioRef) {
+                try { window._nightfallAudioRef.invokeMethodAsync('OnMediaError', 0); } catch (_) {}
+            }
+            await audio.play();
+            try { console.log('[nightfall] play', fullSrc, 'ctx=' + audioCtx.state, 'dur=' + (isFinite(audio.duration) ? audio.duration : 'n/a')); } catch (_) {}
+        } catch (e) { try { console.warn('nightfallAudio.play failed:', e); } catch (_) {} }
     }
 
     function pause() {
@@ -74,27 +149,8 @@ window.nightfallAudio = (function () {
 
     return {
         init(hasDtRef) {
-            const el = document.getElementById('nightfall-audio');
-            if (!el) return;
-            try {
-                connect(el);
-            } catch (e) {
-                try { console.error('nightfallAudio.connect failed', e); } catch (_) {}
-            }
             window._nightfallAudioRef = hasDtRef || window._nightfallAudioRef;
-            el.addEventListener('ended', function () {
-                if (window._nightfallAudioRef) window._nightfallAudioRef.invokeMethodAsync('OnEnded');
-            });
-            el.addEventListener('timeupdate', function () {
-                if (window._nightfallAudioRef) window._nightfallAudioRef.invokeMethodAsync('OnTimeUpdate', el.currentTime, el.duration);
-            });
-            el.addEventListener('play', function () {
-                if (window._nightfallAudioRef) window._nightfallAudioRef.invokeMethodAsync('OnPlayingChanged', true);
-            });
-            el.addEventListener('pause', function () {
-                if (window._nightfallAudioRef) window._nightfallAudioRef.invokeMethodAsync('OnPlayingChanged', false);
-            });
-            audio.volume = loadVolume();
+            ensureInit();
         },
         dispose() {
             window._nightfallAudioRef = null;
@@ -118,7 +174,7 @@ window.nightfallAudio = (function () {
         },
         getVolume() { return audio ? audio.volume : loadVolume(); },
         setVolumeStyle(el, pct) {
-            if (!el) return;
+            if (!el || !el.style) return;
             var p = Math.max(0, Math.min(100, pct));
             var trackColor = 'rgba(255,255,255,0.08)';
             var fillColor = '#ffffff';
@@ -132,7 +188,7 @@ window.nightfallAudio = (function () {
             if (audio) audio.volume = clamped;
             saveVolume(clamped);
             var pct = Math.round(clamped * 100);
-            if (el) {
+            if (el && el.style) {
                 el.value = pct;
                 this.setVolumeStyle(el, pct);
             }

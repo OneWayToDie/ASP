@@ -8,5 +8,8 @@ namespace TODOList.Models
 		public string FileName { get; set; } = string.Empty;
 		public TimeSpan Duration { get; set; }
 		public string? Genre { get; set; }
+		public long RadioId { get; set; }
+		public string? CoverUrl { get; set; }
+		public string? StreamUrl { get; set; }
 	}
 }

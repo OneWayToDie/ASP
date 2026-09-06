@@ -2,7 +2,12 @@
 @inject IJSRuntime JS
 
 <div class="music-mini">
-    <audio id="nightfall-audio" style="display:none;"></audio>
+    <audio id="nightfall-audio" crossorigin="anonymous" style="display:none;"></audio>
+
+    @if (!string.IsNullOrEmpty(_mediaError) && Music.Current != null)
+    {
+        <div class="mp-media-error">@_mediaError</div>
+    }
 
     @if (Music.Current != null)
     {
@@ -47,7 +52,7 @@
     }
     else
     {
-        <div class="mp-empty muted">Нет треков в /music/&lt;жанр&gt;</div>
+        <div class="mp-empty muted">Радио: подключаемся к источнику…</div>
     }
 </div>
 
@@ -60,6 +65,8 @@
     private ElementReference _volSlider;
     private bool _volReady;
     private string? _themeGenre;
+    private bool _interactive;
+    private string? _mediaError;
 
     protected override void OnInitialized()
     {
@@ -73,7 +80,7 @@
             try
             {
                 UpdateThemeSlides();
-                if (_volReady)
+                if (_volReady && _interactive)
                 {
                     try { await JS.InvokeVoidAsync("nightfallAudio.applyVolume", _volSlider, Music.Volume); } catch { }
                 }
@@ -83,6 +90,17 @@
         });
     }
 
+    private void SafeSetSlides(string genre, IReadOnlyList<string> urls)
+    {
+        if (!_interactive) return;
+        _ = JS.InvokeVoidAsync("nightfallTheme.setSlides", genre, urls.ToArray())
+            .AsTask().ContinueWith(t =>
+            {
+                try { _ = t.Exception; } catch { }
+                try { InvokeAsync(StateHasChanged); } catch { }
+            });
+    }
+
     private void UpdateThemeSlides()
     {
         var genre = Music.Current?.Genre;
@@ -90,8 +108,7 @@
         if (genre == _themeGenre) return;
 
         _themeGenre = genre;
-        var urls = Music.GetBackgrounds(genre).ToArray();
-        _ = JS.InvokeVoidAsync("nightfallTheme.setSlides", genre, urls);
+        SafeSetSlides(genre, Music.GetBackgrounds(genre));
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -104,13 +121,20 @@
                 await JS.InvokeVoidAsync("nightfallAudio.init", _dotNetRef);
                 var saved = await JS.InvokeAsync<double>("nightfallAudio.getVolume");
                 Music.Volume = saved;
-                await JS.InvokeVoidAsync("nightfallAudio.applyVolume", _volSlider, saved);
                 _volReady = true;
+                if (!string.IsNullOrEmpty(_volSlider.Id))
+                {
+                    await JS.InvokeVoidAsync("nightfallAudio.applyVolume", _volSlider, saved);
+                }
                 UpdateThemeSlides();
             }
             catch (Exception ex)
             {
                 try { Console.Error.WriteLine("nightfallAudio.init failed: " + ex); } catch { }
+            }
+            finally
+            {
+                _interactive = true;
             }
         }
     }
@@ -123,7 +147,11 @@
         {
             if (Music.RepeatOne)
             {
-                _ = JS.InvokeVoidAsync("nightfallAudio.playTrack", $"/{Music.Current?.FileName}");
+                _ = JS.InvokeVoidAsync("nightfallAudio.playTrack", $"/{Music.Current?.FileName}")
+                    .AsTask().ContinueWith(t =>
+                    {
+                        try { _ = t.Exception; } catch { }
+                    });
             }
             else
             {
@@ -143,6 +171,17 @@
         progress = current;
         duration = total;
         if (duration > 0) StateHasChanged();
+    }
+
+    [Microsoft.JSInterop.JSInvokable]
+    public void OnMediaError(int status)
+    {
+        if (_disposed) return;
+        _mediaError = status <= 0
+            ? "Источник радио недоступен"
+            : $"Источник радио недоступен (HTTP {status})";
+        if (status == 0) _mediaError = null;
+        StateHasChanged();
     }
 
     [Microsoft.JSInterop.JSInvokable]

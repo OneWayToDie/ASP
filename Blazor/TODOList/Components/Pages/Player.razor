@@ -98,6 +98,7 @@
     private double _savedVolume = 1.0;
     private bool _volReady;
     private ElementReference _volSlider;
+    private bool _interactive;
 
     private async Task OnVolumeChange(ChangeEventArgs e)
     {
@@ -130,10 +131,26 @@
         catch { }
     }
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         Music.OnChange += HandleChange;
         currentGenre = Music.CurrentGenre ?? Music.Genres.FirstOrDefault();
+        await LoadGenreTracksAsync();
+    }
+
+    private async Task LoadGenreTracksAsync()
+    {
+        try
+        {
+            await Music.EnsureGenreTracksAsync(currentGenre);
+            if (Music.Current == null && currentGenre != null)
+            {
+                var first = Music.GetTracks(currentGenre).FirstOrDefault();
+                if (first != null) Music.SetCurrent(first);
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+        catch { }
     }
 
     private void HandleChange()
@@ -142,7 +159,7 @@
         {
             InvokeAsync(async () =>
             {
-                if (_volReady)
+                if (_volReady && _interactive)
                 {
                     try { await JS.InvokeVoidAsync("nightfallAudio.applyVolume", _volSlider, Music.Volume); } catch { }
                 }
@@ -169,12 +186,19 @@
                 }
                 var saved = await JS.InvokeAsync<double>("nightfallAudio.getVolume");
                 Music.Volume = saved;
-                await JS.InvokeVoidAsync("nightfallAudio.applyVolume", _volSlider, saved);
                 _volReady = true;
+                if (!string.IsNullOrEmpty(_volSlider.Id))
+                {
+                    await JS.InvokeVoidAsync("nightfallAudio.applyVolume", _volSlider, saved);
+                }
             }
             catch (Exception ex)
             {
                 try { Console.Error.WriteLine("visualizer.attach failed: " + ex); } catch { }
+            }
+            finally
+            {
+                _interactive = true;
             }
         }
     }
@@ -187,10 +211,22 @@
         {
             try
             {
-                var urls = Music.GetBackgrounds(genre).ToArray();
-                _ = JS.InvokeVoidAsync("nightfallTheme.setSlides", genre, urls);
+                if (_interactive)
+                {
+                    var urls = Music.GetBackgrounds(genre).ToArray();
+                    _ = JS.InvokeVoidAsync("nightfallTheme.setSlides", genre, urls)
+                        .AsTask().ContinueWith(t =>
+                        {
+                            try { _ = t.Exception; } catch { }
+                            try { InvokeAsync(StateHasChanged); } catch { }
+                        });
+                }
             }
             catch { }
+            _ = Music.EnsureGenreTracksAsync(genre).ContinueWith(_ =>
+            {
+                try { InvokeAsync(StateHasChanged); } catch { }
+            });
         }
     }
 

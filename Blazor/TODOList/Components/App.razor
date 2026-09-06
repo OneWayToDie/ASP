@@ -7,11 +7,8 @@
     <base href="/" />
     <base target="_blank" />
     <link rel="stylesheet" href="bootstrap/bootstrap.min.css" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;600&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
-    <link rel="stylesheet" href="app.css?v=5" />
+    <link rel="stylesheet" href="icons/icons.css?v=1" />
+    <link rel="stylesheet" href="app.css?v=7" />
     <link rel="stylesheet" href="TODOList.styles.css" />
     <link rel="icon" href="/favicon.ico?v=2" sizes="16x16 32x32 48x48" />
     <link rel="icon" type="image/png" href="/favicon.png?v=2" sizes="32x32" />
@@ -20,9 +17,9 @@
 </head>
 
 <body>
-    <Routes @rendermode="InteractiveServer" />
+    <Routes @rendermode="new InteractiveServerRenderMode(prerender: false)" />
     <script src="_framework/blazor.web.js"></script>
-    <script src="js/nightfallAudio.js?v=3"></script>
+    <script src="js/nightfallAudio.js?v=6"></script>
     <script src="js/nightfallTheme.js?v=5"></script>
     <script>
         window.nightfallNotify = {

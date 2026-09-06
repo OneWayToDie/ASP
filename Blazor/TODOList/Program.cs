@@ -14,6 +14,7 @@ builder.Services.AddServerSideBlazor(options =>
 
 builder.Services.AddSingleton<DataService>();
 builder.Services.AddSingleton<NotificationService>();
+builder.Services.AddSingleton<IRadioSource>(_ => new HitmoSource("https://ru.hitmoz.org"));
 builder.Services.AddSingleton<MusicService>();
 
 var app = builder.Build();
@@ -27,6 +28,18 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.Use(async (context, next) =>
+{
+	var path = context.Request.Path.Value;
+	if (path != null && path.StartsWith(RadioProxy.RoutePrefix, StringComparison.OrdinalIgnoreCase))
+	{
+		var music = context.RequestServices.GetRequiredService<MusicService>();
+		await RadioProxy.HandleAsync(context, music, path[RadioProxy.RoutePrefix.Length..]);
+		return;
+	}
+	await next();
+});
 
 app.UseStaticFiles();
 app.UseAntiforgery();

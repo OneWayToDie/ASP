@@ -1,0 +1,63 @@
+/* ============================================================
+   Self-hosted Bootstrap Icons — offline-safe SVG masks
+   Drop-in replacement for the bootstrap-icons font (CDN).
+   Color follows `currentColor` like the original font.
+   ============================================================ */
+
+.bi {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    vertical-align: -0.125em;
+}
+
+.bi::before {
+    content: "";
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    background-color: currentColor;
+    -webkit-mask-image: var(--bi);
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    -webkit-mask-size: contain;
+    mask-image: var(--bi);
+    mask-repeat: no-repeat;
+    mask-position: center;
+    mask-size: contain;
+}
+
+.bi-alarm { --bi: url('/icons/alarm.svg'); }
+.bi-arrow-counterclockwise { --bi: url('/icons/arrow-counterclockwise.svg'); }
+.bi-arrow-repeat { --bi: url('/icons/arrow-repeat.svg'); }
+.bi-bar-chart-line { --bi: url('/icons/bar-chart-line.svg'); }
+.bi-bell { --bi: url('/icons/bell.svg'); }
+.bi-bell-fill { --bi: url('/icons/bell-fill.svg'); }
+.bi-bell-slash { --bi: url('/icons/bell-slash.svg'); }
+.bi-calendar3 { --bi: url('/icons/calendar3.svg'); }
+.bi-check2-circle { --bi: url('/icons/check2-circle.svg'); }
+.bi-chevron-down { --bi: url('/icons/chevron-down.svg'); }
+.bi-chevron-left { --bi: url('/icons/chevron-left.svg'); }
+.bi-chevron-right { --bi: url('/icons/chevron-right.svg'); }
+.bi-clock { --bi: url('/icons/clock.svg'); }
+.bi-fire { --bi: url('/icons/fire.svg'); }
+.bi-gear { --bi: url('/icons/gear.svg'); }
+.bi-graph-up-arrow { --bi: url('/icons/graph-up-arrow.svg'); }
+.bi-grid-fill { --bi: url('/icons/grid-fill.svg'); }
+.bi-image { --bi: url('/icons/image.svg'); }
+.bi-inbox { --bi: url('/icons/inbox.svg'); }
+.bi-link-45deg { --bi: url('/icons/link-45deg.svg'); }
+.bi-list-check { --bi: url('/icons/list-check.svg'); }
+.bi-pause-fill { --bi: url('/icons/pause-fill.svg'); }
+.bi-pencil { --bi: url('/icons/pencil.svg'); }
+.bi-play-fill { --bi: url('/icons/play-fill.svg'); }
+.bi-plus-lg { --bi: url('/icons/plus-lg.svg'); }
+.bi-skip-end-fill { --bi: url('/icons/skip-end-fill.svg'); }
+.bi-skip-start-fill { --bi: url('/icons/skip-start-fill.svg'); }
+.bi-stopwatch { --bi: url('/icons/stopwatch.svg'); }
+.bi-tag { --bi: url('/icons/tag.svg'); }
+.bi-trash { --bi: url('/icons/trash.svg'); }
+.bi-volume-down { --bi: url('/icons/volume-down.svg'); }
+.bi-volume-mute { --bi: url('/icons/volume-mute.svg'); }
+.bi-volume-up { --bi: url('/icons/volume-up.svg'); }
+.bi-x-lg { --bi: url('/icons/x-lg.svg'); }
