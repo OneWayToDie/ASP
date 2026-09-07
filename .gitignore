@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/Blazor/TODOList/wwwroot/music
+/Blazor/TODOList/wwwroot/wallpapers
+/Blazor/TODOList/wwwroot/wallpapers2560
