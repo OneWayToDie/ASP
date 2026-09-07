@@ -32,6 +32,31 @@ app.UseHttpsRedirection();
 app.Use(async (context, next) =>
 {
 	var path = context.Request.Path.Value;
+	if (path != null && path.StartsWith("/admin/", StringComparison.OrdinalIgnoreCase))
+	{
+		var music = context.RequestServices.GetRequiredService<MusicService>();
+
+		if (path.Equals("/admin/status", StringComparison.OrdinalIgnoreCase))
+		{
+			context.Response.ContentType = "text/plain; charset=utf-8";
+			await context.Response.WriteAsync(music.GetStatusReport());
+			return;
+		}
+
+		if (path.Equals("/admin/crawl", StringComparison.OrdinalIgnoreCase))
+		{
+			var pages = 3;
+			if (int.TryParse(context.Request.Query["pages"], out var p) && p > 0) pages = p;
+			var report = await music.RunCrawlPassAsync(pages);
+			context.Response.ContentType = "text/plain; charset=utf-8";
+			await context.Response.WriteAsync(report);
+			return;
+		}
+
+		context.Response.StatusCode = 404;
+		return;
+	}
+
 	if (path != null && path.StartsWith(RadioProxy.RoutePrefix, StringComparison.OrdinalIgnoreCase))
 	{
 		var music = context.RequestServices.GetRequiredService<MusicService>();

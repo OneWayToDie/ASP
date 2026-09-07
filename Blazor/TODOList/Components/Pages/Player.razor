@@ -67,24 +67,83 @@
     </div>
 
     <div class="player-tracklist" style="margin-top:2rem;">
-        @foreach (var track in visibleTracks)
-        {
-            var t = track;
-            var isCurrent = Music.Current?.Id == track.Id;
-            <div class="pt-row @(isCurrent ? "current" : "")" @onclick="() => PlayTrack(t)">
-                <span class="pt-index">@((visibleTracks.IndexOf(track) + 1).ToString("00"))</span>
-                <span class="pt-title">@track.Title</span>
-                <span class="pt-artist">· @track.Artist</span>
-                <span class="pt-actions" style="margin-left:auto; display:flex; gap:0.3rem;">
-                    @if (isCurrent && Music.IsPlaying)
-                    {
-                        <span class="mp-eq playing"><span></span><span></span><span></span></span>
-                    }
-                </span>
+        <div class="pt-toolbar">
+            <div class="pt-modes">
+                <button class="btn-theme @(!_artistsMode ? "btn-primary" : "")" @onclick="() => SetMode(false)">Треки</button>
+                <button class="btn-theme @(_artistsMode ? "btn-primary" : "")" @onclick="() => SetMode(true)">Исполнители</button>
             </div>
+            <span class="mono muted pt-total">@allTracks.Count треков</span>
+        </div>
+
+        @if (_artistsMode && _selectedArtist == null)
+        {
+            <div class="pt-artistgrid">
+                @if (artistGroups.Count == 0)
+                {
+                    <span class="muted">Исполнители появятся после докачки жанра.</span>
+                }
+                @foreach (var group in artistGroups)
+                {
+                    <button class="pt-artistfold" @onclick="() => SelectArtist(group.Name)">
+                        <span class="pt-artistname">@group.Name</span>
+                        <span class="pt-artistcount">@group.Count</span>
+                    </button>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="pt-pager">
+                @if (maxPage > 1)
+                {
+                    <button class="btn-theme" @onclick="PrevPage" disabled="@(_page <= 0)"><i class="bi bi-chevron-left"></i></button>
+                    <span class="mono muted">стр. @(_page + 1) / @maxPage</span>
+                    <button class="btn-theme" @onclick="NextPage" disabled="@(_page >= maxPage - 1)"><i class="bi bi-chevron-right"></i></button>
+                }
+                @if (_artistsMode && _selectedArtist != null)
+                {
+                    <button class="btn-theme pt-back" @onclick="BackToArtists"><i class="bi bi-arrow-left"></i> Все исполнители</button>
+                }
+            </div>
+
+            @foreach (var track in pagedTracks)
+            {
+                var t = track;
+                var isCurrent = Music.Current?.Id == track.Id;
+                <div class="pt-row @(isCurrent ? "current" : "")" @onclick="() => PlayTrack(t)">
+                    <span class="pt-index">@((_page * PageSize + pagedTracks.IndexOf(track) + 1).ToString("00"))</span>
+                    <span class="pt-title">@track.Title</span>
+                    <span class="pt-artist">· @track.Artist</span>
+                    <span class="pt-actions" style="margin-left:auto; display:flex; gap:0.3rem;">
+                        @if (isCurrent && Music.IsPlaying)
+                        {
+                            <span class="mp-eq playing"><span></span><span></span><span></span></span>
+                        }
+                    </span>
+                </div>
+            }
         }
     </div>
 </div>
+
+<style>
+    .pt-toolbar { display:flex; align-items:center; gap:0.75rem; margin-bottom:0.75rem; flex-wrap:wrap; }
+    .pt-modes { display:inline-flex; gap:0.4rem; }
+    .pt-total { margin-left:auto; font-size:0.85rem; }
+    .pt-pager { display:flex; align-items:center; gap:0.6rem; margin-bottom:0.6rem; }
+    .pt-pager .btn-theme:disabled { opacity:0.35; cursor:default; }
+    .pt-back { font-size:0.85rem; }
+    .pt-artistgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:0.5rem; }
+    .pt-artistfold {
+        display:flex; align-items:center; justify-content:space-between; gap:0.5rem;
+        background: rgba(20,20,20,0.65); border:1px solid var(--border); border-radius:0.6rem;
+        padding:0.55rem 0.85rem; cursor:pointer; text-align:left;
+        transition: transform .12s ease, border-color .12s ease;
+    }
+    .pt-artistfold:hover { border-color: var(--accent); transform: translateY(-1px); }
+    .pt-artistname { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .pt-artistcount { font-size:0.8rem; color:var(--text-dim); background:rgba(255,255,255,0.06); padding:0.1rem 0.5rem; border-radius:999px; }
+</style>
 
 @code {
     private ElementReference _canvasRef;
@@ -92,7 +151,59 @@
 
     private bool isVinyl => Music.PlayerTheme == "vinyl";
     private string? currentGenre;
-    private List<TODOList.Models.Track> visibleTracks => Music.GetTracks(currentGenre).ToList();
+    private bool _artistsMode;
+    private string? _selectedArtist;
+    private int _page;
+
+    private const int PageSize = 100;
+
+    private List<TODOList.Models.Track> allTracks => Music.GetTracks(currentGenre).ToList();
+
+    private List<TODOList.Models.Track> artistTracks =>
+        _selectedArtist == null
+            ? allTracks
+            : allTracks.Where(t => NormalizeArtist(t.Artist) == _selectedArtist).ToList();
+
+    private List<TODOList.Models.Track> pagedTracks => artistTracks.Skip(_page * PageSize).Take(PageSize).ToList();
+
+    private int maxPage => Math.Max(1, (int)Math.Ceiling(artistTracks.Count / (double)PageSize));
+
+    private List<(string Name, int Count)> artistGroups =>
+        allTracks
+            .GroupBy(t => NormalizeArtist(t.Artist))
+            .Select(g => (Name: g.Key, Count: g.Count()))
+            .OrderByDescending(g => g.Count)
+            .ThenBy(g => g.Name)
+            .ToList();
+
+    private static string NormalizeArtist(string? artist)
+    {
+        var a = (artist ?? string.Empty).Trim();
+        return string.IsNullOrWhiteSpace(a) ? "Unknown" : a;
+    }
+
+    private void SetMode(bool artists)
+    {
+        _artistsMode = artists;
+        _selectedArtist = null;
+        _page = 0;
+    }
+
+    private void SelectArtist(string artist)
+    {
+        _selectedArtist = artist;
+        _page = 0;
+    }
+
+    private void BackToArtists()
+    {
+        _selectedArtist = null;
+        _page = 0;
+    }
+
+    private void PrevPage() { if (_page > 0) _page--; }
+
+    private void NextPage() { if (_page < maxPage - 1) _page++; }
     private int volumePercent => (int)Math.Round(Music.Volume * 100);
     private string volumeIcon => Music.Volume <= 0 ? "bi-volume-mute" : Music.Volume < 0.5 ? "bi-volume-down" : "bi-volume-up";
     private double _savedVolume = 1.0;
@@ -207,6 +318,8 @@
     {
         if (currentGenre == genre) return;
         currentGenre = genre;
+        _page = 0;
+        _selectedArtist = null;
         if (!string.IsNullOrEmpty(genre))
         {
             try

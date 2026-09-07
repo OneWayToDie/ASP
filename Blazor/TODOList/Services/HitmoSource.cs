@@ -37,19 +37,19 @@ namespace TODOList.Services
 		public string Name => "hitmo";
 		public string BaseUrl => _baseUrl;
 
-		// number of genre pages to load (48 tracks per page)
-		public int MaxPages { get; set; } = 4;
-
 		public HitmoSource(string baseUrl, TimeSpan? pageDelay = null)
 		{
 			_baseUrl = baseUrl.TrimEnd('/');
 			_pageDelay = pageDelay ?? TimeSpan.FromMilliseconds(700);
 		}
 
-		public async Task<IReadOnlyList<Track>?> LoadGenreAsync(GenreDef genre, CancellationToken ct = default)
+		public async Task<GenreLoadResult?> LoadGenreAsync(GenreDef genre, int startPage, int pageCount, CancellationToken ct = default)
 		{
 			var tracks = new List<Track>();
-			for (var page = 0; page < MaxPages && !ct.IsCancellationRequested; page++)
+			var pagesLoaded = 0;
+			var exhausted = false;
+
+			for (var page = startPage; page < startPage + pageCount && !ct.IsCancellationRequested; page++)
 			{
 				var pageUrl = page == 0
 					? $"{_baseUrl}/genre/{genre.HitmoId}"
@@ -59,11 +59,17 @@ namespace TODOList.Services
 				if (batch == null) return null;
 
 				tracks.AddRange(batch);
-				if (batch.Count < PageSize) break;
+				pagesLoaded++;
+				if (batch.Count < PageSize)
+				{
+					exhausted = true;
+					break;
+				}
 
 				await Task.Delay(_pageDelay, ct).ConfigureAwait(false);
 			}
-			return tracks;
+
+			return new GenreLoadResult { Tracks = tracks, PagesLoaded = pagesLoaded, Exhausted = exhausted };
 		}
 
 		private async Task<IReadOnlyList<Track>?> FetchPageAsync(string genreKey, string url, CancellationToken ct)

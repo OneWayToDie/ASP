@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Text;
 using System.Text.Json;
 using TODOList.Models;
 
@@ -6,17 +7,20 @@ namespace TODOList.Services
 {
 	public class MusicService : IDisposable
 	{
+		private const int InitialPages = 4;
+
 		private readonly IWebHostEnvironment _env;
 		private readonly IRadioSource _source;
+		private readonly NotificationService _notifications;
 
 		private readonly ConcurrentDictionary<string, IReadOnlyList<Track>> _genreTracks = new();
-		private readonly Dictionary<string, DateTime> _lastRefresh = new();
+		private readonly Dictionary<string, int> _pagesLoaded = new();
+		private readonly HashSet<string> _completed = new();
 		private readonly object _sync = new();
 		private readonly object _ioLock = new();
-		private readonly CancellationTokenSource _cts = new();
+		private readonly SemaphoreSlim _crawlLock = new(1, 1);
 		private readonly string _cachePath;
 
-		private static readonly TimeSpan RefreshInterval = TimeSpan.FromHours(6);
 		private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
 		private static readonly string[] ImageExtensions = new[]
@@ -90,13 +94,14 @@ namespace TODOList.Services
 
 		public event Action? OnChange;
 
-		public MusicService(IWebHostEnvironment env, IRadioSource source)
+		public MusicService(IWebHostEnvironment env, IRadioSource source, NotificationService notifications)
 		{
 			_env = env;
 			_source = source;
+			_notifications = notifications;
 			_cachePath = Path.Combine(env.ContentRootPath, "data", "radio-cache.json");
 			LoadCache();
-			_ = Task.Run(() => RunRefreshLoopAsync(_cts.Token));
+			SaveCache();
 		}
 
 		public IReadOnlyList<Track> Tracks => GetTracks(null);
@@ -182,6 +187,108 @@ namespace TODOList.Services
 			await RefreshGenreAsync(def).ConfigureAwait(false);
 		}
 
+		/// <summary>
+		/// One incremental crawl pass: for every genre not yet marked complete,
+		/// load the next up-to-<paramref name="pagesPerGenre"/> pages and append tracks.
+		/// Genres that return an empty/paged-out response are marked complete and excluded forever.
+		/// </summary>
+		public async Task<string> RunCrawlPassAsync(int pagesPerGenre = 3, CancellationToken ct = default)
+		{
+			var report = new StringBuilder();
+			if (pagesPerGenre < 1) pagesPerGenre = 1;
+
+			if (!await _crawlLock.WaitAsync(0).ConfigureAwait(false))
+			{
+				report.AppendLine("уже идёт проход докачки — подожди и повтори позже");
+				return report.ToString();
+			}
+
+			try
+			{
+				foreach (var def in GenreCatalog.All)
+				{
+					if (ct.IsCancellationRequested) break;
+
+					bool done;
+					lock (_sync) done = _completed.Contains(def.Key);
+					if (done)
+					{
+						report.AppendLine($"• {def.Key}: завершён, пропущен");
+						continue;
+					}
+
+					int startPage;
+					lock (_sync) startPage = _pagesLoaded.TryGetValue(def.Key, out var sp) ? sp : 0;
+
+					var result = await _source.LoadGenreAsync(def, startPage, pagesPerGenre, ct).ConfigureAwait(false);
+					if (result == null)
+					{
+						report.AppendLine($"! {def.Key}: HTTP/сетевой сбой — повторю в следующем проходе");
+						continue;
+					}
+
+					MergeTracks(def.Key, result.Tracks);
+
+					int pagesNow, total;
+					lock (_sync)
+					{
+						_pagesLoaded[def.Key] = startPage + result.PagesLoaded;
+						if (result.Exhausted) _completed.Add(def.Key);
+						pagesNow = _pagesLoaded[def.Key];
+						total = _genreTracks.TryGetValue(def.Key, out var list) ? list.Count : 0;
+					}
+					SaveCache();
+
+					if (result.Exhausted)
+					{
+						report.AppendLine($"✓ {def.Key}: исчерпан на странице {pagesNow} ({total} треков), исключён из докачки");
+						_notifications.Push("Жанр исчерпан", $"{GetGenreDisplay(def.Key)} — {total} треков", false);
+					}
+					else
+					{
+						report.AppendLine($"+ {def.Key}: загружено страниц {result.PagesLoaded} (всего {pagesNow}), треков {total}");
+					}
+
+					if (_current == null && total > 0)
+					{
+						lock (_sync)
+						{
+							if (_current == null && _genreTracks.TryGetValue(def.Key, out var list) && list.Count > 0)
+							{
+								_current = list[0];
+								_currentGenre = def.Key;
+							}
+						}
+					}
+					NotifyChange();
+				}
+			}
+			finally
+			{
+				_crawlLock.Release();
+			}
+
+			return report.ToString();
+		}
+
+		public string GetStatusReport()
+		{
+			var sb = new StringBuilder();
+			foreach (var def in GenreCatalog.All)
+			{
+				int pages, total;
+				bool done;
+				lock (_sync)
+				{
+					pages = _pagesLoaded.TryGetValue(def.Key, out var p) ? p : 0;
+					total = _genreTracks.TryGetValue(def.Key, out var list) ? list.Count : 0;
+					done = _completed.Contains(def.Key);
+				}
+				sb.AppendLine($"{def.Key,-36} стр.{pages,-3} треков:{total,-5} {(done ? "ЗАВЕРШЁН" : "")}");
+			}
+			return sb.ToString();
+		}
+
 		public void SetCurrent(Track track)
 		{
 			_current = track;
@@ -223,70 +330,53 @@ namespace TODOList.Services
 
 		public void NotifyChange() => OnChange?.Invoke();
 
-		private bool NeedsRefresh(GenreDef def)
-		{
-			lock (_sync)
-			{
-				return !_lastRefresh.TryGetValue(def.Key, out var dt)
-					|| DateTime.UtcNow - dt > RefreshInterval;
-			}
-		}
-
-		private async Task RunRefreshLoopAsync(CancellationToken ct)
+		private async Task RefreshGenreAsync(GenreDef def, CancellationToken ct = default)
 		{
 			try
 			{
-				foreach (var def in GenreCatalog.All)
-				{
-					if (ct.IsCancellationRequested) return;
-					if (NeedsRefresh(def)) await RefreshGenreAsync(def, ct).ConfigureAwait(false);
-					await Task.Delay(1500, ct).ConfigureAwait(false);
-				}
+				var result = await _source.LoadGenreAsync(def, 0, InitialPages, ct).ConfigureAwait(false);
+				if (result == null) return;
 
-				while (!ct.IsCancellationRequested)
+				foreach (var t in result.Tracks)
 				{
-					await Task.Delay(RefreshInterval, ct).ConfigureAwait(false);
-					foreach (var def in GenreCatalog.All)
-					{
-						if (ct.IsCancellationRequested) return;
-						if (NeedsRefresh(def)) await RefreshGenreAsync(def, ct).ConfigureAwait(false);
-						await Task.Delay(1500, ct).ConfigureAwait(false);
-					}
+					t.Genre = def.Key;
+					t.FileName = HitmoSource.BuildPlayPath(def.Key, t.RadioId);
 				}
+				_genreTracks[def.Key] = result.Tracks;
+
+				lock (_sync)
+				{
+					_pagesLoaded[def.Key] = result.PagesLoaded;
+					if (result.Exhausted) _completed.Add(def.Key);
+				}
+				SaveCache();
+
+				if (_current == null && result.Tracks.Count > 0)
+				{
+					_current = result.Tracks[0];
+					_currentGenre = def.Key;
+				}
+				NotifyChange();
 			}
 			catch (OperationCanceledException) { }
 			catch (Exception ex)
 			{
-				try { Console.Error.WriteLine("radio refresh loop: " + ex); } catch { }
+				try { Console.Error.WriteLine("radio load " + def.Key + ": " + ex.Message); } catch { }
 			}
 		}
 
-		private async Task RefreshGenreAsync(GenreDef def, CancellationToken ct = default)
+		private void MergeTracks(string genreKey, IReadOnlyList<Track> incoming)
 		{
-			IReadOnlyList<Track>? tracks;
-			try
+			var existing = _genreTracks.TryGetValue(genreKey, out var prev) ? prev.ToList() : new List<Track>();
+			var seen = new HashSet<long>(existing.Select(t => t.RadioId));
+			foreach (var t in incoming)
 			{
-				tracks = await _source.LoadGenreAsync(def, ct).ConfigureAwait(false);
+				if (!seen.Add(t.RadioId)) continue;
+				t.Genre = genreKey;
+				t.FileName = HitmoSource.BuildPlayPath(genreKey, t.RadioId);
+				existing.Add(t);
 			}
-			catch (OperationCanceledException) { return; }
-			catch (Exception ex)
-			{
-				try { Console.Error.WriteLine("radio load " + def.Key + ": " + ex.Message); } catch { }
-				return;
-			}
-
-			if (tracks == null || tracks.Count == 0) return;
-
-			_genreTracks[def.Key] = tracks;
-			lock (_sync) { _lastRefresh[def.Key] = DateTime.UtcNow; }
-			SaveCache();
-
-			if (_current == null)
-			{
-				_current = tracks[0];
-				_currentGenre = def.Key;
-			}
-			NotifyChange();
+			_genreTracks[genreKey] = existing;
 		}
 
 		private void LoadCache()
@@ -302,6 +392,7 @@ namespace TODOList.Services
 				{
 					if (group == null || string.IsNullOrEmpty(group.Key) || group.Tracks == null) continue;
 					if (group.Tracks.Count == 0) continue;
+					if (GenreCatalog.Find(group.Key) == null) continue;
 
 					foreach (var t in group.Tracks)
 					{
@@ -310,9 +401,10 @@ namespace TODOList.Services
 					}
 					_genreTracks[group.Key] = group.Tracks;
 
-					if (DateTime.TryParse(group.RefreshedUtc, out var dt))
+					lock (_sync)
 					{
-						lock (_sync) { _lastRefresh[group.Key] = dt; }
+						_pagesLoaded[group.Key] = group.LoadedPages > 0 ? group.LoadedPages : InitialPages;
+						if (group.Completed) _completed.Add(group.Key);
 					}
 				}
 			}
@@ -333,12 +425,14 @@ namespace TODOList.Services
 					{
 						foreach (var kv in _genreTracks)
 						{
-							_lastRefresh.TryGetValue(kv.Key, out var dt);
+							if (GenreCatalog.Find(kv.Key) == null) continue;
 							groups.Add(new CacheGenre
 							{
 								Key = kv.Key,
-								RefreshedUtc = dt.ToString("O"),
-								Tracks = kv.Value.ToList()
+								RefreshedUtc = DateTime.UtcNow.ToString("O"),
+								Tracks = kv.Value.ToList(),
+								LoadedPages = _pagesLoaded.TryGetValue(kv.Key, out var p) ? p : InitialPages,
+								Completed = _completed.Contains(kv.Key)
 							});
 						}
 					}
@@ -367,11 +461,13 @@ namespace TODOList.Services
 			public string Key { get; set; } = string.Empty;
 			public string RefreshedUtc { get; set; } = string.Empty;
 			public List<Track>? Tracks { get; set; }
+			public int LoadedPages { get; set; }
+			public bool Completed { get; set; }
 		}
 
 		public void Dispose()
 		{
-			try { _cts.Cancel(); _cts.Dispose(); } catch { }
+			try { _crawlLock.Dispose(); } catch { }
 		}
 	}
 }
