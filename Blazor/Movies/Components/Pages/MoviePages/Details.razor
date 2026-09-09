@@ -6,27 +6,36 @@
 
 <PageTitle>Details</PageTitle>
 
-<h1>Details</h1>
 
 <div>
-    <h2>Movie</h2>
+    @* <h2>Movie</h2> *@
     <hr />
     @if (movie is null)
     {
         <p><em>Loading...</em></p>
     }
-    else {
-        <dl class="row">
-            <dt class="col-sm-2">Title</dt>
-            <dd class="col-sm-10">@movie.Title</dd>
-            <dt class="col-sm-2">ReleaseDate</dt>
-            <dd class="col-sm-10">@movie.ReleaseDate</dd>
-            <dt class="col-sm-2">Genre</dt>
-            <dd class="col-sm-10">@movie.Genre</dd>
-        </dl>
+    else 
+    {
+        <h1>@movie.Title</h1>
         <div>
-            <a href="@($"/movies/edit?id={movie.Id}")">Edit</a> |
-            <a href="@($"/movies")">Back to List</a>
+            <dl class="row">
+                @* <dt class="col-sm-2">Title</dt>         <dd class="col-sm-10">@movie.Title</dd> *@
+                <dt class="col-sm-2">ReleaseDate</dt>
+                <dd class="col-sm-10">@movie.ReleaseDate</dd>
+                <dt class="col-sm-2">Genre</dt>
+                <dd class="col-sm-10">@movie.Genre</dd>
+                <dt class="col-sm-2">URL</dt>
+                <dd class="col-sm-10"><a href="@movie.URL">@movie.URL</a></dd>
+                <dt class="col-sm-2">Poster</dt>
+                <dd class="col-sm-10">@movie.Poster</dd>
+            </dl>
+            <div>
+                <a href="@($"/movies/edit?id={movie.Id}")">Edit</a> |
+                <a href="@($"/movies")">Back to List</a>
+            </div>
+        </div>
+        <div>
+            <img src="@movie.Poster"/>
         </div>
     }
 </div>
