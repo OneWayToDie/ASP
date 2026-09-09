@@ -6,6 +6,8 @@
 @inject IDbContextFactory<MoviesContext> DbFactory
 @inject NavigationManager NavigationManager
 
+@rendermode InteractiveServer
+
 <PageTitle>Movies</PageTitle>
 
 <h1>Movies</h1>
@@ -14,10 +16,19 @@
     <a href="movies/create">Create New</a>
 </p>
 
-<QuickGrid Class="table" Items="context.Movie">
-    <PropertyColumn Property="movie => movie.Title" />
-    <PropertyColumn Property="movie => movie.ReleaseDate" />
-    <PropertyColumn Property="movie => movie.Genre" />
+<label for="items-per-page">Items per page:</label>
+<select id="items-per-page" @bind="pagination.ItemsPerPage">
+    <option value="3">3</option>
+    <option value="5">5</option>
+    <option value="8">8</option>
+    <option value="10">10</option>
+</select>
+
+
+<QuickGrid Class="table" Items="context.Movie" Pagination="pagination">
+    <PropertyColumn Property="movie => movie.Title" Sortable="true"/>
+    <PropertyColumn Property="movie => movie.ReleaseDate" Sortable="true" />
+    <PropertyColumn Property="movie => movie.Genre" Sortable="true" />
 
     <TemplateColumn Context="movie">
         @* <a href="@($"movies/edit?id={movie.Id}")">Edit</a> | *@
@@ -25,9 +36,13 @@
         @* <a href="@($"movies/delete?id={movie.Id}")">Delete</a> *@
     </TemplateColumn>
 </QuickGrid>
+<Paginator State="pagination"/>
+
 
 @code {
     private MoviesContext context = default!;
+
+    PaginationState pagination = new PaginationState { ItemsPerPage = 3 };
 
     protected override void OnInitialized()
     {
