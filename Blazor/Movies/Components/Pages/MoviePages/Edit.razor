@@ -17,38 +17,43 @@ else
 {
     <h1>@Movie.Title edit page</h1>
     <div class="row">
-        <div class="col-md-4">
-            <EditForm method="post" Model="Movie" OnValidSubmit="UpdateMovie" FormName="edit" Enhance>
-                <DataAnnotationsValidator />
-                <ValidationSummary role="alert"/>
-                <input type="hidden" name="Movie.Id" value="@Movie.Id" />
-                <div class="mb-3">
-                    <label for="title" class="form-label">Title:</label>
-                    <InputText id="title" @bind-Value="Movie.Title" class="form-control" />
-                    <ValidationMessage For="() => Movie.Title" class="text-danger" />
-                </div>
-                <div class="mb-3">
-                    <label for="releasedate" class="form-label">ReleaseDate:</label>
-                    <InputDate id="releasedate" @bind-Value="Movie.ReleaseDate" class="form-control" />
-                    <ValidationMessage For="() => Movie.ReleaseDate" class="text-danger" />
-                </div>
-                <div class="mb-3">
-                    <label for="genre" class="form-label">Genre:</label>
-                    <InputText id="genre" @bind-Value="Movie.Genre" class="form-control" />
-                    <ValidationMessage For="() => Movie.Genre" class="text-danger" />
-                </div>
-                <div class="mb-3">
-                    <label for="URL" class="form-label">URL:</label>
-                    <InputText id="URL" @bind-Value="Movie.URL" class="form-control" />
-                    <ValidationMessage For="() => Movie.URL" class="text-danger" />
-                </div>
-                <div class="mb-3">
-                    <label for="Poster" class="form-label">Poster:</label>
-                    <InputText id="Poster" @bind-Value="Movie.Poster" class="form-control" />
-                    <ValidationMessage For="() => Movie.Poster" class="text-danger" />
-                </div>
-                <button type="submit" class="btn btn-primary">Save</button>
-            </EditForm>
+        <div class="details-container">
+            <div class="col-md-4">
+                <EditForm method="post" Model="Movie" OnValidSubmit="UpdateMovie" FormName="edit" Enhance>
+                    <DataAnnotationsValidator />
+                    <ValidationSummary role="alert" />
+                    <input type="hidden" name="Movie.Id" value="@Movie.Id" />
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Title:</label>
+                        <InputText id="title" @bind-Value="Movie.Title" class="form-control" />
+                        <ValidationMessage For="() => Movie.Title" class="text-danger" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="releasedate" class="form-label">ReleaseDate:</label>
+                        <InputDate id="releasedate" @bind-Value="Movie.ReleaseDate" class="form-control" />
+                        <ValidationMessage For="() => Movie.ReleaseDate" class="text-danger" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="genre" class="form-label">Genre:</label>
+                        <InputText id="genre" @bind-Value="Movie.Genre" class="form-control" />
+                        <ValidationMessage For="() => Movie.Genre" class="text-danger" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="URL" class="form-label">URL:</label>
+                        <InputText id="URL" @bind-Value="Movie.URL" class="form-control" />
+                        <ValidationMessage For="() => Movie.URL" class="text-danger" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="Poster" class="form-label">Poster:</label>
+                        <InputText id="Poster" @bind-Value="Movie.Poster" class="form-control" />
+                        <ValidationMessage For="() => Movie.Poster" class="text-danger" />
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </EditForm>
+            </div>
+            <div>
+                <img src="@Movie.Poster" />
+            </div>
         </div>
     </div>
 }
