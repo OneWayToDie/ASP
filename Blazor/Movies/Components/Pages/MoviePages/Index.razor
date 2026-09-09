@@ -16,13 +16,21 @@
     <a href="movies/create">Create New</a>
 </p>
 
-<label for="items-per-page">Items per page:</label>
-<select id="items-per-page" @bind="pagination.ItemsPerPage">
-    <option value="3">3</option>
-    <option value="5">5</option>
-    <option value="8">8</option>
-    <option value="10">10</option>
-</select>
+<div class="controls">
+    <form action="/movies">
+        <input type="search" name="titleFilter" />
+        <input type="submit" value="Поиск" class="btn btn-primary"/>
+    </form>
+    <div>
+        <label for="items-per-page">Items per page:</label>
+        <select id="items-per-page" @bind="pagination.ItemsPerPage">
+            <option value="3">3</option>
+            <option value="5">5</option>
+            <option value="8">8</option>
+            <option value="10">10</option>
+        </select>
+    </div>
+</div>
 
 
 <div >
@@ -43,6 +51,12 @@
 
 @code {
     private MoviesContext context = default!;
+
+    [SupplyParameterFromQuery]
+    string? TitleFilter { get; set; }
+
+    IQueryable<Movie> FilteredMovies => 
+    context.Movie.Where(m => m.Title.Contains(TitleFilter ?? string.Empty));
 
     PaginationState pagination = new PaginationState { ItemsPerPage = 3 };
 
