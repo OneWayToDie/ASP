@@ -1,0 +1,103 @@
+@page "/students/create"
+@using Microsoft.EntityFrameworkCore
+@using Academy.Data.Models
+@using System.Globalization
+@inject IDbContextFactory<AcademyContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create</PageTitle>
+
+<h1>Create</h1>
+
+<h2>Students</h2>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <EditForm method="post" Model="Entity" OnValidSubmit="AddEntity" FormName="create">
+            <input type="hidden" name="post" value="1" />
+                <div class="mb-3">
+                    <label for="lastname" class="form-label">LastName:</label>
+                    <input type="text" name="LastNameIn" value="@Entity.LastName" class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label for="firstname" class="form-label">FirstName:</label>
+                    <input type="text" name="FirstNameIn" value="@Entity.FirstName" class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label for="middlename" class="form-label">MiddleName:</label>
+                    <input type="text" name="MiddleNameIn" value="@Entity.MiddleName" class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label for="birthdate" class="form-label">BirthDate:</label>
+                    <input type="date" name="BirthDateIn" value="@Entity.BirthDate.ToString("yyyy-MM-dd")" class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email:</label>
+                    <input type="text" name="EmailIn" value="@Entity.Email" class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label for="phone" class="form-label">Phone:</label>
+                    <input type="text" name="PhoneIn" value="@Entity.Phone" class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label for="group" class="form-label">Group:</label>
+                    <input type="number" name="GroupIn" value="@Entity.Group" class="form-control" />
+                </div>
+            <button type="submit" class="btn btn-primary">Create</button>
+        </EditForm>
+    </div>
+</div>
+
+<div>
+    <a href="/students">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    public string? post { get; set; }
+
+[SupplyParameterFromForm]
+    public string? LastNameIn { get; set; }
+
+    [SupplyParameterFromForm]
+    public string? FirstNameIn { get; set; }
+
+    [SupplyParameterFromForm]
+    public string? MiddleNameIn { get; set; }
+
+    [SupplyParameterFromForm]
+    public string? BirthDateIn { get; set; }
+
+    [SupplyParameterFromForm]
+    public string? EmailIn { get; set; }
+
+    [SupplyParameterFromForm]
+    public string? PhoneIn { get; set; }
+
+    [SupplyParameterFromForm]
+    public string? GroupIn { get; set; }
+
+    private Students Entity { get; set; } = new();
+
+    protected override void OnInitialized()
+    {
+        if (post == "1")
+        {
+if (LastNameIn != null) Entity.LastName = LastNameIn;
+        if (FirstNameIn != null) Entity.FirstName = FirstNameIn;
+        if (MiddleNameIn != null) Entity.MiddleName = MiddleNameIn;
+        if (DateOnly.TryParse(BirthDateIn, out var vBirthDate)) Entity.BirthDate = vBirthDate;
+        if (EmailIn != null) Entity.Email = EmailIn;
+        if (PhoneIn != null) Entity.Phone = PhoneIn;
+        if (int.TryParse(GroupIn, out var vGroup)) Entity.Group = vGroup;
+        }
+    }
+
+    private async Task AddEntity()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Students.Add(Entity);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/students");
+    }
+}

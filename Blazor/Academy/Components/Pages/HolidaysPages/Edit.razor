@@ -1,0 +1,120 @@
+@page "/holidays/edit"
+@using Microsoft.EntityFrameworkCore
+@using Academy.Data.Models
+@using System.Globalization
+@inject IDbContextFactory<AcademyContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit</PageTitle>
+
+@if (Entity is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <h1>Edit</h1>
+    <h2>Holidays</h2>
+    <hr />
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="Entity" OnValidSubmit="UpdateEntity" FormName="edit">
+                <input type="hidden" name="post" value="1" />
+
+                <div class="mb-3">
+                    <label for="holidayname" class="form-label">HolidayName:</label>
+                    <input type="text" name="HolidayNameIn" value="@Entity.HolidayName" class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label for="duration" class="form-label">Duration:</label>
+                    <input type="number" name="DurationIn" value="@Entity.Duration" class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label for="month" class="form-label">Month:</label>
+                    <input type="number" name="MonthIn" value="@Entity.Month" class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label for="day" class="form-label">Day:</label>
+                    <input type="number" name="DayIn" value="@Entity.Day" class="form-control" />
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<div>
+    <a href="/holidays">Back to List</a>
+</div>
+
+@code {
+[SupplyParameterFromQuery]
+    private int id { get; set; }
+
+    [SupplyParameterFromForm]
+    public string? post { get; set; }
+
+[SupplyParameterFromForm]
+    public string? HolidayNameIn { get; set; }
+
+    [SupplyParameterFromForm]
+    public string? DurationIn { get; set; }
+
+    [SupplyParameterFromForm]
+    public string? MonthIn { get; set; }
+
+    [SupplyParameterFromForm]
+    public string? DayIn { get; set; }
+
+    private Holidays? Entity { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        Entity = await context.Holidays.FirstOrDefaultAsync(m => m.HolidayId == id);
+
+        if (Entity is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+            return;
+        }
+
+        if (post == "1")
+        {
+if (HolidayNameIn != null) Entity.HolidayName = HolidayNameIn;
+        if (byte.TryParse(DurationIn, out var vDuration)) Entity.Duration = vDuration;
+        if (byte.TryParse(MonthIn, out var vMonth)) Entity.Month = vMonth;
+        if (byte.TryParse(DayIn, out var vDay)) Entity.Day = vDay;
+        }
+    }
+
+    private async Task UpdateEntity()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(Entity!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!EntityExists())
+            {
+                NavigationManager.NavigateTo("notfound");
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/holidays");
+    }
+
+    private bool EntityExists()
+    {
+        using var context = DbFactory.CreateDbContext();
+        return context.Holidays.Any(m => m.HolidayId == id);
+    }
+}

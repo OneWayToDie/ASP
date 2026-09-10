@@ -1,0 +1,66 @@
+@page "/attendance/delete"
+@using Microsoft.EntityFrameworkCore
+@using Academy.Data.Models
+@inject IDbContextFactory<AcademyContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Delete</PageTitle>
+
+<h1>Delete</h1>
+
+<p>Are you sure you want to delete this?</p>
+<div>
+    <h2>Attendance</h2>
+    <hr />
+    @if (item is null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else {
+<dl class="row">
+            <dt class="col-sm-2">Student</dt>
+            <dd class="col-sm-10">@item.Student</dd>
+        </dl>
+        <dl class="row">
+            <dt class="col-sm-2">Lesson</dt>
+            <dd class="col-sm-10">@item.Lesson</dd>
+        </dl>
+        <dl class="row">
+            <dt class="col-sm-2">Present</dt>
+            <dd class="col-sm-10">@item.Present</dd>
+        </dl>
+        <EditForm method="post" Model="item" OnValidSubmit="DeleteEntity" FormName="delete">
+            <button type="submit" class="btn btn-danger" disabled="@(item is null)">Delete</button> |
+            <a href="/attendance">Back to List</a>
+        </EditForm>
+    }
+</div>
+
+@code {
+    private Attendance? item;
+
+[SupplyParameterFromQuery]
+    private int student { get; set; }
+
+    [SupplyParameterFromQuery]
+    private long lesson { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        item = await context.Attendance.FirstOrDefaultAsync(m => m.Student == student && m.Lesson == lesson);
+
+        if (item is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+
+    private async Task DeleteEntity()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attendance.Remove(item!);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/attendance");
+    }
+}

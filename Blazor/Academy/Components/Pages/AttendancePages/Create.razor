@@ -1,0 +1,71 @@
+@page "/attendance/create"
+@using Microsoft.EntityFrameworkCore
+@using Academy.Data.Models
+@using System.Globalization
+@inject IDbContextFactory<AcademyContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create</PageTitle>
+
+<h1>Create</h1>
+
+<h2>Attendance</h2>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <EditForm method="post" Model="Entity" OnValidSubmit="AddEntity" FormName="create">
+            <input type="hidden" name="post" value="1" />
+                <div class="mb-3">
+                    <label for="student" class="form-label">Student:</label>
+                    <input type="number" name="StudentIn" value="@Entity.Student" class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label for="lesson" class="form-label">Lesson:</label>
+                    <input type="number" name="LessonIn" value="@Entity.Lesson" class="form-control" />
+                </div>
+                <div class="form-check mb-3">
+                    <label for="present" class="form-label">Present:</label>
+                    <input type="checkbox" name="PresentIn" value="true" checked="@(Entity.Present ? "checked" : null)" class="form-check-input" />
+                </div>
+            <button type="submit" class="btn btn-primary">Create</button>
+        </EditForm>
+    </div>
+</div>
+
+<div>
+    <a href="/attendance">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    public string? post { get; set; }
+
+[SupplyParameterFromForm]
+    public string? StudentIn { get; set; }
+
+    [SupplyParameterFromForm]
+    public string? LessonIn { get; set; }
+
+    [SupplyParameterFromForm]
+    public string? PresentIn { get; set; }
+
+    private Attendance Entity { get; set; } = new();
+
+    protected override void OnInitialized()
+    {
+        if (post == "1")
+        {
+if (int.TryParse(StudentIn, out var vStudent)) Entity.Student = vStudent;
+        if (long.TryParse(LessonIn, out var vLesson)) Entity.Lesson = vLesson;
+        Entity.Present = (PresentIn == "true");
+        }
+    }
+
+    private async Task AddEntity()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attendance.Add(Entity);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/attendance");
+    }
+}

@@ -1,0 +1,96 @@
+@page "/directions/edit"
+@using Microsoft.EntityFrameworkCore
+@using Academy.Data.Models
+@using System.Globalization
+@inject IDbContextFactory<AcademyContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit</PageTitle>
+
+@if (Entity is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <h1>Edit</h1>
+    <h2>Directions</h2>
+    <hr />
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="Entity" OnValidSubmit="UpdateEntity" FormName="edit">
+                <input type="hidden" name="post" value="1" />
+
+                <div class="mb-3">
+                    <label for="directionname" class="form-label">DirectionName:</label>
+                    <input type="text" name="DirectionNameIn" value="@Entity.DirectionName" class="form-control" />
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<div>
+    <a href="/directions">Back to List</a>
+</div>
+
+@code {
+[SupplyParameterFromQuery]
+    private int id { get; set; }
+
+    [SupplyParameterFromForm]
+    public string? post { get; set; }
+
+[SupplyParameterFromForm]
+    public string? DirectionNameIn { get; set; }
+
+    private Directions? Entity { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        Entity = await context.Directions.FirstOrDefaultAsync(m => m.DirectionId == id);
+
+        if (Entity is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+            return;
+        }
+
+        if (post == "1")
+        {
+if (DirectionNameIn != null) Entity.DirectionName = DirectionNameIn;
+        }
+    }
+
+    private async Task UpdateEntity()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(Entity!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!EntityExists())
+            {
+                NavigationManager.NavigateTo("notfound");
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/directions");
+    }
+
+    private bool EntityExists()
+    {
+        using var context = DbFactory.CreateDbContext();
+        return context.Directions.Any(m => m.DirectionId == id);
+    }
+}

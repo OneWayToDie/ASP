@@ -1,0 +1,63 @@
+@page "/daysoff/create"
+@using Microsoft.EntityFrameworkCore
+@using Academy.Data.Models
+@using System.Globalization
+@inject IDbContextFactory<AcademyContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create</PageTitle>
+
+<h1>Create</h1>
+
+<h2>Days OFF</h2>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <EditForm method="post" Model="Entity" OnValidSubmit="AddEntity" FormName="create">
+            <input type="hidden" name="post" value="1" />
+                <div class="mb-3">
+                    <label for="date" class="form-label">Date:</label>
+                    <input type="date" name="DateIn" value="@Entity.Date.ToString("yyyy-MM-dd")" class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label for="holiday" class="form-label">Holiday:</label>
+                    <input type="number" name="HolidayIn" value="@Entity.Holiday" class="form-control" />
+                </div>
+            <button type="submit" class="btn btn-primary">Create</button>
+        </EditForm>
+    </div>
+</div>
+
+<div>
+    <a href="/daysoff">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    public string? post { get; set; }
+
+[SupplyParameterFromForm]
+    public string? DateIn { get; set; }
+
+    [SupplyParameterFromForm]
+    public string? HolidayIn { get; set; }
+
+    private DaysOff Entity { get; set; } = new();
+
+    protected override void OnInitialized()
+    {
+        if (post == "1")
+        {
+if (DateOnly.TryParse(DateIn, out var vDate)) Entity.Date = vDate;
+        if (byte.TryParse(HolidayIn, out var vHoliday)) Entity.Holiday = vHoliday;
+        }
+    }
+
+    private async Task AddEntity()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.DaysOff.Add(Entity);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/daysoff");
+    }
+}

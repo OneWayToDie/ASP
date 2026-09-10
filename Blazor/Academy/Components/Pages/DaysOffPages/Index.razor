@@ -1,0 +1,57 @@
+@page "/daysoff"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.EntityFrameworkCore
+@using Academy.Data.Models
+@implements IAsyncDisposable
+@inject IDbContextFactory<AcademyContext> DbFactory
+@inject NavigationManager NavigationManager
+
+@rendermode InteractiveServer
+
+<PageTitle>Days OFF</PageTitle>
+
+<h1>Days OFF</h1>
+
+<p>
+    <a href="/daysoff/create">Create New</a>
+</p>
+
+<div class="controls">
+
+    <div>
+        <label for="items-per-page">Items per page:</label>
+        <select id="items-per-page" @bind="pagination.ItemsPerPage">
+            <option value="3">3</option>
+            <option value="5">5</option>
+            <option value="8">8</option>
+            <option value="10">10</option>
+        </select>
+    </div>
+</div>
+
+<div>
+    <QuickGrid Class="table" Items="context.DaysOff" Pagination="pagination">
+<PropertyColumn Property="m => m.Date" Sortable="true" />
+        <PropertyColumn Property="m => m.Holiday" Sortable="true" />
+        <TemplateColumn Context="m">
+            <a href="@($"daysoff/details?date={m.Date:yyyy-MM-dd}")">Details</a> |
+            <a href="@($"daysoff/edit?date={m.Date:yyyy-MM-dd}")">Edit</a> |
+            <a href="@($"daysoff/delete?date={m.Date:yyyy-MM-dd}")">Delete</a>
+        </TemplateColumn>
+    </QuickGrid>
+    <Paginator State="pagination" />
+</div>
+
+@code {
+    private AcademyContext context = default!;
+
+
+    PaginationState pagination = new PaginationState { ItemsPerPage = 10 };
+
+    protected override void OnInitialized()
+    {
+        context = DbFactory.CreateDbContext();
+    }
+
+    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+}

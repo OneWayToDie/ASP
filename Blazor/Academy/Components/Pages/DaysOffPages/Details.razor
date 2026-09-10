@@ -1,0 +1,47 @@
+@page "/daysoff/details"
+@using Microsoft.EntityFrameworkCore
+@using Academy.Data.Models
+@inject IDbContextFactory<AcademyContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Details</PageTitle>
+
+<div>
+    <hr />
+    @if (item is null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else
+    {
+        <dl class="row">
+<dt class="col-sm-2">Date</dt>
+                    <dd class="col-sm-10">@item.Date</dd>
+                    <dt class="col-sm-2">Holiday</dt>
+                    <dd class="col-sm-10">@item.Holiday</dd>
+        </dl>
+        <div>
+            <a href="@($"daysoff/edit?date={item.Date:yyyy-MM-dd}")">Edit</a> |
+            <a href="@($"daysoff/delete?date={item.Date:yyyy-MM-dd}")">Delete</a> |
+            <a href="@($"/daysoff")">Back to List</a>
+        </div>
+    }
+</div>
+
+@code {
+    private DaysOff? item;
+
+[SupplyParameterFromQuery]
+    private DateOnly date { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        item = await context.DaysOff.FirstOrDefaultAsync(m => m.Date == date);
+
+        if (item is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+}

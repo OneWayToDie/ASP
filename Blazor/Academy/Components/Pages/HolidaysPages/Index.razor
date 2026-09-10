@@ -1,0 +1,67 @@
+@page "/holidays"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.EntityFrameworkCore
+@using Academy.Data.Models
+@implements IAsyncDisposable
+@inject IDbContextFactory<AcademyContext> DbFactory
+@inject NavigationManager NavigationManager
+
+@rendermode InteractiveServer
+
+<PageTitle>Holidays</PageTitle>
+
+<h1>Holidays</h1>
+
+<p>
+    <a href="/holidays/create">Create New</a>
+</p>
+
+<div class="controls">
+        <form action="/holidays">
+            <input type="search" name="holidayname" />
+            <input type="submit" value="Search" class="btn btn-primary"/>
+        </form>
+    <div>
+        <label for="items-per-page">Items per page:</label>
+        <select id="items-per-page" @bind="pagination.ItemsPerPage">
+            <option value="3">3</option>
+            <option value="5">5</option>
+            <option value="8">8</option>
+            <option value="10">10</option>
+        </select>
+    </div>
+</div>
+
+<div>
+    <QuickGrid Class="table" Items="FilteredItems" Pagination="pagination">
+<PropertyColumn Property="m => m.HolidayId" Sortable="true" />
+        <PropertyColumn Property="m => m.HolidayName" Sortable="true" />
+        <PropertyColumn Property="m => m.Duration" Sortable="true" />
+        <PropertyColumn Property="m => m.Month" Sortable="true" />
+        <PropertyColumn Property="m => m.Day" Sortable="true" />
+        <TemplateColumn Context="m">
+            <a href="@($"holidays/details?id={m.HolidayId}")">Details</a> |
+            <a href="@($"holidays/edit?id={m.HolidayId}")">Edit</a> |
+            <a href="@($"holidays/delete?id={m.HolidayId}")">Delete</a>
+        </TemplateColumn>
+    </QuickGrid>
+    <Paginator State="pagination" />
+</div>
+
+@code {
+    private AcademyContext context = default!;
+
+    [SupplyParameterFromQuery]
+    string? holidayname { get; set; }
+
+    IQueryable<Holidays> FilteredItems =>
+        context.Holidays.Where(m => (m.HolidayName ?? string.Empty).Contains(holidayname ?? string.Empty));
+    PaginationState pagination = new PaginationState { ItemsPerPage = 10 };
+
+    protected override void OnInitialized()
+    {
+        context = DbFactory.CreateDbContext();
+    }
+
+    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+}

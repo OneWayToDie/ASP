@@ -1,0 +1,57 @@
+@page "/schedule/details"
+@using Microsoft.EntityFrameworkCore
+@using Academy.Data.Models
+@inject IDbContextFactory<AcademyContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Details</PageTitle>
+
+<div>
+    <hr />
+    @if (item is null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else
+    {
+        <dl class="row">
+<dt class="col-sm-2">LessonId</dt>
+                    <dd class="col-sm-10">@item.LessonId</dd>
+                    <dt class="col-sm-2">Group</dt>
+                    <dd class="col-sm-10">@item.Group</dd>
+                    <dt class="col-sm-2">Discipline</dt>
+                    <dd class="col-sm-10">@item.Discipline</dd>
+                    <dt class="col-sm-2">Teacher</dt>
+                    <dd class="col-sm-10">@item.Teacher</dd>
+                    <dt class="col-sm-2">Date</dt>
+                    <dd class="col-sm-10">@item.Date</dd>
+                    <dt class="col-sm-2">Time</dt>
+                    <dd class="col-sm-10">@item.Time</dd>
+                    <dt class="col-sm-2">Spent</dt>
+                    <dd class="col-sm-10">@item.Spent</dd>
+        </dl>
+        <div>
+            <a href="@($"schedule/edit?id={item.LessonId}")">Edit</a> |
+            <a href="@($"schedule/delete?id={item.LessonId}")">Delete</a> |
+            <a href="@($"/schedule")">Back to List</a>
+        </div>
+    }
+</div>
+
+@code {
+    private Schedule? item;
+
+[SupplyParameterFromQuery]
+    private long id { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        item = await context.Schedule.FirstOrDefaultAsync(m => m.LessonId == id);
+
+        if (item is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+}

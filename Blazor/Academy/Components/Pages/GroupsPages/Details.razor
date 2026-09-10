@@ -1,0 +1,55 @@
+@page "/groups/details"
+@using Microsoft.EntityFrameworkCore
+@using Academy.Data.Models
+@inject IDbContextFactory<AcademyContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Details</PageTitle>
+
+<div>
+    <hr />
+    @if (item is null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else
+    {
+        <dl class="row">
+<dt class="col-sm-2">GroupId</dt>
+                    <dd class="col-sm-10">@item.GroupId</dd>
+                    <dt class="col-sm-2">GroupName</dt>
+                    <dd class="col-sm-10">@item.GroupName</dd>
+                    <dt class="col-sm-2">Direction</dt>
+                    <dd class="col-sm-10">@item.Direction</dd>
+                    <dt class="col-sm-2">Weekdays</dt>
+                    <dd class="col-sm-10">@item.Weekdays</dd>
+                    <dt class="col-sm-2">StartTime</dt>
+                    <dd class="col-sm-10">@item.StartTime</dd>
+                    <dt class="col-sm-2">StartDate</dt>
+                    <dd class="col-sm-10">@item.StartDate</dd>
+        </dl>
+        <div>
+            <a href="@($"groups/edit?id={item.GroupId}")">Edit</a> |
+            <a href="@($"groups/delete?id={item.GroupId}")">Delete</a> |
+            <a href="@($"/groups")">Back to List</a>
+        </div>
+    }
+</div>
+
+@code {
+    private Groups? item;
+
+[SupplyParameterFromQuery]
+    private int id { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        item = await context.Groups.FirstOrDefaultAsync(m => m.GroupId == id);
+
+        if (item is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+}

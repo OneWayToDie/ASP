@@ -1,0 +1,107 @@
+@page "/exams/edit"
+@using Microsoft.EntityFrameworkCore
+@using Academy.Data.Models
+@using System.Globalization
+@inject IDbContextFactory<AcademyContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit</PageTitle>
+
+@if (Entity is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <h1>Edit</h1>
+    <h2>Exams</h2>
+    <hr />
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="Entity" OnValidSubmit="UpdateEntity" FormName="edit">
+                <input type="hidden" name="post" value="1" />
+
+                <div class="mb-3">
+                    <label for="date" class="form-label">Date:</label>
+                    <input type="date" name="DateIn" value="@Entity.Date?.ToString("yyyy-MM-dd")" class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label for="grade" class="form-label">Grade:</label>
+                    <input type="number" name="GradeIn" value="@Entity.Grade" class="form-control" />
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<div>
+    <a href="/exams">Back to List</a>
+</div>
+
+@code {
+[SupplyParameterFromQuery]
+    private int student { get; set; }
+
+    [SupplyParameterFromQuery]
+    private int discipline { get; set; }
+
+    [SupplyParameterFromForm]
+    public string? post { get; set; }
+
+[SupplyParameterFromForm]
+    public string? DateIn { get; set; }
+
+    [SupplyParameterFromForm]
+    public string? GradeIn { get; set; }
+
+    private Exams? Entity { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        Entity = await context.Exams.FirstOrDefaultAsync(m => m.Student == student && m.Discipline == discipline);
+
+        if (Entity is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+            return;
+        }
+
+        if (post == "1")
+        {
+if (DateOnly.TryParse(DateIn, out var vDate)) Entity.Date = vDate;
+        if (byte.TryParse(GradeIn, out var vGrade)) Entity.Grade = vGrade;
+        }
+    }
+
+    private async Task UpdateEntity()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(Entity!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!EntityExists())
+            {
+                NavigationManager.NavigateTo("notfound");
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/exams");
+    }
+
+    private bool EntityExists()
+    {
+        using var context = DbFactory.CreateDbContext();
+        return context.Exams.Any(m => m.Student == student && m.Discipline == discipline);
+    }
+}

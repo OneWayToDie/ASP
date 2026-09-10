@@ -1,0 +1,96 @@
+@page "/daysoff/edit"
+@using Microsoft.EntityFrameworkCore
+@using Academy.Data.Models
+@using System.Globalization
+@inject IDbContextFactory<AcademyContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit</PageTitle>
+
+@if (Entity is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <h1>Edit</h1>
+    <h2>Days OFF</h2>
+    <hr />
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="Entity" OnValidSubmit="UpdateEntity" FormName="edit">
+                <input type="hidden" name="post" value="1" />
+
+                <div class="mb-3">
+                    <label for="holiday" class="form-label">Holiday:</label>
+                    <input type="number" name="HolidayIn" value="@Entity.Holiday" class="form-control" />
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<div>
+    <a href="/daysoff">Back to List</a>
+</div>
+
+@code {
+[SupplyParameterFromQuery]
+    private DateOnly date { get; set; }
+
+    [SupplyParameterFromForm]
+    public string? post { get; set; }
+
+[SupplyParameterFromForm]
+    public string? HolidayIn { get; set; }
+
+    private DaysOff? Entity { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        Entity = await context.DaysOff.FirstOrDefaultAsync(m => m.Date == date);
+
+        if (Entity is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+            return;
+        }
+
+        if (post == "1")
+        {
+if (byte.TryParse(HolidayIn, out var vHoliday)) Entity.Holiday = vHoliday;
+        }
+    }
+
+    private async Task UpdateEntity()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(Entity!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!EntityExists())
+            {
+                NavigationManager.NavigateTo("notfound");
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/daysoff");
+    }
+
+    private bool EntityExists()
+    {
+        using var context = DbFactory.CreateDbContext();
+        return context.DaysOff.Any(m => m.Date == date);
+    }
+}

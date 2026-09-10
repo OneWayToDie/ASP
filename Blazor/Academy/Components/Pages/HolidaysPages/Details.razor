@@ -1,0 +1,53 @@
+@page "/holidays/details"
+@using Microsoft.EntityFrameworkCore
+@using Academy.Data.Models
+@inject IDbContextFactory<AcademyContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Details</PageTitle>
+
+<div>
+    <hr />
+    @if (item is null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else
+    {
+        <dl class="row">
+<dt class="col-sm-2">HolidayId</dt>
+                    <dd class="col-sm-10">@item.HolidayId</dd>
+                    <dt class="col-sm-2">HolidayName</dt>
+                    <dd class="col-sm-10">@item.HolidayName</dd>
+                    <dt class="col-sm-2">Duration</dt>
+                    <dd class="col-sm-10">@item.Duration</dd>
+                    <dt class="col-sm-2">Month</dt>
+                    <dd class="col-sm-10">@item.Month</dd>
+                    <dt class="col-sm-2">Day</dt>
+                    <dd class="col-sm-10">@item.Day</dd>
+        </dl>
+        <div>
+            <a href="@($"holidays/edit?id={item.HolidayId}")">Edit</a> |
+            <a href="@($"holidays/delete?id={item.HolidayId}")">Delete</a> |
+            <a href="@($"/holidays")">Back to List</a>
+        </div>
+    }
+</div>
+
+@code {
+    private Holidays? item;
+
+[SupplyParameterFromQuery]
+    private int id { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        item = await context.Holidays.FirstOrDefaultAsync(m => m.HolidayId == id);
+
+        if (item is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+}

@@ -1,10 +1,17 @@
 using Academy.Components;
+using Academy.Data.Models;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
 	.AddInteractiveServerComponents();
+
+builder.Services.AddDbContextFactory<AcademyContext>(options =>
+	options.UseSqlServer(builder.Configuration.GetConnectionString("AcademyContext")));
+builder.Services.AddQuickGridEntityFrameworkAdapter();
+builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 var app = builder.Build();
 

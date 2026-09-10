@@ -1,0 +1,87 @@
+@page "/holidays/create"
+@using Microsoft.EntityFrameworkCore
+@using Academy.Data.Models
+@using System.Globalization
+@inject IDbContextFactory<AcademyContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create</PageTitle>
+
+<h1>Create</h1>
+
+<h2>Holidays</h2>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <EditForm method="post" Model="Entity" OnValidSubmit="AddEntity" FormName="create">
+            <input type="hidden" name="post" value="1" />
+                <div class="mb-3">
+                    <label for="holidayid" class="form-label">HolidayId:</label>
+                    <input type="number" name="HolidayIdIn" value="@Entity.HolidayId" class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label for="holidayname" class="form-label">HolidayName:</label>
+                    <input type="text" name="HolidayNameIn" value="@Entity.HolidayName" class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label for="duration" class="form-label">Duration:</label>
+                    <input type="number" name="DurationIn" value="@Entity.Duration" class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label for="month" class="form-label">Month:</label>
+                    <input type="number" name="MonthIn" value="@Entity.Month" class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label for="day" class="form-label">Day:</label>
+                    <input type="number" name="DayIn" value="@Entity.Day" class="form-control" />
+                </div>
+            <button type="submit" class="btn btn-primary">Create</button>
+        </EditForm>
+    </div>
+</div>
+
+<div>
+    <a href="/holidays">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    public string? post { get; set; }
+
+[SupplyParameterFromForm]
+    public string? HolidayIdIn { get; set; }
+
+    [SupplyParameterFromForm]
+    public string? HolidayNameIn { get; set; }
+
+    [SupplyParameterFromForm]
+    public string? DurationIn { get; set; }
+
+    [SupplyParameterFromForm]
+    public string? MonthIn { get; set; }
+
+    [SupplyParameterFromForm]
+    public string? DayIn { get; set; }
+
+    private Holidays Entity { get; set; } = new();
+
+    protected override void OnInitialized()
+    {
+        if (post == "1")
+        {
+if (byte.TryParse(HolidayIdIn, out var vHolidayId)) Entity.HolidayId = vHolidayId;
+        if (HolidayNameIn != null) Entity.HolidayName = HolidayNameIn;
+        if (byte.TryParse(DurationIn, out var vDuration)) Entity.Duration = vDuration;
+        if (byte.TryParse(MonthIn, out var vMonth)) Entity.Month = vMonth;
+        if (byte.TryParse(DayIn, out var vDay)) Entity.Day = vDay;
+        }
+    }
+
+    private async Task AddEntity()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Holidays.Add(Entity);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/holidays");
+    }
+}

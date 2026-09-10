@@ -1,0 +1,68 @@
+@page "/groups"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.EntityFrameworkCore
+@using Academy.Data.Models
+@implements IAsyncDisposable
+@inject IDbContextFactory<AcademyContext> DbFactory
+@inject NavigationManager NavigationManager
+
+@rendermode InteractiveServer
+
+<PageTitle>Groups</PageTitle>
+
+<h1>Groups</h1>
+
+<p>
+    <a href="/groups/create">Create New</a>
+</p>
+
+<div class="controls">
+        <form action="/groups">
+            <input type="search" name="groupname" />
+            <input type="submit" value="Search" class="btn btn-primary"/>
+        </form>
+    <div>
+        <label for="items-per-page">Items per page:</label>
+        <select id="items-per-page" @bind="pagination.ItemsPerPage">
+            <option value="3">3</option>
+            <option value="5">5</option>
+            <option value="8">8</option>
+            <option value="10">10</option>
+        </select>
+    </div>
+</div>
+
+<div>
+    <QuickGrid Class="table" Items="FilteredItems" Pagination="pagination">
+<PropertyColumn Property="m => m.GroupId" Sortable="true" />
+        <PropertyColumn Property="m => m.GroupName" Sortable="true" />
+        <PropertyColumn Property="m => m.Direction" Sortable="true" />
+        <PropertyColumn Property="m => m.Weekdays" Sortable="true" />
+        <PropertyColumn Property="m => m.StartTime" Sortable="true" />
+        <PropertyColumn Property="m => m.StartDate" Sortable="true" />
+        <TemplateColumn Context="m">
+            <a href="@($"groups/details?id={m.GroupId}")">Details</a> |
+            <a href="@($"groups/edit?id={m.GroupId}")">Edit</a> |
+            <a href="@($"groups/delete?id={m.GroupId}")">Delete</a>
+        </TemplateColumn>
+    </QuickGrid>
+    <Paginator State="pagination" />
+</div>
+
+@code {
+    private AcademyContext context = default!;
+
+    [SupplyParameterFromQuery]
+    string? groupname { get; set; }
+
+    IQueryable<Groups> FilteredItems =>
+        context.Groups.Where(m => (m.GroupName ?? string.Empty).Contains(groupname ?? string.Empty));
+    PaginationState pagination = new PaginationState { ItemsPerPage = 10 };
+
+    protected override void OnInitialized()
+    {
+        context = DbFactory.CreateDbContext();
+    }
+
+    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+}
