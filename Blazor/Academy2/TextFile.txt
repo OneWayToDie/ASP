@@ -1,0 +1,48 @@
+﻿dotnet tool install --global microsoft.sqlpackage
+- CLI-инструмент Microsoft sqlpackage (для экспорта/импорта .bacpac). Нужен, потому что в SSMS 18+ мастер "Import Data-tier Application" из меню удалён.
+
+winget install Microsoft.DotNet.Runtime.8
+
+  
+sqlpackage /Action:Import /SourceFile:"C:\Users\Danila\source\repos\ASP\Blazor\Academy2\PV_521_Import2.bacpac" /TargetConnectionString:"Server=(localdb)\MSSQLLocalDB;Database=Academy;Trusted_Connection=True"
+- Импортирует резервную копию БД (bacpac) в LocalDB под именем Academy.
+  ВАЖНО: в строке подключения обязано быть Database=Academy, иначе sqlpackage
+  спрашивает значение параметра TargetDatabaseName.
+
+
+Команда в Package Manager Console (выбрать проект Academy2):
+Scaffold-DbContext "Server=(localdb)\MSSQLLocalDB;Database=Academy;Trusted_Connection=True" Microsoft.EntityFrameworkCore.SqlServer -Tables dbo.Students,dbo.Teachers,dbo.Groups,dbo.Directions,dbo.Disciplines,dbo.Schedule,dbo.Attendance,dbo.Grades,dbo.Exams,dbo.Salary,dbo.Holidays,dbo.DaysOFF -OutputDir Data -Context AcademyContext -NoPluralize
+читает БД Academy и генерирует в папке Data\ классы моделей (по одному на таблицу) + DbContext AcademyContext.
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Правки в Program.cs:
+
+using Academy2.Data;
+- Подключает пространство имён сгенерированных моделей и AcademyContext.
+builder.Services.AddDbContext<AcademyContext>(options => { });
+- Регистрирует AcademyContext в DI. Пустой options => {} — потому что
+  строка подключения уже задана в OnConfiguring самого контекста.
+builder.Services.AddRazorPages();
+- Подключение сервисов Razor Pages (нужно было для "Razor Pages CRUD").
+app.MapRazorPages();
+- Регистрирует конечные точки Razor Pages (то же — остаток прежнего плана).
+ПРИМЕЧАНИЕ: после прогона инструмента blazor-crud он сам переписывает
+Program.cs на свой лад (AddDbContextFactory<AcademyContext>(options=>{}) +
+QuickGrid + миграции) — руками там ничего не менять, кроме проверки appsettings.
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Генерация CRUD-страниц для таблиц:
+dotnet scaffold aspnet blazor-crud --project C:\Users\Danila\source\repos\ASP\Blazor\Academy2\Academy2.csproj --model Teachers --dataContext AcademyContext --dbProvider sqlserver-efcore --page CRUD
+dotnet scaffold aspnet blazor-crud --project C:\Users\Danila\source\repos\ASP\Blazor\Academy2\Academy2.csproj --model Disciplines --dataContext AcademyContext --dbProvider sqlserver-efcore --page CRUD
+dotnet scaffold aspnet blazor-crud --project C:\Users\Danila\source\repos\ASP\Blazor\Academy2\Academy2.csproj --model Holidays --dataContext AcademyContext --dbProvider sqlserver-efcore --page CRUD
+dotnet scaffold aspnet blazor-crud --project C:\Users\Danila\source\repos\ASP\Blazor\Academy2\Academy2.csproj --model Directions --dataContext AcademyContext --dbProvider sqlserver-efcore --page CRUD
+dotnet scaffold aspnet blazor-crud --project C:\Users\Danila\source\repos\ASP\Blazor\Academy2\Academy2.csproj --model Groups --dataContext AcademyContext --dbProvider sqlserver-efcore --page CRUD
+
+
+- Официальный инструмент (microsoft.dotnet-scaffold 20.0.0) генерирует 5
+  Blazor-страниц (Create/Delete/Details/Edit/Index) для модели Teachers.
+
+  --model — модель; --dataContext — контекст; --databaseProvider sqlserver-efcore —
+  провайдер БД; --page CRUD — полный набор страниц.
+
+  ПЕРЕД запуском: модель должна иметь атрибут [Key] на первичном ключе
+  (иначе "No properties found"), приложение будет остановлено.

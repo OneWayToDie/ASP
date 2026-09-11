@@ -1,0 +1,95 @@
+@page "/teacherss/delete"
+@using Microsoft.EntityFrameworkCore
+@using Academy2.Data
+@inject IDbContextFactory<Academy2.Data.AcademyContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Delete</PageTitle>
+
+<h1>Delete</h1>
+
+<p>Are you sure you want to delete this?</p>
+<div>
+    <h2>Teachers</h2>
+    <hr />
+    @if (teachers is null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else {
+        <dl class="row">
+            <dt class="col-sm-2">LastName</dt>
+            <dd class="col-sm-10">@teachers.LastName</dd>
+        </dl>
+        <dl class="row">
+            <dt class="col-sm-2">FirstName</dt>
+            <dd class="col-sm-10">@teachers.FirstName</dd>
+        </dl>
+        <dl class="row">
+            <dt class="col-sm-2">MiddleName</dt>
+            <dd class="col-sm-10">@teachers.MiddleName</dd>
+        </dl>
+        <dl class="row">
+            <dt class="col-sm-2">BirthDate</dt>
+            <dd class="col-sm-10">@teachers.BirthDate</dd>
+        </dl>
+        <dl class="row">
+            <dt class="col-sm-2">Email</dt>
+            <dd class="col-sm-10">@teachers.Email</dd>
+        </dl>
+        <dl class="row">
+            <dt class="col-sm-2">Phone</dt>
+            <dd class="col-sm-10">@teachers.Phone</dd>
+        </dl>
+        <dl class="row">
+            <dt class="col-sm-2">Photo</dt>
+            <dd class="col-sm-10">@teachers.Photo</dd>
+        </dl>
+        <dl class="row">
+            <dt class="col-sm-2">WorkSince</dt>
+            <dd class="col-sm-10">@teachers.WorkSince</dd>
+        </dl>
+        <dl class="row">
+            <dt class="col-sm-2">Rate</dt>
+            <dd class="col-sm-10">@teachers.Rate</dd>
+        </dl>
+        <dl class="row">
+            <dt class="col-sm-2">Salary</dt>
+            <dd class="col-sm-10">@teachers.Salary</dd>
+        </dl>
+        <dl class="row">
+            <dt class="col-sm-2">Schedule</dt>
+            <dd class="col-sm-10">@teachers.Schedule</dd>
+        </dl>
+        <EditForm method="post" Model="teachers" OnValidSubmit="DeleteTeachers" FormName="delete" Enhance>
+            <button type="submit" class="btn btn-danger" disabled="@(teachers is null)">Delete</button> |
+            <a href="/teacherss">Back to List</a>
+        </EditForm>
+    }
+</div>
+
+@code {
+    private Teachers? teachers;
+
+    [SupplyParameterFromQuery]
+    private short TeacherId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        teachers = await context.Teachers.FirstOrDefaultAsync(m => m.TeacherId == TeacherId);
+
+        if (teachers is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+
+    private async Task DeleteTeachers()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Teachers.Remove(teachers!);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/teacherss");
+    }
+}

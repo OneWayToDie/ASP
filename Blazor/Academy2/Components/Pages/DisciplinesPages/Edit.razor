@@ -1,0 +1,89 @@
+@page "/discipliness/edit"
+@using Microsoft.EntityFrameworkCore
+@using Academy2.Data
+@inject IDbContextFactory<Academy2.Data.AcademyContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit</PageTitle>
+
+<h1>Edit</h1>
+
+<h2>Disciplines</h2>
+<hr />
+@if (Disciplines is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="Disciplines" OnValidSubmit="UpdateDisciplines" FormName="edit" Enhance>
+                <DataAnnotationsValidator />
+                <ValidationSummary role="alert"/>
+                <input type="hidden" name="Disciplines.DisciplineId" value="@Disciplines.DisciplineId" />
+                <div class="mb-3">
+                    <label for="disciplinename" class="form-label">DisciplineName:</label>
+                    <InputText id="disciplinename" @bind-Value="Disciplines.DisciplineName" class="form-control" />
+                    <ValidationMessage For="() => Disciplines.DisciplineName" class="text-danger" />
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<div>
+    <a href="/discipliness">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private short DisciplineId { get; set; }
+
+    [SupplyParameterFromForm]
+    private Disciplines? Disciplines { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        Disciplines ??= await context.Disciplines.FirstOrDefaultAsync(m => m.DisciplineId == DisciplineId);
+
+        if (Disciplines is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+
+    // To protect from overposting attacks, enable the specific properties you want to bind to.
+    // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task UpdateDisciplines()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(Disciplines!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!DisciplinesExists(Disciplines!.DisciplineId))
+            {
+                NavigationManager.NavigateTo("notfound");
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/discipliness");
+    }
+
+    private bool DisciplinesExists(short disciplineid)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return context.Disciplines.Any(e => e.DisciplineId == disciplineid);
+    }
+}

@@ -1,0 +1,56 @@
+@page "/groupss/create"
+@using Microsoft.EntityFrameworkCore
+@using Academy2.Data
+@inject IDbContextFactory<Academy2.Data.AcademyContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create</PageTitle>
+
+<h1>Create</h1>
+
+<h2>Groups</h2>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <EditForm method="post" Model="Groups" OnValidSubmit="AddGroups" FormName="create" Enhance>
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" role="alert"/>
+            <div class="mb-3">
+                <label for="groupname" class="form-label">GroupName:</label> 
+                <InputText id="groupname" @bind-Value="Groups.GroupName" class="form-control" /> 
+                <ValidationMessage For="() => Groups.GroupName" class="text-danger" /> 
+            </div>              
+            <div class="mb-3">
+                <label for="starttime" class="form-label">StartTime:</label> 
+                <InputDate id="starttime" @bind-Value="Groups.StartTime" class="form-control" /> 
+                <ValidationMessage For="() => Groups.StartTime" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <label for="startdate" class="form-label">StartDate:</label> 
+                <InputDate id="startdate" @bind-Value="Groups.StartDate" class="form-control" /> 
+                <ValidationMessage For="() => Groups.StartDate" class="text-danger" /> 
+            </div>              
+            <button type="submit" class="btn btn-primary">Create</button>
+        </EditForm>
+    </div>
+</div>
+
+<div>
+    <a href="/groupss">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private Groups Groups { get; set; } = default!;
+
+    protected override void OnInitialized() => Groups ??= new();
+
+    // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task AddGroups()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Groups.Add(Groups);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/groupss");
+    }
+}

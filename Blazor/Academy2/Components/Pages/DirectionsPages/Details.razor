@@ -1,0 +1,48 @@
+@page "/directionss/details"
+@using Microsoft.EntityFrameworkCore
+@using Academy2.Data
+@inject IDbContextFactory<Academy2.Data.AcademyContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Details</PageTitle>
+
+<h1>Details</h1>
+
+<div>
+    <h2>Directions</h2>
+    <hr />
+    @if (directions is null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else {
+        <dl class="row">
+            <dt class="col-sm-2">DirectionName</dt>
+            <dd class="col-sm-10">@directions.DirectionName</dd>
+            <dt class="col-sm-2">Groups</dt>
+            <dd class="col-sm-10">@directions.Groups</dd>
+        </dl>
+        <div>
+            <a href="@($"/directionss/edit?directionid={directions.DirectionId}")">Edit</a> |
+            <a href="@($"/directionss")">Back to List</a>
+        </div>
+    }
+</div>
+
+@code {
+    private Directions? directions;
+
+    [SupplyParameterFromQuery]
+    private byte DirectionId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        directions = await context.Directions.FirstOrDefaultAsync(m => m.DirectionId == DirectionId);
+
+        if (directions is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+}

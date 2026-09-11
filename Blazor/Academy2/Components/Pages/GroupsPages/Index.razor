@@ -1,0 +1,43 @@
+@page "/groupss"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.EntityFrameworkCore
+@using Academy2.Data
+@implements IAsyncDisposable
+@inject IDbContextFactory<Academy2.Data.AcademyContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Index</PageTitle>
+
+<h1>Index</h1>
+
+<p>
+    <a href="groupss/create">Create New</a>
+</p>
+
+<QuickGrid Class="table" Items="context.Groups">
+    <PropertyColumn Property="groups => groups.GroupName" />
+    <PropertyColumn Property="groups => groups.Direction" />
+    <PropertyColumn Property="groups => groups.Weekdays" />
+    <PropertyColumn Property="groups => groups.StartTime" />
+    <PropertyColumn Property="groups => groups.StartDate" />
+    <PropertyColumn Property="groups => groups.DirectionNavigation" />
+@*     <PropertyColumn Property="groups => groups.Schedule" />
+    <PropertyColumn Property="groups => groups.Students" /> *@
+
+    <TemplateColumn Context="groups">
+        <a href="@($"groupss/edit?groupid={groups.GroupId}")">Edit</a> |
+        <a href="@($"groupss/details?groupid={groups.GroupId}")">Details</a> |
+        <a href="@($"groupss/delete?groupid={groups.GroupId}")">Delete</a>
+    </TemplateColumn>
+</QuickGrid>
+
+@code {
+    private AcademyContext context = default!;
+
+    protected override void OnInitialized()
+    {
+        context = DbFactory.CreateDbContext();
+    }
+
+    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+}

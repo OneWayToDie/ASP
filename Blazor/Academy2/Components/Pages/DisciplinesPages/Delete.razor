@@ -1,0 +1,67 @@
+@page "/discipliness/delete"
+@using Microsoft.EntityFrameworkCore
+@using Academy2.Data
+@inject IDbContextFactory<Academy2.Data.AcademyContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Delete</PageTitle>
+
+<h1>Delete</h1>
+
+<p>Are you sure you want to delete this?</p>
+<div>
+    <h2>Disciplines</h2>
+    <hr />
+    @if (disciplines is null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else {
+        <dl class="row">
+            <dt class="col-sm-2">DisciplineName</dt>
+            <dd class="col-sm-10">@disciplines.DisciplineName</dd>
+        </dl>
+        <dl class="row">
+            <dt class="col-sm-2">NumberOfLessons</dt>
+            <dd class="col-sm-10">@disciplines.NumberOfLessons</dd>
+        </dl>
+        <dl class="row">
+            <dt class="col-sm-2">Exams</dt>
+            <dd class="col-sm-10">@disciplines.Exams</dd>
+        </dl>
+        <dl class="row">
+            <dt class="col-sm-2">Schedule</dt>
+            <dd class="col-sm-10">@disciplines.Schedule</dd>
+        </dl>
+        <EditForm method="post" Model="disciplines" OnValidSubmit="DeleteDisciplines" FormName="delete" Enhance>
+            <button type="submit" class="btn btn-danger" disabled="@(disciplines is null)">Delete</button> |
+            <a href="/discipliness">Back to List</a>
+        </EditForm>
+    }
+</div>
+
+@code {
+    private Disciplines? disciplines;
+
+    [SupplyParameterFromQuery]
+    private short DisciplineId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        disciplines = await context.Disciplines.FirstOrDefaultAsync(m => m.DisciplineId == DisciplineId);
+
+        if (disciplines is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+
+    private async Task DeleteDisciplines()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Disciplines.Remove(disciplines!);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/discipliness");
+    }
+}

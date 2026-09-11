@@ -1,0 +1,89 @@
+@page "/directionss/edit"
+@using Microsoft.EntityFrameworkCore
+@using Academy2.Data
+@inject IDbContextFactory<Academy2.Data.AcademyContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit</PageTitle>
+
+<h1>Edit</h1>
+
+<h2>Directions</h2>
+<hr />
+@if (Directions is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="Directions" OnValidSubmit="UpdateDirections" FormName="edit" Enhance>
+                <DataAnnotationsValidator />
+                <ValidationSummary role="alert"/>
+                <input type="hidden" name="Directions.DirectionId" value="@Directions.DirectionId" />
+                <div class="mb-3">
+                    <label for="directionname" class="form-label">DirectionName:</label>
+                    <InputText id="directionname" @bind-Value="Directions.DirectionName" class="form-control" />
+                    <ValidationMessage For="() => Directions.DirectionName" class="text-danger" />
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<div>
+    <a href="/directionss">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private byte DirectionId { get; set; }
+
+    [SupplyParameterFromForm]
+    private Directions? Directions { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        Directions ??= await context.Directions.FirstOrDefaultAsync(m => m.DirectionId == DirectionId);
+
+        if (Directions is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+
+    // To protect from overposting attacks, enable the specific properties you want to bind to.
+    // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task UpdateDirections()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(Directions!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!DirectionsExists(Directions!.DirectionId))
+            {
+                NavigationManager.NavigateTo("notfound");
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/directionss");
+    }
+
+    private bool DirectionsExists(byte directionid)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return context.Directions.Any(e => e.DirectionId == directionid);
+    }
+}

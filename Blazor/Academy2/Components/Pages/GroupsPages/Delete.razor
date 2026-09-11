@@ -1,0 +1,83 @@
+@page "/groupss/delete"
+@using Microsoft.EntityFrameworkCore
+@using Academy2.Data
+@inject IDbContextFactory<Academy2.Data.AcademyContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Delete</PageTitle>
+
+<h1>Delete</h1>
+
+<p>Are you sure you want to delete this?</p>
+<div>
+    <h2>Groups</h2>
+    <hr />
+    @if (groups is null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else {
+        <dl class="row">
+            <dt class="col-sm-2">GroupName</dt>
+            <dd class="col-sm-10">@groups.GroupName</dd>
+        </dl>
+        <dl class="row">
+            <dt class="col-sm-2">Direction</dt>
+            <dd class="col-sm-10">@groups.Direction</dd>
+        </dl>
+        <dl class="row">
+            <dt class="col-sm-2">Weekdays</dt>
+            <dd class="col-sm-10">@groups.Weekdays</dd>
+        </dl>
+        <dl class="row">
+            <dt class="col-sm-2">StartTime</dt>
+            <dd class="col-sm-10">@groups.StartTime</dd>
+        </dl>
+        <dl class="row">
+            <dt class="col-sm-2">StartDate</dt>
+            <dd class="col-sm-10">@groups.StartDate</dd>
+        </dl>
+        <dl class="row">
+            <dt class="col-sm-2">DirectionNavigation</dt>
+            <dd class="col-sm-10">@groups.DirectionNavigation</dd>
+        </dl>
+        <dl class="row">
+            <dt class="col-sm-2">Schedule</dt>
+            <dd class="col-sm-10">@groups.Schedule</dd>
+        </dl>
+        <dl class="row">
+            <dt class="col-sm-2">Students</dt>
+            <dd class="col-sm-10">@groups.Students</dd>
+        </dl>
+        <EditForm method="post" Model="groups" OnValidSubmit="DeleteGroups" FormName="delete" Enhance>
+            <button type="submit" class="btn btn-danger" disabled="@(groups is null)">Delete</button> |
+            <a href="/groupss">Back to List</a>
+        </EditForm>
+    }
+</div>
+
+@code {
+    private Groups? groups;
+
+    [SupplyParameterFromQuery]
+    private int GroupId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        groups = await context.Groups.FirstOrDefaultAsync(m => m.GroupId == GroupId);
+
+        if (groups is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+
+    private async Task DeleteGroups()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Groups.Remove(groups!);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/groupss");
+    }
+}

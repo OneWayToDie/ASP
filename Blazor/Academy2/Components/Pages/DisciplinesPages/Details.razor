@@ -1,0 +1,52 @@
+@page "/discipliness/details"
+@using Microsoft.EntityFrameworkCore
+@using Academy2.Data
+@inject IDbContextFactory<Academy2.Data.AcademyContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Details</PageTitle>
+
+<h1>Details</h1>
+
+<div>
+    <h2>Disciplines</h2>
+    <hr />
+    @if (disciplines is null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else {
+        <dl class="row">
+            <dt class="col-sm-2">DisciplineName</dt>
+            <dd class="col-sm-10">@disciplines.DisciplineName</dd>
+            <dt class="col-sm-2">NumberOfLessons</dt>
+            <dd class="col-sm-10">@disciplines.NumberOfLessons</dd>
+            <dt class="col-sm-2">Exams</dt>
+            <dd class="col-sm-10">@disciplines.Exams</dd>
+            <dt class="col-sm-2">Schedule</dt>
+            <dd class="col-sm-10">@disciplines.Schedule</dd>
+        </dl>
+        <div>
+            <a href="@($"/discipliness/edit?disciplineid={disciplines.DisciplineId}")">Edit</a> |
+            <a href="@($"/discipliness")">Back to List</a>
+        </div>
+    }
+</div>
+
+@code {
+    private Disciplines? disciplines;
+
+    [SupplyParameterFromQuery]
+    private short DisciplineId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        disciplines = await context.Disciplines.FirstOrDefaultAsync(m => m.DisciplineId == DisciplineId);
+
+        if (disciplines is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+}

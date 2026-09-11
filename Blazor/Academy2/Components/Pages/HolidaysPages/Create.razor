@@ -1,0 +1,66 @@
+@page "/holidayss/create"
+@using Microsoft.EntityFrameworkCore
+@using Academy2.Data
+@inject IDbContextFactory<Academy2.Data.AcademyContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create</PageTitle>
+
+<h1>Create</h1>
+
+<h2>Holidays</h2>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <EditForm method="post" Model="Holidays" OnValidSubmit="AddHolidays" FormName="create" Enhance>
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" role="alert"/>
+            <div class="mb-3">
+                <label for="holidayname" class="form-label">HolidayName:</label> 
+                <InputText id="holidayname" @bind-Value="Holidays.HolidayName" class="form-control" /> 
+                <ValidationMessage For="() => Holidays.HolidayName" class="text-danger" /> 
+            </div>        
+            @* <div class="mb-3">
+                <label for="duration" class="form-label">Duration:</label> 
+                <InputText id="duration" @bind-Value="Holidays.Duration" class="form-control" /> 
+                <ValidationMessage For="() => Holidays.Duration" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <label for="month" class="form-label">Month:</label> 
+                <InputText id="month" @bind-Value="Holidays.Month" class="form-control" /> 
+                <ValidationMessage For="() => Holidays.Month" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <label for="day" class="form-label">Day:</label> 
+                <InputText id="day" @bind-Value="Holidays.Day" class="form-control" /> 
+                <ValidationMessage For="() => Holidays.Day" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <label for="daysoff" class="form-label">DaysOff:</label> 
+                <InputText id="daysoff" @bind-Value="Holidays.DaysOff" class="form-control" /> 
+                <ValidationMessage For="() => Holidays.DaysOff" class="text-danger" /> 
+            </div>    *@     
+            <button type="submit" class="btn btn-primary">Create</button>
+        </EditForm>
+    </div>
+</div>
+
+<div>
+    <a href="/holidayss">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private Holidays Holidays { get; set; } = default!;
+
+    protected override void OnInitialized() => Holidays ??= new();
+
+    // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task AddHolidays()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Holidays.Add(Holidays);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/holidayss");
+    }
+}

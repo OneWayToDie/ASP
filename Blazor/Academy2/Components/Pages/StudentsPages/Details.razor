@@ -1,0 +1,58 @@
+@page "/studentss/details"
+@using Microsoft.EntityFrameworkCore
+@using Academy2.Data
+@inject IDbContextFactory<Academy2.Data.AcademyContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Details</PageTitle>
+
+<h1>Details</h1>
+
+<div>
+    <h2>Students</h2>
+    <hr />
+    @if (students is null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else {
+        <dl class="row">
+            <dt class="col-sm-2">LastName</dt>
+            <dd class="col-sm-10">@students.LastName</dd>
+            <dt class="col-sm-2">FirstName</dt>
+            <dd class="col-sm-10">@students.FirstName</dd>
+            <dt class="col-sm-2">MiddleName</dt>
+            <dd class="col-sm-10">@students.MiddleName</dd>
+            <dt class="col-sm-2">BirthDate</dt>
+            <dd class="col-sm-10">@students.BirthDate</dd>
+            <dt class="col-sm-2">Email</dt>
+            <dd class="col-sm-10">@students.Email</dd>
+            <dt class="col-sm-2">Phone</dt>
+            <dd class="col-sm-10">@students.Phone</dd>
+            <dt class="col-sm-2">Group</dt>
+            <dd class="col-sm-10">@students.Group</dd>
+        </dl>
+        <div>
+            <a href="@($"/studentss/edit?studid={students.StudId}")">Edit</a> |
+            <a href="@($"/studentss")">Back to List</a>
+        </div>
+    }
+</div>
+
+@code {
+    private Students? students;
+
+    [SupplyParameterFromQuery]
+    private int StudId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        students = await context.Students.FirstOrDefaultAsync(m => m.StudId == StudId);
+
+        if (students is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+}
