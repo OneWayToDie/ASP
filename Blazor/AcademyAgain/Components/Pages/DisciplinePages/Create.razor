@@ -1,0 +1,53 @@
+@page "/disciplines/create"
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create</PageTitle>
+
+<h1>Create</h1>
+
+<h2>Discipline</h2>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <EditForm method="post" Model="Discipline" OnValidSubmit="AddDiscipline" FormName="create" Enhance>
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" role="alert"/>
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="discipline_name" class="form-label">discipline_name:</label> 
+                <InputText id="discipline_name" @bind-Value="Discipline.discipline_name" class="form-control" aria-required="true"/> 
+                <ValidationMessage For="() => Discipline.discipline_name" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="number_of_lessons" class="form-label">number_of_lessons:</label> 
+                <InputNumber id="number_of_lessons" @bind-Value="Discipline.number_of_lessons" class="form-control" aria-required="true"/> 
+                <ValidationMessage For="() => Discipline.number_of_lessons" class="text-danger" /> 
+            </div>        
+            <button type="submit" class="btn btn-primary">Create</button>
+        </EditForm>
+    </div>
+</div>
+
+<div>
+    <a href="/disciplines">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private Discipline Discipline { get; set; } = default!;
+
+    protected override void OnInitialized() => Discipline ??= new();
+
+    // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task AddDiscipline()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Disciplines.Add(Discipline);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/disciplines");
+    }
+}
