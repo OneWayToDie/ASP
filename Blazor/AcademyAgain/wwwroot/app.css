@@ -1,355 +1,444 @@
-:root {
-    --app-bg: #12141a;
-    --app-surface: #1c1f27;
-    --app-surface-2: #232833;
-    --app-border: #2a2f3a;
-    --app-border-strong: #3a4150;
-    --app-accent: #6ea8fe;
-    --app-accent-dim: #1b6ec2;
-    --app-text: #e6eaf2;
-    --app-text-secondary: #98a2b3;
+/* ===== Переменные темы ===== */
+/* Определяем «дизайн-токены» приложения: вынесены в :root, чтобы менять тему в одном месте. */
+:root 
+{
+    --app-bg: #12141a;                 /* базовый фон страницы (тёмный) */
+    --app-surface: #1c1f27;            /* фон «поверхностей»: карточки, модалки, меню */
+    --app-surface-2: #232833;          /* фон поверхностей второго уровня: шапки таблиц, header/footer карточек */
+    --app-border: #2a2f3a;             /* обычные границы (тонкая линия) */
+    --app-border-strong: #3a4150;      /* заметные границы: рамка фокусов, разделители */
+    --app-accent: #6ea8fe;             /* акцентный (синий) — кнопки-ссылки, активные значения */
+    --app-accent-dim: #1b6ec2;         /* приглушённый акцент: сама кнопка «Создать», активная страница пагинации */
+    --app-text: #e6eaf2;               /* основной цвет текста (светлый на тёмном) */
+    --app-text-secondary: #98a2b3;     /* вторичный текст: подписи, дефолтные значения */
 }
 
-html, body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    background-color: #12141a;
-    color: var(--app-text);
-    background-image:
-        linear-gradient(rgba(18, 20, 26, 0.55), rgba(18, 20, 26, 0.8)),
-        url("/images/background.jpg");
-    background-size: cover;
-    background-attachment: fixed;
-    background-position: center;
+/* ===== База документа ===== */
+html, body 
+{
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; /* системный стек шрифтов */
+    background-color: #12141a;                                   /* тёмный запасной фон, пока не прогрузится картинка */
+    color: var(--app-text);                                      /* основной цвет текста из переменной */
+    background-image:                                            /* фон = фото + тёмная шторка поверх него */
+        linear-gradient(rgba(18, 20, 26, 0.55), rgba(18, 20, 26, 0.8)), /* полупрозрачный тёмный градиент для читаемости */
+        url("/images/background.jpg");                           /* сама фоновaя фотография */
+    background-size: cover;                                      /* масштабируем фото, чтобы закрыло весь экран */
+    background-attachment: fixed;                                /* фон не скроллится вместе со страницей */
+    background-position: center;                                 /* центрируем фото */
 }
 
-a, .btn-link {
-    color: #7fb0ff;
+/* ===== Ссылки ===== */
+a, .btn-link 
+{
+    color: #7fb0ff;      /* обычный цвет ссылок (светло-синий) */
 }
 
-a:hover, .btn-link:hover {
-    color: #a9c9ff;
+a:hover, .btn-link:hover 
+{
+    color: #a9c9ff;      /* при наведении ссылка светлеет */
 }
 
-.table {
-    --bs-table-bg: transparent;
-    --bs-table-color: var(--app-text);
-    --bs-table-striped-bg: rgba(255, 255, 255, 0.02);
-    --bs-table-striped-color: var(--app-text);
-    --bs-table-border-color: var(--app-border);
-    color: var(--app-text);
-    border-color: var(--app-border);
+/* ===== Таблицы (QuickGrid использует класс .table Bootstrap) ===== */
+.table 
+{
+    --bs-table-bg: transparent;                                            /* фон таблицы прозрачный — виден фон страницы */
+    --bs-table-color: var(--app-text);                                     /* цвет ячеек */
+    --bs-table-striped-bg: rgba(255, 255, 255, 0.02);                      /* едва заметная «зебра» для чётных строк */
+    --bs-table-striped-color: var(--app-text);                             /* цвет текста в полосатых строках */
+    --bs-table-border-color: var(--app-border);                            /* цвет линий сетки */
+    color: var(--app-text);                                                /* дублируем цвет ячеек напрямую */
+    border-color: var(--app-border);                                       /* и цвет рамки таблицы */
 }
 
-.table thead th {
-    color: var(--app-text-secondary);
-    font-weight: 600;
-    border-bottom: 1px solid var(--app-border-strong);
+.table thead th 
+{
+    color: var(--app-text-secondary);   /* заголовки колонок — приглушённым цветом */
+    font-weight: 600;                   /* и полужирным */
+    border-bottom: 1px solid var(--app-border-strong); /* более заметная линия под шапкой */
 }
 
-.table > :not(caption) > * > * {
-    border-color: var(--app-border);
-}
 
-.table a {
-    color: #7fb0ff;
-}
-
-    .table a:hover {
-        color: #a9c9ff;
+   /* .table — база: элемент с классом "table" (сама таблица) > :not(caption) — прямой ребёнок, который НЕ является <caption >
+    > * — прямой ребёнок предыдущего уровня → это <thead > /<tbody > /<tfoot > (строки) > * — прямой ребёнок строки → это <tr >*/
+    .table > :not(caption) > * > *
+    {
+        border-color: var(--app-border); /* сетка всех ячеек — тонкая тёмная линия (переопределяет Bootstrap) */
     }
 
-.card {
-    background-color: var(--app-surface);
-    border: 1px solid var(--app-border);
+.table a 
+{
+    color: #7fb0ff;       /* ссылки-действия внутри таблиц */
+}
+
+    .table a:hover 
+    {
+        color: #a9c9ff;   /* и их вариант при наведении */
+    }
+
+/* ===== Карточки ===== */
+.card 
+{
+    background-color: var(--app-surface); /* фон карточки */
+    border: 1px solid var(--app-border);   /* тонкая рамка */
+    color: var(--app-text);                /* текст внутри */
+}
+
+.card-header, .card-footer 
+{
+    background-color: var(--app-surface-2); /* шапка/подвал карточки чуть светлее корпуса */
+    border-color: var(--app-border);        /* и с тонкой рамкой */
+}
+
+.card-title 
+{
+    color: var(--app-text);                 /* заголовок в карточке — светлым */
+}
+
+/* ===== Формы ===== */
+.form-control, .form-select 
+{
+    background-color: #16181f;           /* поля ввода — чуть темнее поверхностей */
+    border-color: var(--app-border-strong); /* заметная рамка поля */
+    color: var(--app-text);              /* текст в поле — светлый */
+}
+
+.form-control:focus, .form-select:focus 
+{
+    background-color: #16181f;           /* при фокусе фон не меняется */
+    border-color: var(--app-accent);     /* рамка подсвечивается синим акцентом */
     color: var(--app-text);
 }
 
-.card-header, .card-footer {
-    background-color: var(--app-surface-2);
-    border-color: var(--app-border);
+.form-control::placeholder 
+{
+    color: #6b7484;                      /* плейсхолдер — серый, чтобы не сливался с текстом */
 }
 
-.card-title {
-    color: var(--app-text);
+.form-label, .form-text 
+{
+    color: #c3cdd9;                      /* подписи полей и вспомогательный текст */
 }
 
-.form-control, .form-select {
-    background-color: #16181f;
-    border-color: var(--app-border-strong);
-    color: var(--app-text);
+/* ===== Модальные окна ===== */
+.modal-content 
+{
+    background-color: var(--app-surface); /* фон окна */
+    color: var(--app-text);               /* текст в окне */
+    border: 1px solid var(--app-border);  /* рамка */
 }
 
-.form-control:focus, .form-select:focus {
-    background-color: #16181f;
-    border-color: var(--app-accent);
-    color: var(--app-text);
+.modal-header 
+{
+    border-bottom: 1px solid var(--app-border); /* разделитель под заголовком окна */
 }
 
-.form-control::placeholder {
-    color: #6b7484;
+.modal-footer 
+{
+    border-top: 1px solid var(--app-border);    /* разделитель над кнопками окна */
 }
 
-.form-label, .form-text {
-    color: #c3cdd9;
+.modal-header .btn-close, .alert .btn-close 
+{
+    filter: invert(1) grayscale(100%) brightness(200%); /* крестик «закрыть» сделан белым через инверсию чёрного */
 }
 
-.modal-content {
-    background-color: var(--app-surface);
-    color: var(--app-text);
-    border: 1px solid var(--app-border);
-}
-
-.modal-header {
-    border-bottom: 1px solid var(--app-border);
-}
-
-.modal-footer {
-    border-top: 1px solid var(--app-border);
-}
-
-.modal-header .btn-close, .alert .btn-close {
-    filter: invert(1) grayscale(100%) brightness(200%);
-}
-
-.pagination {
-    --bs-pagination-bg: var(--app-surface);
-    --bs-pagination-color: #c3cdd9;
-    --bs-pagination-border-color: var(--app-border);
-    --bs-pagination-hover-bg: var(--app-surface-2);
-    --bs-pagination-hover-color: #ffffff;
-    --bs-pagination-focus-bg: var(--app-surface-2);
-    --bs-pagination-focus-color: #ffffff;
-    --bs-pagination-active-bg: var(--app-accent-dim);
-    --bs-pagination-active-border-color: var(--app-accent-dim);
-    --bs-pagination-disabled-bg: #16181f;
+/* ===== Пагинация (Bootstrap Pagination) ===== */
+.pagination 
+{
+    --bs-pagination-bg: var(--app-surface);              /* фон страниц */
+    --bs-pagination-color: #c3cdd9;                      /* цвет цифр */
+    --bs-pagination-border-color: var(--app-border);     /* рамки кнопок */
+    --bs-pagination-hover-bg: var(--app-surface-2);      /* фон при наведении */
+    --bs-pagination-hover-color: #ffffff;                /* текст при наведении — белый */
+    --bs-pagination-focus-bg: var(--app-surface-2);      /* фон при фокусе */
+    --bs-pagination-focus-color: #ffffff;                /* текст при фокусе */
+    --bs-pagination-active-bg: var(--app-accent-dim);    /* активная страница — синяя */
+    --bs-pagination-active-border-color: var(--app-accent-dim); /* рамка активной страницы */
+    --bs-pagination-disabled-bg: #16181f;                /* неактивные (серые) кнопки */
     --bs-pagination-disabled-border-color: var(--app-border);
     --bs-pagination-disabled-color: #6b7484;
 }
 
-.dropdown-menu {
-    background-color: var(--app-surface);
-    border-color: var(--app-border);
-    color: var(--app-text);
+/* ===== Выпадающие меню (Dropdown) ===== */
+.dropdown-menu 
+{
+    background-color: var(--app-surface); /* фон меню */
+    border-color: var(--app-border);      /* рамка */
+    color: var(--app-text);               /* текст */
 }
 
-.dropdown-item {
-    color: #c3cdd9;
+.dropdown-item 
+{
+    color: #c3cdd9;                       /* пункт меню — чуть светлее основного текста */
 }
 
-    .dropdown-item:hover, .dropdown-item:focus {
-        background-color: var(--app-surface-2);
-        color: #ffffff;
+    .dropdown-item:hover, .dropdown-item:focus 
+    {
+        background-color: var(--app-surface-2); /* подсветка пункта при наведении */
+        color: #ffffff;                         /* и белый текст */
     }
 
-.alert-secondary {
-    background-color: var(--app-surface-2);
-    border-color: var(--app-border);
-    color: var(--app-text);
+/* ===== Текстовые сообщения (алерты Bootstrap) ===== */
+.alert-secondary 
+{
+    background-color: var(--app-surface-2); /* фон сообщения */
+    border-color: var(--app-border);        /* рамка */
+    color: var(--app-text);                 /* текст */
 }
 
-.btn-primary {
-    color: #fff;
-    background-color: #1b6ec2;
-    border-color: #1861ac;
+/* ===== Кнопки ===== */
+.btn-primary 
+{
+    color: #fff;                 /* белый текст на кнопке «Создать» */
+    background-color: #1b6ec2;   /* синий фон */
+    border-color: #1861ac;       /* чуть более тёмная рамка для объёма */
 }
 
-.btn-outline-secondary {
-    --bs-btn-color: #c3cdd9;
-    --bs-btn-border-color: var(--app-border-strong);
-    --bs-btn-hover-color: #ffffff;
-    --bs-btn-hover-bg: var(--app-surface-2);
+.btn-outline-secondary 
+{
+    --bs-btn-color: #c3cdd9;                          /* текст «контурной» кнопки */
+    --bs-btn-border-color: var(--app-border-strong); /* рамка */
+    --bs-btn-hover-color: #ffffff;                   /* текст при наведении */
+    --bs-btn-hover-bg: var(--app-surface-2);         /* фон при наведении */
     --bs-btn-hover-border-color: var(--app-border-strong);
-    --bs-btn-active-bg: var(--app-surface-2);
+    --bs-btn-active-bg: var(--app-surface-2);        /* фон в нажатом состоянии */
     --bs-btn-active-border-color: var(--app-border-strong);
 }
 
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus 
+{
+  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb; /* светящееся кольцо фокуса вокруг элементов (доступность) */
 }
 
-.content {
-    padding-top: 1.1rem;
+/* ===== Контентная область страницы ===== */
+.content 
+{
+    padding-top: 1.1rem; /* небольшой отступ сверху, чтобы контент не «прилипал» к шапке */
 }
 
-h1:focus {
-    outline: none;
+h1:focus 
+{
+    outline: none; /* убираем кольцо фокуса у заголовков (они не кликабельны) */
 }
 
-.valid.modified:not([type=checkbox]) {
-    outline: 1px solid #26b050;
+/* ===== Валидация форм ===== */
+.valid.modified:not([type=checkbox]) 
+{
+    outline: 1px solid #26b050; /* корректно заполненное поле — зелёная обводка */
 }
 
-.invalid {
-    outline: 1px solid #e50000;
+.invalid 
+{
+    outline: 1px solid #e50000; /* некорректное поле — красная обводка */
 }
 
-.validation-message {
-    color: #e50000;
+.validation-message 
+{
+    color: #e50000; /* текст ошибки валидации — красный */
 }
 
-.blazor-error-boundary {
-    background: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTYiIGhlaWdodD0iNDkiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIG92ZXJmbG93PSJoaWRkZW4iPjxkZWZzPjxjbGlwUGF0aCBpZD0iY2xpcDAiPjxyZWN0IHg9IjIzNSIgeT0iNTEiIHdpZHRoPSI1NiIgaGVpZ2h0PSI0OSIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCNjbGlwMCkiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yMzUgLTUxKSI+PHBhdGggZD0iTTI2My41MDYgNTFDMjY0LjcxNyA1MSAyNjUuODEzIDUxLjQ4MzcgMjY2LjYwNiA1Mi4yNjU4TDI2Ny4wNTIgNTIuNzk4NyAyNjcuNTM5IDUzLjYyODMgMjkwLjE4NSA5Mi4xODMxIDI5MC41NDUgOTIuNzk1IDI5MC42NTYgOTIuOTk2QzI5MC44NzcgOTMuNTEzIDI5MSA5NC4wODE1IDI5MSA5NC42NzgyIDI5MSA5Ny4wNjUxIDI4OS4wMzggOTkgMjg2LjYxNyA5OUwyNDAuMzgzIDk5QzIzNy45NjMgOTkgMjM2IDk3LjA2NTEgMjM2IDk0LjY3ODIgMjM2IDk0LjM3OTkgMjM2LjAzMSA5NC4wODg2IDIzNi4wODkgOTMuODA3MkwyMzYuMzM4IDkzLjAxNjIgMjM2Ljg1OCA5Mi4xMzE0IDI1OS40NzMgNTMuNjI5NCAyNTkuOTYxIDUyLjc5ODUgMjYwLjQwNyA1Mi4yNjU4QzI2MS4yIDUxLjQ4MzcgMjYyLjI5NiA1MSAyNjMuNTA2IDUxWk0yNjMuNTg2IDY2LjAxODNDMjYwLjczNyA2Ni4wMTgzIDI1OS4zMTMgNjcuMTI0NSAyNTkuMzEzIDY5LjMzNyAyNTkuMzEzIDY5LjYxMDIgMjU5LjMzMiA2OS44NjA4IDI1OS4zNzEgNzAuMDg4N0wyNjEuNzk1IDg0LjAxNjEgMjY1LjM4IDg0LjAxNjEgMjY3LjgyMSA2OS43NDc1QzI2Ny44NiA2OS43MzA5IDI2Ny44NzkgNjkuNTg3NyAyNjcuODc5IDY5LjMxNzkgMjY3Ljg3OSA2Ny4xMTgyIDI2Ni40NDggNjYuMDE4MyAyNjMuNTg2IDY2LjAxODNaTTI2My41NzYgODYuMDU0N0MyNjEuMDQ5IDg2LjA1NDcgMjU5Ljc4NiA4Ny4zMDA1IDI1OS43ODYgODkuNzkyMSAyNTkuNzg2IDkyLjI4MzcgMjYxLjA0OSA5My41Mjk1IDI2My41NzYgOTMuNTI5NSAyNjYuMTE2IDkzLjUyOTUgMjY3LjM4NyA5Mi4yODM3IDI2Ny4zODcgODkuNzkyMSAyNjcuMzg3IDg3LjMwMDUgMjY2LjExNiA4Ni4wNTQ3IDI2My41NzYgODYuMDU0N1oiIGZpbGw9IiNGRkU1MDAiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjwvZz48L3N2Zz4=) no-repeat 1rem/1.8rem, #b32121;
-    padding: 1rem 1rem 1rem 3.7rem;
-    color: white;
+/* ===== Экран ошибки Blazor (unhandled exception) ===== */
+.blazor-error-boundary 
+{
+    background: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTYiIGhlaWdodD0iNDkiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIG92ZXJmbG93PSJoaWRkZW4iPjxkZWZzPjxjbGlwUGF0aCBpZD0iY2xpcDAiPjxyZWN0IHg9IjIzNSIgeT0iNTEiIHdpZHRoPSI1NiIgaGVpZ2h0PSI0OSIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCNjbGlwMCkiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yMzUgLTUxKSI+PHBhdGggZD0iTTI2My41MDYgNTFDMjY0LjcxNyA1MSAyNjUuODEzIDUxLjQ4MzcgMjY2LjYwNiA1Mi4yNjU4TDI2Ny4wNTIgNTIuNzk4NyAyNjcuNTM5IDUzLjYyODMgMjkwLjE4NSA5Mi4xODMxIDI5MC41NDUgOTIuNzk1IDI5MC42NTYgOTIuOTk2QzI5MC44NzcgOTMuNTEzIDI5MSA5NC4wODE1IDI5MSA5NC42NzgyIDI5MSA5Ny4wNjUxIDI4OS4wMzggOTkgMjg2LjYxNyA5OUwyNDAuMzgzIDk5QzIzNy45NjMgOTkgMjM2IDk3LjA2NTEgMjM2IDk0LjY3ODIgMjM2IDk0LjM3OTkgMjM2LjAzMSA5NC4wODg2IDIzNi4wODkgOTMuODA3MkwyMzYuMzM4IDkzLjAxNjIgMjM2Ljg1OCA5Mi4xMzE0IDI1OS40NzMgNTMuNjI5NCAyNTkuOTYxIDUyLjc5ODUgMjYwLjQwNyA1Mi4yNjU4QzI2MS4yIDUxLjQ4MzcgMjYyLjI5NiA1MSAyNjMuNTA2IDUxWk0yNjMuNTg2IDY2LjAxODNDMjYwLjczNyA2Ni4wMTgzIDI1OS4zMTMgNjcuMTI0NSAyNTkuMzEzIDY5LjMzNyAyNTkuMzEzIDY5LjYxMDIgMjU5LjMzMiA2OS44NjA4IDI1OS4zNzEgNzAuMDg4N0wyNjEuNzk1IDg0LjAxNjEgMjY1LjM4IDg0LjAxNjEgMjY3LjgyMSA2OS43NDc1QzI2Ny44NiA2OS43MzA5IDI2Ny44NzkgNjkuNTg3NyAyNjcuODc5IDY5LjMxNzkgMjY3Ljg3OSA2Ny4xMTgyIDI2Ni40NDggNjYuMDE4MyAyNjMuNTg2IDY2LjAxODNaTTI2My41NzYgODYuMDU0N0MyNjEuMDQ5IDg2LjA1NDcgMjU5Ljc4NiA4Ny4zMDA1IDI1OS43ODYgODkuNzkyMSAyNTkuNzg2IDkyLjI4MzcgMjYxLjA0OSA5My41Mjk1IDI2My41NzYgOTMuNTI5NSAyNjYuMTE2IDkzLjUyOTUgMjY3LjM4NyA5Mi4yODM3IDI2Ny4zODcgODkuNzkyMSAyNjcuMzg3IDg3LjMwMDUgMjY2LjExNiA4Ni4wNTQ3IDI2My41NzYgODYuMDU0N1oiIGZpbGw9IiNGRkU1MDAiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjwvZz48L3N2Zz4=) no-repeat 1rem/1.8rem, #b32121; /* жёлтая иконка «!» в углу на красном фоне (данные зашиты как SVG в base64) */
+    padding: 1rem 1rem 1rem 3.7rem; /* отступ слева оставлен под иконку */
+    color: white;                   /* текст ошибки белый */
 }
 
-    .blazor-error-boundary::after {
-        content: "An error has occurred."
+    .blazor-error-boundary::after 
+    {
+        content: "An error has occurred." /* текст по умолчанию после SVG-иконки */
     }
 
-.darker-border-checkbox.form-check-input {
-    border-color: #929292;
+/* ===== Служебные Bootstrap-файнтюны ===== */
+.darker-border-checkbox.form-check-input 
+{
+    border-color: #929292; /* чекбокс с чуть более тёмной рамкой (кастомный чекаутный режим) */
 }
 
-.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
-    color: var(--bs-secondary-color);
-    text-align: end;
+.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder 
+{
+    color: var(--bs-secondary-color); /* в «плавающих» формах плейсхолдер серый */
+    text-align: end;                  /* и прижат к правому краю */
 }
 
-.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
-    text-align: start;
+.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder 
+{
+    text-align: start; /* при фокусе текст возвращается к левому краю */
 }
 
-.page-header {
-    margin: 0.5rem 0 1.5rem;
+/* ===== Заголовки и структура списков ===== */
+.page-header 
+{
+    margin: 0.5rem 0 1.5rem; /* отступы под «шапкой» страницы */
 }
 
-.page-subtitle {
-    color: var(--app-text-secondary);
-    margin: 0.25rem 0 0;
+.page-subtitle 
+{
+    color: var(--app-text-secondary); /* подзаголовок — вторичным цветом */
+    margin: 0.25rem 0 0;              /* небольшой отступ снизу */
 }
 
-.section-title {
-    margin: 1.75rem 0 0.75rem;
-    color: var(--app-text-secondary);
-    font-size: 1rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+.section-title 
+{
+    margin: 1.75rem 0 0.75rem;        /* отступы секции на дашборде */
+    color: var(--app-text-secondary); /* заголовок секции */
+    font-size: 1rem;                  /* небольшой размер */
+    font-weight: 600;                 /* полужирный */
+    letter-spacing: 0.04em;           /* лёгкая разрядка букв */
+    text-transform: uppercase;        /* и всё в верхнем регистре — стиль «метки» */
 }
 
-.card-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 1rem;
+/* ===== Сетка карточек на главной ===== */
+.card-grid 
+{
+    display: grid;                                            /* строим сетку через CSS Grid */
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); /* колонки сами подстраиваются, минимум 180px */
+    gap: 1rem;                                                /* промежутки между карточками */
 }
 
-.stat-card {
-    display: flex;
+/* ===== Статистическая карточка на главной ===== */
+.stat-card 
+{
+    display: flex;               /* внутренности в столбик */
     flex-direction: column;
-    padding: 1rem 1.25rem;
-    border: 1px solid var(--app-border);
-    border-radius: 10px;
-    background-color: var(--app-surface);
+    padding: 1rem 1.25rem;       /* внутренние отступы */
+    border: 1px solid var(--app-border); /* тонкая рамка */
+    border-radius: 10px;         /* скруглённые углы */
+    background-color: var(--app-surface); /* тёмный фон */
+    color: inherit;              /* наследуем цвет ссылки */
+    text-decoration: none;       /* убираем подчёркивание ссылки */
+    transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease; /* плавная анимация при наведении */
+}
+
+.stat-card:hover 
+{
+    border-color: var(--app-accent);                    /* при наведении рамка становится синей */
+    box-shadow: 0 6px 18px rgba(110, 168, 254, 0.18); /* и появляется мягкое синее свечение */
     color: inherit;
-    text-decoration: none;
-    transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+    text-decoration: none;                               /* ссылка не подчёркивается */
+    transform: translateY(-2px);                         /* карточка чуть приподнимается */
 }
 
-.stat-card:hover {
-    border-color: var(--app-accent);
-    box-shadow: 0 6px 18px rgba(110, 168, 254, 0.18);
-    color: inherit;
-    text-decoration: none;
-    transform: translateY(-2px);
+.stat-value 
+{
+    color: var(--app-accent);  /* главная цифра — синим акцентом */
+    font-size: 1.9rem;         /* крупно */
+    font-weight: 700;          /* жирно */
+    line-height: 1.1;          /* компактная высота строки */
 }
 
-.stat-value {
-    color: var(--app-accent);
-    font-size: 1.9rem;
-    font-weight: 700;
-    line-height: 1.1;
+.stat-label 
+{
+    color: var(--app-text-secondary); /* подпись под цифрой — вторичным цветом */
+    font-size: 0.9rem;                /* мельче цифры */
 }
 
-.stat-label {
-    color: var(--app-text-secondary);
-    font-size: 0.9rem;
+/* ===== Шапка списка (заголовок + кнопка «Создать») ===== */
+.list-header 
+{
+    display: flex;                      /* заголовок и кнопка в одну строку */
+    flex-wrap: wrap;                    /* при нехватке места переносятся */
+    align-items: center;                /* по вертикали — по центру */
+    justify-content: space-between;     /* слева заголовок, справа кнопка */
+    gap: 1rem;                          /* зазор между ними */
+    margin-bottom: 1rem;                /* отступ от таблицы */
 }
 
-.list-header {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    margin-bottom: 1rem;
+.list-header h1 
+{
+    margin: 0; /* убираем дефолтный отступ h1, чтобы выровнялся с кнопкой */
 }
 
-.list-header h1 {
-    margin: 0;
+/* ===== Улучшения таблиц ===== */
+.table > :not(caption) > * > * 
+{
+    vertical-align: middle; /* ячейки с содержимым не сдвигаются по строке — всё по центру */
 }
 
-.table > :not(caption) > * > * {
-    vertical-align: middle;
+.table tbody tr:hover 
+{
+    background-color: rgba(110, 168, 254, 0.07); /* при наведении строка слегка подсвечивается синим */
 }
 
-.table tbody tr:hover {
-    background-color: rgba(110, 168, 254, 0.07);
+/* ===== Панель фильтров (Index страниц) ===== */
+.filter-bar 
+{
+    display: flex;         /* селекты фильтров выстраиваем в ряд */
+    flex-wrap: wrap;       /* при сужении окна переносятся на новую строку */
+    align-items: center;   /* ровняем по вертикали */
+    gap: 0.75rem;          /* промежутки между селектами */
+    margin-bottom: 1rem;   /* отступ от таблицы */
 }
 
-.filter-bar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 1rem;
+.filter-bar .form-select 
+{
+    width: auto;     /* не растягиваем селект на всю ширину */
+    min-width: 200px; /* но и слишком узким не делаем */
 }
 
-.filter-bar .form-select {
-    width: auto;
-    min-width: 200px;
+/* ===== Сетка чекбоксов дней недели ===== */
+.weekday-grid 
+{
+    display: grid;                                 /* чекбоксы Пн..Вс раскладываем сеткой */
+    grid-template-columns: repeat(4, auto);          /* по 4 в ряд, ширина — по содержимому */
+    gap: 0.4rem 1rem;                               /* по вертикали 0.4rem, по горизонтали 1rem */
 }
 
-.weekday-grid {
-    display: grid;
-    grid-template-columns: repeat(4, auto);
-    gap: 0.4rem 1rem;
+.weekday-item 
+{
+    display: flex;        /* чекбокс + подпись дня в ряд */
+    align-items: center;  /* по центру по вертикали */
+    gap: 0.4rem;          /* зазор между чекбоксом и текстом */
+    color: var(--app-text); /* цвет подписи дня */
+    cursor: pointer;      /* курсор-указатель, т.к. вся строка кликабельна */
+    font-size: 0.95rem;   /* чуть мельче обычного текста */
 }
 
-.weekday-item {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    color: var(--app-text);
-    cursor: pointer;
-    font-size: 0.95rem;
-}
-
-.photo-thumb {
-    width: 40px;
+/* ===== Миниатюра фото в таблицах ===== */
+.photo-thumb 
+{
+    width: 40px;                  /* размер миниатюры */
     height: 40px;
-    object-fit: cover;
-    border-radius: 50%;
-    border: 1px solid var(--app-border);
+    object-fit: cover;            /* фото обрезается по центру, а не сплющивается */
+    border-radius: 50%;           /* круглая аватарка */
+    border: 1px solid var(--app-border); /* тонкая рамка */
 }
 
-.photo-empty {
-    color: var(--app-text-secondary);
+.photo-empty 
+{
+    color: var(--app-text-secondary); /* заглушка «—» там, где фото нет */
 }
 
-.photo-preview {
-    width: 96px;
+/* ===== Предпросмотр текущего фото на форме Edit ===== */
+.photo-preview 
+{
+    width: 96px;               /* размер превью */
     height: 96px;
-    object-fit: cover;
-    border-radius: 8px;
+    object-fit: cover;         /* обрезка по центру */
+    border-radius: 8px;        /* скругление углов */
     border: 1px solid var(--app-border);
 }
 
-.photo-large {
-    width: 100%;
-    max-width: 220px;
-    border-radius: 12px;
+/* ===== Крупное фото на странице Details ===== */
+.photo-large 
+{
+    width: 100%;               /* занимает всю колонку */
+    max-width: 220px;          /* но не шире 220px */
+    border-radius: 12px;       /* скругление */
     border: 1px solid var(--app-border);
 }
 
-.photo-empty-large {
-    width: 100%;
+/* ===== Заглушка «фото нет» на Details ===== */
+.photo-empty-large 
+{
+    width: 100%;                  /* та же ширина, что у фотографии */
     max-width: 220px;
-    aspect-ratio: 1;
-    display: flex;
+    aspect-ratio: 1;              /* квадратная область */
+    display: flex;                /* текст по центру через флекс */
     align-items: center;
     justify-content: center;
     border-radius: 12px;
-    border: 1px dashed var(--app-border-strong);
-    color: var(--app-text-secondary);
+    border: 1px dashed var(--app-border-strong); /* пунктирная рамка — видно, что фото ожидалось */
+    color: var(--app-text-secondary);            /* подпись «фото нет» вторичным цветом */
 }

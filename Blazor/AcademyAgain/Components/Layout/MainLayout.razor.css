@@ -1,103 +1,115 @@
+/* ===== Каркас страницы ===== */
 .page {
-    position: relative;
-    display: flex;
-    flex-direction: column;
+    position: relative; /* нужен как опорная точка для дочерних элементов */
+    display: flex;      /* строим макет через флекс */
+    flex-direction: column; /* на узких экранах — всё в столбик: шапка, затем меню и контент */
 }
 
 main {
-    flex: 1;
+    flex: 1; /* контент занимает всю оставшуюся высоту */
 }
 
+/* ===== Сайдбар (меню) ===== */
 .sidebar {
-    background: linear-gradient(180deg, rgba(8, 10, 13, 0.88) 0%, rgba(8, 10, 13, 0.65) 100%);
+    background: linear-gradient(180deg, rgba(8, 10, 13, 0.88) 0%, rgba(8, 10, 13, 0.65) 100%); /* чёрный градиент сверху вниз; полупрозрачность — чтобы сквозь меню был виден общий фон страницы */
 }
 
+/* ===== Верхняя строка ===== */
 .top-row {
-    background-color: #14161b;
-    border-bottom: 1px solid #2a2f3a;
-    justify-content: flex-start;
-    height: 3.5rem;
-    display: flex;
-    align-items: center;
+    background-color: #14161b;         /* сплошной тёмный фон шапки */
+    border-bottom: 1px solid #2a2f3a;  /* тонкая линия-разделитель снизу */
+    justify-content: flex-start;       /* содержимое прижато к левому краю */
+    height: 3.5rem;                    /* фиксированная высота шапки */
+    display: flex;                     /* раскладываем элементы в строку */
+    align-items: center;               /* и центрируем по вертикали */
 }
 
 .app-title {
-    font-weight: 600;
-    color: #ffca7a;
+    font-weight: 600;  /* название приложения полужирным */
+    color: #ffca7a;    /* и в фирменном жёлтом цвете */
 }
 
+    /* Ссылки в верхней строке не переносятся */
     .top-row ::deep a, .top-row ::deep .btn-link {
         white-space: nowrap;
-        margin-left: 1.5rem;
-        text-decoration: none;
+        margin-left: 1.5rem;      /* отступ между ссылками */
+        text-decoration: none;    /* без подчёркивания */
     }
 
     .top-row ::deep a:hover, .top-row ::deep .btn-link:hover {
-        text-decoration: underline;
+        text-decoration: underline; /* подчёркивание появляется только при наведении */
     }
 
+    /* Первая ссылка (обычно бренд) сжимается и обрезается многоточием */
     .top-row ::deep a:first-child {
-        overflow: hidden;
-        text-overflow: ellipsis;
+        overflow: hidden;          /* скрываем вылезающее содержимое */
+        text-overflow: ellipsis;   /* и показываем «...» */
     }
 
+/* ===== Узкие экраны (телефоны) ===== */
 @media (max-width: 640.98px) {
+    /* В шапке ссылки разъезжаются по сторонам */
     .top-row {
         justify-content: space-between;
     }
 
     .top-row ::deep a, .top-row ::deep .btn-link {
-        margin-left: 0;
+        margin-left: 0; /* убираем зазоры между ссылками */
     }
 }
 
+/* ===== Широкие экраны (от 641px): сайдбар слева, контент справа ===== */
 @media (min-width: 641px) {
     .page {
-        flex-direction: row;
+        flex-direction: row; /* макет «в строку»: слева меню, справа контент */
     }
 
     .sidebar {
-        width: 250px;
-        height: 100vh;
-        position: sticky;
+        width: 250px;        /* фиксированная ширина меню */
+        height: 100vh;       /* на всю высоту окна */
+        position: sticky;    /* меню «прилипает» при прокрутке */
         top: 0;
     }
 
     .top-row {
-        position: sticky;
+        position: sticky; /* шапка тоже закрепляется сверху при прокрутке */
         top: 0;
-        z-index: 1;
+        z-index: 1;       /* и перекрывает контент */
     }
 
+    /* Для авторизованного состояния первая ссылка растягивается справа */
     .top-row.auth ::deep a:first-child {
         flex: 1;
         text-align: right;
         width: 0;
     }
 
+    /* Отступы контента от краёв окна (важнее настроек Bootstrap) */
     .top-row, article {
         padding-left: 2rem !important;
         padding-right: 1.5rem !important;
     }
 }
 
+/* ===== Плашка ошибки Blazor (сервисный слой) ===== */
 #blazor-error-ui {
-    color-scheme: light only;
+    color-scheme: light only; /* плашка всегда светлая, даже в тёмной теме */
     background: lightyellow;
-    bottom: 0;
-    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+    bottom: 0;                /* прижимаем к низу окна */
+    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2); /* тень вверх */
     box-sizing: border-box;
-    display: none;
-    left: 0;
+    display: none;            /* скрыта, пока приложение работает нормально */
+    left: 0;                  /* растянута по всей ширине */
     padding: 0.6rem 1.25rem 0.7rem 1.25rem;
-    position: fixed;
+    position: fixed;          /* фиксированная поверх страницы */
     width: 100%;
-    z-index: 1000;
+    z-index: 1000;            /* поверх всего */
 }
 
+    /* Кнопка «скрыть» внутри плашки */
     #blazor-error-ui .dismiss {
-        cursor: pointer;
-        position: absolute;
+        cursor: pointer;    /* рука на крестике */
+        position: absolute; /* в углу плашки */
         right: 0.75rem;
         top: 0.5rem;
     }

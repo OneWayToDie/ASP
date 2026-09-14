@@ -1,136 +1,175 @@
-.navbar-toggler {
-    appearance: none;
-    cursor: pointer;
-    width: 3.5rem;
+.navbar-toggler 
+{
+    appearance: none;       /* убираем стандартный вид кнопки */
+    cursor: pointer;        /* курсор-рука */
+    width: 3.5rem;          /* размер кнопки */
     height: 2.5rem;
-    color: white;
-    position: absolute;
+    color: white;           /* цвет иконки */
+    position: absolute;     /* позиционируем относительно шапки */
     top: 0.5rem;
     right: 1rem;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.55%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") no-repeat center/1.75rem rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1); /* едва заметная рамка */
+    background: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.55%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") no-repeat center/1.75rem rgba(255, 255, 255, 0.1); /* сама «гамбургер»-иконка — три линии, встроенные как SVG */
 }
 
-.navbar-toggler:checked {
-    background-color: rgba(255, 255, 255, 0.5);
+.navbar-toggler:checked 
+{
+    background-color: rgba(255, 255, 255, 0.5); /* в нажатом состоянии кнопка становится светлее */
 }
 
-.top-row {
-    min-height: 3.5rem;
-    background-color: rgba(0, 0, 0, 0.4);
+/* ===== Верхняя строка меню ===== */
+.top-row 
+{
+    min-height: 3.5rem;                       /* высота шапки */
+    background-color: rgba(0, 0, 0, 0.4);     /* полупрозрачный чёрный — виден общий фон страницы */
 }
 
-.navbar-brand {
-    font-size: 1.1rem;
-    color: #ffca7a;
-    font-weight: 600;
+.navbar-brand 
+{
+    font-size: 1.1rem;   /* размер названия приложения */
+    color: #ffca7a;      /* жёлтый акцент — фирменный цвет */
+    font-weight: 600;    /* полужирный */
 }
 
-.nav-icon {
-    width: 1.25rem;
+/* ===== Иконки пунктов меню (инлайн-SVG в .razor) ===== */
+.nav-icon 
+{
+    width: 1.25rem;            /* размер иконки */
     height: 1.25rem;
-    flex-shrink: 0;
-    margin-right: 0.75rem;
-    opacity: 0.9;
+    flex-shrink: 0;            /* иконка не сжимается при нехватке места */
+    margin-right: 0.75rem;     /* отступ от текста пункта */
+    opacity: 0.9;              /* чуть приглушаем — на активном пункте станет непрозрачной */
 }
 
-.nav-group-title {
-    margin-top: 1.1rem;
-    margin-bottom: 0.35rem;
-    color: rgba(255, 202, 122, 0.65);
-    font-size: 0.68rem;
+/* ===== Заголовки групп в меню («Учебный процесс» и т.п.) ===== */
+.nav-group-title 
+{
+    margin-top: 1.1rem;                  /* отступ сверху, чтобы группы «дышали» */
+    margin-bottom: 0.35rem;              /* отступ до первого пункта */
+    color: rgba(255, 202, 122, 0.65);    /* полупрозрачный жёлтый */
+    font-size: 0.68rem;                  /* мелкий текст-«метка» */
     font-weight: 600;
-    letter-spacing: 0.09em;
-    text-transform: uppercase;
+    letter-spacing: 0.09em;              /* разрядка букв */
+    text-transform: uppercase;           /* всё прописными */
 }
 
-.nav-item {
-    font-size: 0.9rem;
-    padding-bottom: 0.35rem;
+/* ===== Пункты меню ===== */
+.nav-item 
+{
+    font-size: 0.9rem;          /* размер текста пункта */
+    padding-bottom: 0.35rem;    /* вертикальные зазоры между пунктами */
 }
 
-    .nav-item:first-of-type {
+    /* первый пункт: возвращаем верхний отступ */
+    .nav-item:first-of-type 
+    {
         padding-top: 1rem;
     }
 
-    .nav-item:last-of-type {
+    /* последний пункт: отступ снизу, чтобы не «клеился» к краю */
+    .nav-item:last-of-type 
+    {
         padding-bottom: 1rem;
     }
 
-    .nav-item ::deep .nav-link {
-        color: #d9dbe3;
-        background: none;
+    /* ::deep — стили проникают в дочерние компоненты (не попадают под изоляцию scoped-css) */
+    .nav-item ::deep .nav-link 
+    {
+        color: #d9dbe3;                         /* основной цвет пункта */
+        background: none;                       /* без фона по умолчанию */
         border: none;
-        border-radius: 6px;
-        min-height: 2.15rem;
-        display: flex;
+        border-radius: 6px;                     /* скругление подсветки */
+        min-height: 2.15rem;                    /* достаточная высота — текст не переносится */
+        display: flex;                          /* иконку и текст кладём в ряд */
         align-items: center;
-        line-height: 1.35;
-        width: 100%;
+        line-height: 1.35;                      /* запас по вертикали для длинных названий */
+        width: 100%;                            /* пункт занимает всю ширину меню */
         padding-top: 0.35rem;
         padding-bottom: 0.35rem;
     }
 
-    .nav-item ::deep .nav-link.active {
-        position: relative;
-        background-color: #ffca7a;
-        color: #181a1f;
-        font-weight: 600;
+    /* Активный пункт — жёлтая подложка + тёмный текст */
+    .nav-item ::deep .nav-link.active 
+    {
+        position: relative;                     /* нужен для полоски-индикатора ::before */
+        background-color: #ffca7a;              /* жёлтый фон */
+        color: #181a1f;                         /* тёмный текст на жёлтом */
+        font-weight: 600;                       /* полужирный */
     }
 
-        .nav-item ::deep .nav-link.active::before {
-            content: "";
-            position: absolute;
-            left: 0;
-            top: 18%;
+        /* Жёлто-оранжевая полоска слева у активного пункта */
+        .nav-item ::deep .nav-link.active::before 
+        {
+            content: "";                        /* пустой псевдоэлемент */
+            position: absolute;                 /* привязываем к пункту */
+            left: 0;                            /* у левого края */
+            top: 18%;                           /* отступает сверху и снизу — получается «шина» */
             bottom: 18%;
-            width: 3px;
-            border-radius: 0 2px 2px 0;
-            background-color: #f0a500;
+            width: 3px;                         /* толщина полоски */
+            border-radius: 0 2px 2px 0;         /* скругление только с правой стороны */
+            background-color: #f0a500;          /* тёмно-жёлтый (оранжевый) цвет */
         }
 
-        .nav-item ::deep .nav-link.active .nav-icon {
+        /* У активного пункта иконка — полностью непрозрачная */
+        .nav-item ::deep .nav-link.active .nav-icon 
+        {
             opacity: 1;
         }
 
-    .nav-item ::deep .nav-link:hover {
+    /* Наведение на пункт — полупрозрачная жёлтая подсветка */
+    .nav-item ::deep .nav-link:hover 
+    {
         background-color: rgba(255, 202, 122, 0.14);
-        color: #ffffff;
+        color: #ffffff;                         /* текст становится белым */
     }
 
-.nav-scrollable {
-    display: none;
+/* ===== Область со списком пунктов ===== */
+.nav-scrollable 
+{
+    display: none; /* на узких экранах меню прячется до клика по бургеру */
 }
 
-.navbar-toggler:checked ~ .nav-scrollable {
+/* Бургер отмечен (чекбокс :checked) → показываем меню (соседний родственный блок) */
+.navbar-toggler:checked ~ .nav-scrollable 
+{
     display: block;
 }
 
-.nav-scrollable::-webkit-scrollbar {
-    width: 8px;
+/* ===== Скроллбар меню (Webkit-браузеры) ===== */
+.nav-scrollable::-webkit-scrollbar 
+{
+    width: 8px; /* узкий скроллбар */
 }
 
-.nav-scrollable::-webkit-scrollbar-track {
-    background: transparent;
+.nav-scrollable::-webkit-scrollbar-track 
+{
+    background: transparent; /* дорожка невидимая */
 }
 
-.nav-scrollable::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 202, 122, 0.4);
-    border-radius: 4px;
+.nav-scrollable::-webkit-scrollbar-thumb 
+{
+    background-color: rgba(255, 202, 122, 0.4); /* бегунок — полупрозрачный жёлтый */
+    border-radius: 4px;                          /* и скруглённый */
 }
 
-.nav-scrollable::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(255, 202, 122, 0.65);
+.nav-scrollable::-webkit-scrollbar-thumb:hover 
+{
+    background-color: rgba(255, 202, 122, 0.65); /* при наведении бегунок ярче */
 }
 
-@media (min-width: 641px) {
-    .navbar-toggler {
+/* ===== Широкие экраны (от 641px): меню постоянно открыто ===== */
+@media (min-width: 641px) 
+{
+    /* бургер не нужен */
+    .navbar-toggler 
+    {
         display: none;
     }
 
-    .nav-scrollable {
-        display: block;
-        height: calc(100vh - 3.5rem);
-        overflow-y: auto;
+    .nav-scrollable 
+    {
+        display: block;                 /* меню всегда видно */
+        height: calc(100vh - 3.5rem);   /* высота = экран минус шапка */
+        overflow-y: auto;               /* если пунктов много — своя прокрутка */
     }
 }
