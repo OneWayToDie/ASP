@@ -1,0 +1,51 @@
+@page "/completedisciplines/details"
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Details</PageTitle>
+
+<h1>Details</h1>
+
+<div>
+    <h2>CompleteDiscipline</h2>
+    <hr />
+    @if (completediscipline is null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else {
+        <dl class="row">
+            <dt class="col-sm-2">group</dt>
+            <dd class="col-sm-10">@completediscipline.group</dd>
+            <dt class="col-sm-2">discipline</dt>
+            <dd class="col-sm-10">@completediscipline.discipline</dd>
+        </dl>
+        <div>
+            <a href="@($"/completedisciplines/edit?group={completediscipline.group}&discipline={completediscipline.discipline}")">Edit</a> |
+            <a href="@($"/completedisciplines")">Back to List</a>
+        </div>
+    }
+</div>
+
+@code {
+    private CompleteDiscipline? completediscipline;
+
+    [SupplyParameterFromQuery]
+    private int group { get; set; }
+
+    [SupplyParameterFromQuery]
+    private int discipline { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        completediscipline = await context.CompleteDisciplines.FirstOrDefaultAsync(m => m.group == group && m.discipline == discipline);
+
+        if (completediscipline is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+}

@@ -1,0 +1,88 @@
+@page "/disciplinesdirectionsrelations/edit"
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit</PageTitle>
+
+<h1>Edit</h1>
+
+<h2>DisciplinesDirectionsRelation</h2>
+<hr />
+@if (DisciplinesDirectionsRelation is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="DisciplinesDirectionsRelation" OnValidSubmit="UpdateDisciplinesDirectionsRelation" FormName="edit" Enhance>
+                <DataAnnotationsValidator />
+                <ValidationSummary role="alert"/>
+                <input type="hidden" name="DisciplinesDirectionsRelation.direction" value="@DisciplinesDirectionsRelation.direction" />
+                <input type="hidden" name="DisciplinesDirectionsRelation.discipline" value="@DisciplinesDirectionsRelation.discipline" />
+                <button type="submit" class="btn btn-primary">Save</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<div>
+    <a href="/disciplinesdirectionsrelations">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private int direction { get; set; }
+
+    [SupplyParameterFromQuery]
+    private int discipline { get; set; }
+
+    [SupplyParameterFromForm]
+    private DisciplinesDirectionsRelation? DisciplinesDirectionsRelation { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        DisciplinesDirectionsRelation ??= await context.DisciplinesDirectionsRelation.FirstOrDefaultAsync(m => m.direction == direction && m.discipline == discipline);
+
+        if (DisciplinesDirectionsRelation is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+
+    // To protect from overposting attacks, enable the specific properties you want to bind to.
+    // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task UpdateDisciplinesDirectionsRelation()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(DisciplinesDirectionsRelation!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!DisciplinesDirectionsRelationExists(DisciplinesDirectionsRelation!.direction, DisciplinesDirectionsRelation.discipline))
+            {
+                NavigationManager.NavigateTo("notfound");
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/disciplinesdirectionsrelations");
+    }
+
+    private bool DisciplinesDirectionsRelationExists(int direction, int discipline)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return context.DisciplinesDirectionsRelation.Any(e => e.direction == direction && e.discipline == discipline);
+    }
+}

@@ -4,4 +4,56 @@ public class AcademyAgainContext(DbContextOptions<AcademyAgainContext> options) 
 {
     public DbSet<AcademyAgain.Models.Discipline> Disciplines
     { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.Teacher> Teachers
+    { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.Student> Students
+    { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.Direction> Directions
+    { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.Group> Groups
+    { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.Holiday> Holidays
+    { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.Salary> Salary
+    { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.Schedule> Schedule
+    { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.Exam> Exams
+    { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.Grade> Grades
+    { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.Attendance> Attendance
+    { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.CompleteDiscipline> CompleteDisciplines
+    { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.DependentDiscipline> DependentDisciplines
+    { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.RequiredDiscipline> RequiredDisciplines
+    { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.DisciplinesDirectionsRelation> DisciplinesDirectionsRelation
+    { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.TeachersDisciplinesRelation> TeachersDisciplinesRelation
+    { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.DaysOFF> DaysOFF
+    { get; set; } = default!;
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<AcademyAgain.Models.Attendance>()
+            .HasKey(a => new { a.student, a.lesson });
+        modelBuilder.Entity<AcademyAgain.Models.CompleteDiscipline>()
+            .HasKey(c => new { c.group, c.discipline });
+        modelBuilder.Entity<AcademyAgain.Models.DependentDiscipline>()
+            .HasKey(d => new { d.discipline, d.dependent_discipline });
+        modelBuilder.Entity<AcademyAgain.Models.DisciplinesDirectionsRelation>()
+            .HasKey(d => new { d.direction, d.discipline });
+        modelBuilder.Entity<AcademyAgain.Models.Exam>()
+            .HasKey(e => new { e.student, e.discipline });
+        modelBuilder.Entity<AcademyAgain.Models.Grade>()
+            .HasKey(g => new { g.student, g.lesson });
+        modelBuilder.Entity<AcademyAgain.Models.RequiredDiscipline>()
+            .HasKey(r => new { r.discipline, r.required_discipline });
+        modelBuilder.Entity<AcademyAgain.Models.TeachersDisciplinesRelation>()
+            .HasKey(t => new { t.teacher, t.discipline });
+    }
 }

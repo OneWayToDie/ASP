@@ -1,0 +1,63 @@
+@page "/grades/create"
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create</PageTitle>
+
+<h1>Create</h1>
+
+<h2>Grade</h2>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <EditForm method="post" Model="Grade" OnValidSubmit="AddGrade" FormName="create" Enhance>
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" role="alert"/>
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="student" class="form-label">student:</label> 
+                <InputNumber id="student" @bind-Value="Grade.student" class="form-control" aria-required="true"/> 
+                <ValidationMessage For="() => Grade.student" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="lesson" class="form-label">lesson:</label> 
+                <InputNumber id="lesson" @bind-Value="Grade.lesson" class="form-control" aria-required="true"/> 
+                <ValidationMessage For="() => Grade.lesson" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <label for="grade_1" class="form-label">grade_1:</label> 
+                <InputNumber id="grade_1" @bind-Value="Grade.grade_1" class="form-control" /> 
+                <ValidationMessage For="() => Grade.grade_1" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <label for="grade_2" class="form-label">grade_2:</label> 
+                <InputNumber id="grade_2" @bind-Value="Grade.grade_2" class="form-control" /> 
+                <ValidationMessage For="() => Grade.grade_2" class="text-danger" /> 
+            </div>        
+            <button type="submit" class="btn btn-primary">Create</button>
+        </EditForm>
+    </div>
+</div>
+
+<div>
+    <a href="/grades">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private Grade Grade { get; set; } = default!;
+
+    protected override void OnInitialized() => Grade ??= new();
+
+    // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task AddGrade()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Grades.Add(Grade);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/grades");
+    }
+}

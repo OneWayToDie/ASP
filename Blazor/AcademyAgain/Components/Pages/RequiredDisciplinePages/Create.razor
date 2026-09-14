@@ -1,0 +1,53 @@
+@page "/requireddisciplines/create"
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create</PageTitle>
+
+<h1>Create</h1>
+
+<h2>RequiredDiscipline</h2>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <EditForm method="post" Model="RequiredDiscipline" OnValidSubmit="AddRequiredDiscipline" FormName="create" Enhance>
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" role="alert"/>
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="discipline" class="form-label">discipline:</label> 
+                <InputNumber id="discipline" @bind-Value="RequiredDiscipline.discipline" class="form-control" aria-required="true"/> 
+                <ValidationMessage For="() => RequiredDiscipline.discipline" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="required_discipline" class="form-label">required_discipline:</label> 
+                <InputNumber id="required_discipline" @bind-Value="RequiredDiscipline.required_discipline" class="form-control" aria-required="true"/> 
+                <ValidationMessage For="() => RequiredDiscipline.required_discipline" class="text-danger" /> 
+            </div>        
+            <button type="submit" class="btn btn-primary">Create</button>
+        </EditForm>
+    </div>
+</div>
+
+<div>
+    <a href="/requireddisciplines">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private RequiredDiscipline RequiredDiscipline { get; set; } = default!;
+
+    protected override void OnInitialized() => RequiredDiscipline ??= new();
+
+    // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task AddRequiredDiscipline()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.RequiredDisciplines.Add(RequiredDiscipline);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/requireddisciplines");
+    }
+}

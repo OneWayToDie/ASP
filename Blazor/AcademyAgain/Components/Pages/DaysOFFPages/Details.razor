@@ -1,0 +1,46 @@
+@page "/daysoffs/details"
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Details</PageTitle>
+
+<h1>Details</h1>
+
+<div>
+    <h2>DaysOFF</h2>
+    <hr />
+    @if (daysoff is null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else {
+        <dl class="row">
+            <dt class="col-sm-2">holiday</dt>
+            <dd class="col-sm-10">@daysoff.holiday</dd>
+        </dl>
+        <div>
+            <a href="@($"/daysoffs/edit?date={daysoff.date}")">Edit</a> |
+            <a href="@($"/daysoffs")">Back to List</a>
+        </div>
+    }
+</div>
+
+@code {
+    private DaysOFF? daysoff;
+
+    [SupplyParameterFromQuery]
+    private System.DateTime date { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        daysoff = await context.DaysOFF.FirstOrDefaultAsync(m => m.date == date);
+
+        if (daysoff is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+}

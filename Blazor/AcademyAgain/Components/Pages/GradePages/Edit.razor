@@ -1,0 +1,98 @@
+@page "/grades/edit"
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit</PageTitle>
+
+<h1>Edit</h1>
+
+<h2>Grade</h2>
+<hr />
+@if (Grade is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="Grade" OnValidSubmit="UpdateGrade" FormName="edit" Enhance>
+                <DataAnnotationsValidator />
+                <ValidationSummary role="alert"/>
+                <input type="hidden" name="Grade.student" value="@Grade.student" />
+                <input type="hidden" name="Grade.lesson" value="@Grade.lesson" />
+                <div class="mb-3">
+                    <label for="grade_1" class="form-label">grade_1:</label>
+                    <InputNumber id="grade_1" @bind-Value="Grade.grade_1" class="form-control" />
+                    <ValidationMessage For="() => Grade.grade_1" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="grade_2" class="form-label">grade_2:</label>
+                    <InputNumber id="grade_2" @bind-Value="Grade.grade_2" class="form-control" />
+                    <ValidationMessage For="() => Grade.grade_2" class="text-danger" />
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<div>
+    <a href="/grades">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private int student { get; set; }
+
+    [SupplyParameterFromQuery]
+    private long lesson { get; set; }
+
+    [SupplyParameterFromForm]
+    private Grade? Grade { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        Grade ??= await context.Grades.FirstOrDefaultAsync(m => m.student == student && m.lesson == lesson);
+
+        if (Grade is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+
+    // To protect from overposting attacks, enable the specific properties you want to bind to.
+    // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task UpdateGrade()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(Grade!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!GradeExists(Grade!.student, Grade.lesson))
+            {
+                NavigationManager.NavigateTo("notfound");
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/grades");
+    }
+
+    private bool GradeExists(int student, long lesson)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return context.Grades.Any(e => e.student == student && e.lesson == lesson);
+    }
+}

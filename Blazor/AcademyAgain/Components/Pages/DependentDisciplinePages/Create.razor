@@ -1,0 +1,53 @@
+@page "/dependentdisciplines/create"
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create</PageTitle>
+
+<h1>Create</h1>
+
+<h2>DependentDiscipline</h2>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <EditForm method="post" Model="DependentDiscipline" OnValidSubmit="AddDependentDiscipline" FormName="create" Enhance>
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" role="alert"/>
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="discipline" class="form-label">discipline:</label> 
+                <InputNumber id="discipline" @bind-Value="DependentDiscipline.discipline" class="form-control" aria-required="true"/> 
+                <ValidationMessage For="() => DependentDiscipline.discipline" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="dependent_discipline" class="form-label">dependent_discipline:</label> 
+                <InputNumber id="dependent_discipline" @bind-Value="DependentDiscipline.dependent_discipline" class="form-control" aria-required="true"/> 
+                <ValidationMessage For="() => DependentDiscipline.dependent_discipline" class="text-danger" /> 
+            </div>        
+            <button type="submit" class="btn btn-primary">Create</button>
+        </EditForm>
+    </div>
+</div>
+
+<div>
+    <a href="/dependentdisciplines">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private DependentDiscipline DependentDiscipline { get; set; } = default!;
+
+    protected override void OnInitialized() => DependentDiscipline ??= new();
+
+    // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task AddDependentDiscipline()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.DependentDisciplines.Add(DependentDiscipline);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/dependentdisciplines");
+    }
+}

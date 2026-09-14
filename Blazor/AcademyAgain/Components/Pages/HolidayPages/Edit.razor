@@ -1,0 +1,106 @@
+@page "/holidays/edit"
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit</PageTitle>
+
+<h1>Edit</h1>
+
+<h2>Holiday</h2>
+<hr />
+@if (Holiday is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="Holiday" OnValidSubmit="UpdateHoliday" FormName="edit" Enhance>
+                <DataAnnotationsValidator />
+                <ValidationSummary role="alert"/>
+                <input type="hidden" name="Holiday.holiday_id" value="@Holiday.holiday_id" />
+                <div class="mb-3">
+                <span class="text-danger">*</span>
+                    <label for="holiday_name" class="form-label">holiday_name:</label>
+                    <InputText id="holiday_name" @bind-Value="Holiday.holiday_name" class="form-control" aria-required="true"/>
+                    <ValidationMessage For="() => Holiday.holiday_name" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                <span class="text-danger">*</span>
+                    <label for="duration" class="form-label">duration:</label>
+                    <InputNumber id="duration" @bind-Value="Holiday.duration" class="form-control" aria-required="true"/>
+                    <ValidationMessage For="() => Holiday.duration" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="month" class="form-label">month:</label>
+                    <InputNumber id="month" @bind-Value="Holiday.month" class="form-control" />
+                    <ValidationMessage For="() => Holiday.month" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="day" class="form-label">day:</label>
+                    <InputNumber id="day" @bind-Value="Holiday.day" class="form-control" />
+                    <ValidationMessage For="() => Holiday.day" class="text-danger" />
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<div>
+    <a href="/holidays">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private int holiday_id { get; set; }
+
+    [SupplyParameterFromForm]
+    private Holiday? Holiday { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        Holiday ??= await context.Holidays.FirstOrDefaultAsync(m => m.holiday_id == holiday_id);
+
+        if (Holiday is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+
+    // To protect from overposting attacks, enable the specific properties you want to bind to.
+    // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task UpdateHoliday()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(Holiday!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!HolidayExists(Holiday!.holiday_id))
+            {
+                NavigationManager.NavigateTo("notfound");
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/holidays");
+    }
+
+    private bool HolidayExists(int holiday_id)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return context.Holidays.Any(e => e.holiday_id == holiday_id);
+    }
+}

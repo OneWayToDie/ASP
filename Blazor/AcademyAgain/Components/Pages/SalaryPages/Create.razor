@@ -1,0 +1,59 @@
+@page "/salarys/create"
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create</PageTitle>
+
+<h1>Create</h1>
+
+<h2>Salary</h2>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <EditForm method="post" Model="Salary" OnValidSubmit="AddSalary" FormName="create" Enhance>
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" role="alert"/>
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="teacher" class="form-label">teacher:</label> 
+                <InputNumber id="teacher" @bind-Value="Salary.teacher" class="form-control" aria-required="true"/> 
+                <ValidationMessage For="() => Salary.teacher" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="accrued" class="form-label">accrued:</label> 
+                <InputNumber id="accrued" @bind-Value="Salary.accrued" class="form-control" aria-required="true"/> 
+                <ValidationMessage For="() => Salary.accrued" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="received" class="form-label">received:</label> 
+                <InputCheckbox id="received" @bind-Value="Salary.received" class="form-check-input" aria-required="true"/> 
+                <ValidationMessage For="() => Salary.received" class="text-danger" /> 
+            </div>        
+            <button type="submit" class="btn btn-primary">Create</button>
+        </EditForm>
+    </div>
+</div>
+
+<div>
+    <a href="/salarys">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private Salary Salary { get; set; } = default!;
+
+    protected override void OnInitialized() => Salary ??= new();
+
+    // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task AddSalary()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Salary.Add(Salary);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/salarys");
+    }
+}

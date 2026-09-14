@@ -1,0 +1,63 @@
+@page "/salarys/delete"
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Delete</PageTitle>
+
+<h1>Delete</h1>
+
+<p>Are you sure you want to delete this?</p>
+<div>
+    <h2>Salary</h2>
+    <hr />
+    @if (salary is null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else {
+        <dl class="row">
+            <dt class="col-sm-2">teacher</dt>
+            <dd class="col-sm-10">@salary.teacher</dd>
+        </dl>
+        <dl class="row">
+            <dt class="col-sm-2">accrued</dt>
+            <dd class="col-sm-10">@salary.accrued</dd>
+        </dl>
+        <dl class="row">
+            <dt class="col-sm-2">received</dt>
+            <dd class="col-sm-10">@salary.received</dd>
+        </dl>
+        <EditForm method="post" Model="salary" OnValidSubmit="DeleteSalary" FormName="delete" Enhance>
+            <button type="submit" class="btn btn-danger" disabled="@(salary is null)">Delete</button> |
+            <a href="/salarys">Back to List</a>
+        </EditForm>
+    }
+</div>
+
+@code {
+    private Salary? salary;
+
+    [SupplyParameterFromQuery]
+    private long payment_id { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        salary = await context.Salary.FirstOrDefaultAsync(m => m.payment_id == payment_id);
+
+        if (salary is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+
+    private async Task DeleteSalary()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Salary.Remove(salary!);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/salarys");
+    }
+}

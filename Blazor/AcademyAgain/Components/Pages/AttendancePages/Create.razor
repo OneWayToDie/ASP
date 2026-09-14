@@ -1,0 +1,59 @@
+@page "/attendances/create"
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create</PageTitle>
+
+<h1>Create</h1>
+
+<h2>Attendance</h2>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <EditForm method="post" Model="Attendance" OnValidSubmit="AddAttendance" FormName="create" Enhance>
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" role="alert"/>
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="student" class="form-label">student:</label> 
+                <InputNumber id="student" @bind-Value="Attendance.student" class="form-control" aria-required="true"/> 
+                <ValidationMessage For="() => Attendance.student" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="lesson" class="form-label">lesson:</label> 
+                <InputNumber id="lesson" @bind-Value="Attendance.lesson" class="form-control" aria-required="true"/> 
+                <ValidationMessage For="() => Attendance.lesson" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="present" class="form-label">present:</label> 
+                <InputCheckbox id="present" @bind-Value="Attendance.present" class="form-check-input" aria-required="true"/> 
+                <ValidationMessage For="() => Attendance.present" class="text-danger" /> 
+            </div>        
+            <button type="submit" class="btn btn-primary">Create</button>
+        </EditForm>
+    </div>
+</div>
+
+<div>
+    <a href="/attendances">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private Attendance Attendance { get; set; } = default!;
+
+    protected override void OnInitialized() => Attendance ??= new();
+
+    // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task AddAttendance()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attendance.Add(Attendance);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/attendances");
+    }
+}

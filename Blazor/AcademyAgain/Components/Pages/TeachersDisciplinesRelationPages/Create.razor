@@ -1,0 +1,53 @@
+@page "/teachersdisciplinesrelations/create"
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create</PageTitle>
+
+<h1>Create</h1>
+
+<h2>TeachersDisciplinesRelation</h2>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <EditForm method="post" Model="TeachersDisciplinesRelation" OnValidSubmit="AddTeachersDisciplinesRelation" FormName="create" Enhance>
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" role="alert"/>
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="teacher" class="form-label">teacher:</label> 
+                <InputNumber id="teacher" @bind-Value="TeachersDisciplinesRelation.teacher" class="form-control" aria-required="true"/> 
+                <ValidationMessage For="() => TeachersDisciplinesRelation.teacher" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="discipline" class="form-label">discipline:</label> 
+                <InputNumber id="discipline" @bind-Value="TeachersDisciplinesRelation.discipline" class="form-control" aria-required="true"/> 
+                <ValidationMessage For="() => TeachersDisciplinesRelation.discipline" class="text-danger" /> 
+            </div>        
+            <button type="submit" class="btn btn-primary">Create</button>
+        </EditForm>
+    </div>
+</div>
+
+<div>
+    <a href="/teachersdisciplinesrelations">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private TeachersDisciplinesRelation TeachersDisciplinesRelation { get; set; } = default!;
+
+    protected override void OnInitialized() => TeachersDisciplinesRelation ??= new();
+
+    // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task AddTeachersDisciplinesRelation()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.TeachersDisciplinesRelation.Add(TeachersDisciplinesRelation);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/teachersdisciplinesrelations");
+    }
+}

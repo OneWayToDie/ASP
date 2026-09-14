@@ -1,0 +1,36 @@
+@page "/daysoffs"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@implements IAsyncDisposable
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Index</PageTitle>
+
+<h1>Index</h1>
+
+<p>
+    <a href="daysoffs/create">Create New</a>
+</p>
+
+<QuickGrid Class="table" Items="context.DaysOFF">
+    <PropertyColumn Property="daysoff => daysoff.holiday" />
+
+    <TemplateColumn Context="daysoff">
+        <a href="@($"daysoffs/edit?date={daysoff.date}")">Edit</a> |
+        <a href="@($"daysoffs/details?date={daysoff.date}")">Details</a> |
+        <a href="@($"daysoffs/delete?date={daysoff.date}")">Delete</a>
+    </TemplateColumn>
+</QuickGrid>
+
+@code {
+    private AcademyAgainContext context = default!;
+
+    protected override void OnInitialized()
+    {
+        context = DbFactory.CreateDbContext();
+    }
+
+    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+}

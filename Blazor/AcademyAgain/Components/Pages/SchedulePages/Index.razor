@@ -1,0 +1,41 @@
+@page "/schedules"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@implements IAsyncDisposable
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Index</PageTitle>
+
+<h1>Index</h1>
+
+<p>
+    <a href="schedules/create">Create New</a>
+</p>
+
+<QuickGrid Class="table" Items="context.Schedule">
+    <PropertyColumn Property="schedule => schedule.group" />
+    <PropertyColumn Property="schedule => schedule.discipline" />
+    <PropertyColumn Property="schedule => schedule.teacher" />
+    <PropertyColumn Property="schedule => schedule.date" />
+    <PropertyColumn Property="schedule => schedule.time" />
+    <PropertyColumn Property="schedule => schedule.spent" />
+
+    <TemplateColumn Context="schedule">
+        <a href="@($"schedules/edit?lesson_id={schedule.lesson_id}")">Edit</a> |
+        <a href="@($"schedules/details?lesson_id={schedule.lesson_id}")">Details</a> |
+        <a href="@($"schedules/delete?lesson_id={schedule.lesson_id}")">Delete</a>
+    </TemplateColumn>
+</QuickGrid>
+
+@code {
+    private AcademyAgainContext context = default!;
+
+    protected override void OnInitialized()
+    {
+        context = DbFactory.CreateDbContext();
+    }
+
+    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+}

@@ -1,0 +1,131 @@
+@page "/schedules/edit"
+@using Microsoft.EntityFrameworkCore
+@using System.Globalization
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit</PageTitle>
+
+<h1>Edit</h1>
+
+<h2>Schedule</h2>
+<hr />
+@if (Schedule is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="Schedule" OnValidSubmit="UpdateSchedule" FormName="edit" Enhance>
+                <DataAnnotationsValidator />
+                <ValidationSummary role="alert"/>
+                <input type="hidden" name="Schedule.lesson_id" value="@Schedule.lesson_id" />
+                <div class="mb-3">
+                <span class="text-danger">*</span>
+                    <label for="group" class="form-label">group:</label>
+                    <InputNumber id="group" @bind-Value="Schedule.group" class="form-control" aria-required="true"/>
+                    <ValidationMessage For="() => Schedule.group" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                <span class="text-danger">*</span>
+                    <label for="discipline" class="form-label">discipline:</label>
+                    <InputNumber id="discipline" @bind-Value="Schedule.discipline" class="form-control" aria-required="true"/>
+                    <ValidationMessage For="() => Schedule.discipline" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                <span class="text-danger">*</span>
+                    <label for="teacher" class="form-label">teacher:</label>
+                    <InputNumber id="teacher" @bind-Value="Schedule.teacher" class="form-control" aria-required="true"/>
+                    <ValidationMessage For="() => Schedule.teacher" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="date" class="form-label">date:</label>
+                    <InputDate id="date" @bind-Value="Schedule.date" class="form-control" />
+                    <ValidationMessage For="() => Schedule.date" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="time" class="form-label">time:</label>
+                    <input id="time" name="time" type="time" class="form-control" value="@time" />
+                </div>
+                <div class="mb-3">
+                <span class="text-danger">*</span>
+                    <label for="spent" class="form-label">spent:</label>
+                    <InputCheckbox id="spent" @bind-Value="Schedule.spent" class="form-check-input" aria-required="true"/>
+                    <ValidationMessage For="() => Schedule.spent" class="text-danger" />
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<div>
+    <a href="/schedules">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private long lesson_id { get; set; }
+
+    [SupplyParameterFromForm]
+    private Schedule? Schedule { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? time { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        Schedule ??= await context.Schedule.FirstOrDefaultAsync(m => m.lesson_id == lesson_id);
+
+        if (Schedule is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+
+        time ??= Schedule!.time?.ToString(@"hh\:mm\:ss") ?? "";
+    }
+
+    // To protect from overposting attacks, enable the specific properties you want to bind to.
+    // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task UpdateSchedule()
+    {
+        Schedule!.time = ParseTime(time);
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(Schedule).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!ScheduleExists(Schedule!.lesson_id))
+            {
+                NavigationManager.NavigateTo("notfound");
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/schedules");
+    }
+
+    private bool ScheduleExists(long lesson_id)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return context.Schedule.Any(e => e.lesson_id == lesson_id);
+    }
+
+    private static TimeSpan? ParseTime(string? value)
+    {
+        return TimeSpan.TryParseExact(value, @"hh\:mm\:ss", CultureInfo.InvariantCulture, out var result)
+            ? result
+            : null;
+    }
+}

@@ -1,0 +1,46 @@
+@page "/directions/create"
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create</PageTitle>
+
+<h1>Create</h1>
+
+<h2>Direction</h2>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <EditForm method="post" Model="Direction" OnValidSubmit="AddDirection" FormName="create" Enhance>
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" role="alert"/>
+            <div class="mb-3">
+                <label for="direction_name" class="form-label">direction_name:</label> 
+                <InputText id="direction_name" @bind-Value="Direction.direction_name" class="form-control" /> 
+                <ValidationMessage For="() => Direction.direction_name" class="text-danger" /> 
+            </div>        
+            <button type="submit" class="btn btn-primary">Create</button>
+        </EditForm>
+    </div>
+</div>
+
+<div>
+    <a href="/directions">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private Direction Direction { get; set; } = default!;
+
+    protected override void OnInitialized() => Direction ??= new();
+
+    // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task AddDirection()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Directions.Add(Direction);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/directions");
+    }
+}

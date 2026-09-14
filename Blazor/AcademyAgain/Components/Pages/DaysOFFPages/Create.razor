@@ -1,0 +1,47 @@
+@page "/daysoffs/create"
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create</PageTitle>
+
+<h1>Create</h1>
+
+<h2>DaysOFF</h2>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <EditForm method="post" Model="DaysOFF" OnValidSubmit="AddDaysOFF" FormName="create" Enhance>
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" role="alert"/>
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="holiday" class="form-label">holiday:</label> 
+                <InputNumber id="holiday" @bind-Value="DaysOFF.holiday" class="form-control" aria-required="true"/> 
+                <ValidationMessage For="() => DaysOFF.holiday" class="text-danger" /> 
+            </div>        
+            <button type="submit" class="btn btn-primary">Create</button>
+        </EditForm>
+    </div>
+</div>
+
+<div>
+    <a href="/daysoffs">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private DaysOFF DaysOFF { get; set; } = default!;
+
+    protected override void OnInitialized() => DaysOFF ??= new();
+
+    // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task AddDaysOFF()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.DaysOFF.Add(DaysOFF);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/daysoffs");
+    }
+}

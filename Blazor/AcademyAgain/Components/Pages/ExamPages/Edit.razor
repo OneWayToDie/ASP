@@ -1,0 +1,98 @@
+@page "/exams/edit"
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit</PageTitle>
+
+<h1>Edit</h1>
+
+<h2>Exam</h2>
+<hr />
+@if (Exam is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="Exam" OnValidSubmit="UpdateExam" FormName="edit" Enhance>
+                <DataAnnotationsValidator />
+                <ValidationSummary role="alert"/>
+                <input type="hidden" name="Exam.student" value="@Exam.student" />
+                <input type="hidden" name="Exam.discipline" value="@Exam.discipline" />
+                <div class="mb-3">
+                    <label for="date" class="form-label">date:</label>
+                    <InputDate id="date" @bind-Value="Exam.date" class="form-control" />
+                    <ValidationMessage For="() => Exam.date" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="grade" class="form-label">grade:</label>
+                    <InputNumber id="grade" @bind-Value="Exam.grade" class="form-control" />
+                    <ValidationMessage For="() => Exam.grade" class="text-danger" />
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<div>
+    <a href="/exams">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private int student { get; set; }
+
+    [SupplyParameterFromQuery]
+    private int discipline { get; set; }
+
+    [SupplyParameterFromForm]
+    private Exam? Exam { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        Exam ??= await context.Exams.FirstOrDefaultAsync(m => m.student == student && m.discipline == discipline);
+
+        if (Exam is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+
+    // To protect from overposting attacks, enable the specific properties you want to bind to.
+    // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task UpdateExam()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(Exam!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!ExamExists(Exam!.student, Exam.discipline))
+            {
+                NavigationManager.NavigateTo("notfound");
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/exams");
+    }
+
+    private bool ExamExists(int student, int discipline)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return context.Exams.Any(e => e.student == student && e.discipline == discipline);
+    }
+}

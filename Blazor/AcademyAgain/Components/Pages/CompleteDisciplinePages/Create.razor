@@ -1,0 +1,53 @@
+@page "/completedisciplines/create"
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create</PageTitle>
+
+<h1>Create</h1>
+
+<h2>CompleteDiscipline</h2>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <EditForm method="post" Model="CompleteDiscipline" OnValidSubmit="AddCompleteDiscipline" FormName="create" Enhance>
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" role="alert"/>
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="group" class="form-label">group:</label> 
+                <InputNumber id="group" @bind-Value="CompleteDiscipline.group" class="form-control" aria-required="true"/> 
+                <ValidationMessage For="() => CompleteDiscipline.group" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="discipline" class="form-label">discipline:</label> 
+                <InputNumber id="discipline" @bind-Value="CompleteDiscipline.discipline" class="form-control" aria-required="true"/> 
+                <ValidationMessage For="() => CompleteDiscipline.discipline" class="text-danger" /> 
+            </div>        
+            <button type="submit" class="btn btn-primary">Create</button>
+        </EditForm>
+    </div>
+</div>
+
+<div>
+    <a href="/completedisciplines">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private CompleteDiscipline CompleteDiscipline { get; set; } = default!;
+
+    protected override void OnInitialized() => CompleteDiscipline ??= new();
+
+    // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task AddCompleteDiscipline()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.CompleteDisciplines.Add(CompleteDiscipline);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/completedisciplines");
+    }
+}

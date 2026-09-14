@@ -1,0 +1,63 @@
+@page "/exams/create"
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create</PageTitle>
+
+<h1>Create</h1>
+
+<h2>Exam</h2>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <EditForm method="post" Model="Exam" OnValidSubmit="AddExam" FormName="create" Enhance>
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" role="alert"/>
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="student" class="form-label">student:</label> 
+                <InputNumber id="student" @bind-Value="Exam.student" class="form-control" aria-required="true"/> 
+                <ValidationMessage For="() => Exam.student" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="discipline" class="form-label">discipline:</label> 
+                <InputNumber id="discipline" @bind-Value="Exam.discipline" class="form-control" aria-required="true"/> 
+                <ValidationMessage For="() => Exam.discipline" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <label for="date" class="form-label">date:</label> 
+                <InputDate id="date" @bind-Value="Exam.date" class="form-control" /> 
+                <ValidationMessage For="() => Exam.date" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <label for="grade" class="form-label">grade:</label> 
+                <InputNumber id="grade" @bind-Value="Exam.grade" class="form-control" /> 
+                <ValidationMessage For="() => Exam.grade" class="text-danger" /> 
+            </div>        
+            <button type="submit" class="btn btn-primary">Create</button>
+        </EditForm>
+    </div>
+</div>
+
+<div>
+    <a href="/exams">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private Exam Exam { get; set; } = default!;
+
+    protected override void OnInitialized() => Exam ??= new();
+
+    // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task AddExam()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Exams.Add(Exam);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/exams");
+    }
+}

@@ -1,0 +1,102 @@
+@page "/salarys/edit"
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit</PageTitle>
+
+<h1>Edit</h1>
+
+<h2>Salary</h2>
+<hr />
+@if (Salary is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="Salary" OnValidSubmit="UpdateSalary" FormName="edit" Enhance>
+                <DataAnnotationsValidator />
+                <ValidationSummary role="alert"/>
+                <input type="hidden" name="Salary.payment_id" value="@Salary.payment_id" />
+                <div class="mb-3">
+                <span class="text-danger">*</span>
+                    <label for="teacher" class="form-label">teacher:</label>
+                    <InputNumber id="teacher" @bind-Value="Salary.teacher" class="form-control" aria-required="true"/>
+                    <ValidationMessage For="() => Salary.teacher" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                <span class="text-danger">*</span>
+                    <label for="accrued" class="form-label">accrued:</label>
+                    <InputNumber id="accrued" @bind-Value="Salary.accrued" class="form-control" aria-required="true"/>
+                    <ValidationMessage For="() => Salary.accrued" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                <span class="text-danger">*</span>
+                    <label for="received" class="form-label">received:</label>
+                    <InputCheckbox id="received" @bind-Value="Salary.received" class="form-check-input" aria-required="true"/>
+                    <ValidationMessage For="() => Salary.received" class="text-danger" />
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<div>
+    <a href="/salarys">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private long payment_id { get; set; }
+
+    [SupplyParameterFromForm]
+    private Salary? Salary { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        Salary ??= await context.Salary.FirstOrDefaultAsync(m => m.payment_id == payment_id);
+
+        if (Salary is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+
+    // To protect from overposting attacks, enable the specific properties you want to bind to.
+    // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task UpdateSalary()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(Salary!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!SalaryExists(Salary!.payment_id))
+            {
+                NavigationManager.NavigateTo("notfound");
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/salarys");
+    }
+
+    private bool SalaryExists(long payment_id)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return context.Salary.Any(e => e.payment_id == payment_id);
+    }
+}

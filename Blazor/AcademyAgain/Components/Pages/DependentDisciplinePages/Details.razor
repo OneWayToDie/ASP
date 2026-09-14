@@ -1,0 +1,51 @@
+@page "/dependentdisciplines/details"
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Details</PageTitle>
+
+<h1>Details</h1>
+
+<div>
+    <h2>DependentDiscipline</h2>
+    <hr />
+    @if (dependentdiscipline is null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else {
+        <dl class="row">
+            <dt class="col-sm-2">discipline</dt>
+            <dd class="col-sm-10">@dependentdiscipline.discipline</dd>
+            <dt class="col-sm-2">dependent_discipline</dt>
+            <dd class="col-sm-10">@dependentdiscipline.dependent_discipline</dd>
+        </dl>
+        <div>
+            <a href="@($"/dependentdisciplines/edit?discipline={dependentdiscipline.discipline}&dependent_discipline={dependentdiscipline.dependent_discipline}")">Edit</a> |
+            <a href="@($"/dependentdisciplines")">Back to List</a>
+        </div>
+    }
+</div>
+
+@code {
+    private DependentDiscipline? dependentdiscipline;
+
+    [SupplyParameterFromQuery]
+    private int discipline { get; set; }
+
+    [SupplyParameterFromQuery]
+    private int dependent_discipline { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        dependentdiscipline = await context.DependentDisciplines.FirstOrDefaultAsync(m => m.discipline == discipline && m.dependent_discipline == dependent_discipline);
+
+        if (dependentdiscipline is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+}

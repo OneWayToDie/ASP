@@ -1,0 +1,94 @@
+@page "/attendances/edit"
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit</PageTitle>
+
+<h1>Edit</h1>
+
+<h2>Attendance</h2>
+<hr />
+@if (Attendance is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="Attendance" OnValidSubmit="UpdateAttendance" FormName="edit" Enhance>
+                <DataAnnotationsValidator />
+                <ValidationSummary role="alert"/>
+                <input type="hidden" name="Attendance.student" value="@Attendance.student" />
+                <input type="hidden" name="Attendance.lesson" value="@Attendance.lesson" />
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="present" class="form-label">present:</label>
+                    <InputCheckbox id="present" @bind-Value="Attendance.present" class="form-check-input" aria-required="true"/>
+                    <ValidationMessage For="() => Attendance.present" class="text-danger" />
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<div>
+    <a href="/attendances">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private int student { get; set; }
+
+    [SupplyParameterFromQuery]
+    private long lesson { get; set; }
+
+    [SupplyParameterFromForm]
+    private Attendance? Attendance { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        Attendance ??= await context.Attendance.FirstOrDefaultAsync(m => m.student == student && m.lesson == lesson);
+
+        if (Attendance is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+
+    // To protect from overposting attacks, enable the specific properties you want to bind to.
+    // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task UpdateAttendance()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(Attendance!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!AttendanceExists(Attendance!.student, Attendance.lesson))
+            {
+                NavigationManager.NavigateTo("notfound");
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/attendances");
+    }
+
+    private bool AttendanceExists(int student, long lesson)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return context.Attendance.Any(e => e.student == student && e.lesson == lesson);
+    }
+}

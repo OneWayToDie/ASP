@@ -1,0 +1,88 @@
+@page "/requireddisciplines/edit"
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit</PageTitle>
+
+<h1>Edit</h1>
+
+<h2>RequiredDiscipline</h2>
+<hr />
+@if (RequiredDiscipline is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="RequiredDiscipline" OnValidSubmit="UpdateRequiredDiscipline" FormName="edit" Enhance>
+                <DataAnnotationsValidator />
+                <ValidationSummary role="alert"/>
+                <input type="hidden" name="RequiredDiscipline.discipline" value="@RequiredDiscipline.discipline" />
+                <input type="hidden" name="RequiredDiscipline.required_discipline" value="@RequiredDiscipline.required_discipline" />
+                <button type="submit" class="btn btn-primary">Save</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<div>
+    <a href="/requireddisciplines">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private int discipline { get; set; }
+
+    [SupplyParameterFromQuery]
+    private int required_discipline { get; set; }
+
+    [SupplyParameterFromForm]
+    private RequiredDiscipline? RequiredDiscipline { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        RequiredDiscipline ??= await context.RequiredDisciplines.FirstOrDefaultAsync(m => m.discipline == discipline && m.required_discipline == required_discipline);
+
+        if (RequiredDiscipline is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+
+    // To protect from overposting attacks, enable the specific properties you want to bind to.
+    // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task UpdateRequiredDiscipline()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(RequiredDiscipline!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!RequiredDisciplineExists(RequiredDiscipline!.discipline, RequiredDiscipline.required_discipline))
+            {
+                NavigationManager.NavigateTo("notfound");
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/requireddisciplines");
+    }
+
+    private bool RequiredDisciplineExists(int discipline, int required_discipline)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return context.RequiredDisciplines.Any(e => e.discipline == discipline && e.required_discipline == required_discipline);
+    }
+}

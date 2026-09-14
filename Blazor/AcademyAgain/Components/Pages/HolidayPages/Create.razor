@@ -1,0 +1,63 @@
+@page "/holidays/create"
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create</PageTitle>
+
+<h1>Create</h1>
+
+<h2>Holiday</h2>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <EditForm method="post" Model="Holiday" OnValidSubmit="AddHoliday" FormName="create" Enhance>
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" role="alert"/>
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="holiday_name" class="form-label">holiday_name:</label> 
+                <InputText id="holiday_name" @bind-Value="Holiday.holiday_name" class="form-control" aria-required="true"/> 
+                <ValidationMessage For="() => Holiday.holiday_name" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="duration" class="form-label">duration:</label> 
+                <InputNumber id="duration" @bind-Value="Holiday.duration" class="form-control" aria-required="true"/> 
+                <ValidationMessage For="() => Holiday.duration" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <label for="month" class="form-label">month:</label> 
+                <InputNumber id="month" @bind-Value="Holiday.month" class="form-control" /> 
+                <ValidationMessage For="() => Holiday.month" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <label for="day" class="form-label">day:</label> 
+                <InputNumber id="day" @bind-Value="Holiday.day" class="form-control" /> 
+                <ValidationMessage For="() => Holiday.day" class="text-danger" /> 
+            </div>        
+            <button type="submit" class="btn btn-primary">Create</button>
+        </EditForm>
+    </div>
+</div>
+
+<div>
+    <a href="/holidays">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private Holiday Holiday { get; set; } = default!;
+
+    protected override void OnInitialized() => Holiday ??= new();
+
+    // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task AddHoliday()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Holidays.Add(Holiday);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/holidays");
+    }
+}

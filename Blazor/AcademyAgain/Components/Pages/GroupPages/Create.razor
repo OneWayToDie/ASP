@@ -1,0 +1,81 @@
+@page "/groups/create"
+@using Microsoft.EntityFrameworkCore
+@using System.Globalization
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create</PageTitle>
+
+<h1>Create</h1>
+
+<h2>Group</h2>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <EditForm method="post" Model="Group" OnValidSubmit="AddGroup" FormName="create" Enhance>
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" role="alert"/>
+            <div class="mb-3">
+                <label for="group_name" class="form-label">group_name:</label> 
+                <InputText id="group_name" @bind-Value="Group.group_name" class="form-control" /> 
+                <ValidationMessage For="() => Group.group_name" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <label for="direction" class="form-label">direction:</label> 
+                <InputNumber id="direction" @bind-Value="Group.direction" class="form-control" /> 
+                <ValidationMessage For="() => Group.direction" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <label for="weekdays" class="form-label">weekdays:</label> 
+                <InputNumber id="weekdays" @bind-Value="Group.weekdays" class="form-control" /> 
+                <ValidationMessage For="() => Group.weekdays" class="text-danger" /> 
+            </div>        
+            <div class="mb-3">
+                <label for="start_time" class="form-label">start_time:</label> 
+                <input id="start_time" name="start_time" type="time" class="form-control" value="@start_time" />
+            </div>        
+            <div class="mb-3">
+                <label for="start_date" class="form-label">start_date:</label> 
+                <InputDate id="start_date" @bind-Value="Group.start_date" class="form-control" /> 
+                <ValidationMessage For="() => Group.start_date" class="text-danger" /> 
+            </div>        
+            <button type="submit" class="btn btn-primary">Create</button>
+        </EditForm>
+    </div>
+</div>
+
+<div>
+    <a href="/groups">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private Group Group { get; set; } = default!;
+
+    [SupplyParameterFromForm]
+    private string? start_time { get; set; }
+
+    protected override void OnInitialized()
+    {
+        Group ??= new();
+        start_time ??= Group.start_time?.ToString(@"hh\:mm\:ss") ?? "";
+    }
+
+    // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task AddGroup()
+    {
+        Group.start_time = ParseTime(start_time);
+        using var context = DbFactory.CreateDbContext();
+        context.Groups.Add(Group);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/groups");
+    }
+
+    private static TimeSpan? ParseTime(string? value)
+    {
+        return TimeSpan.TryParseExact(value, @"hh\:mm\:ss", CultureInfo.InvariantCulture, out var result)
+            ? result
+            : null;
+    }
+}

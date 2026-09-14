@@ -1,0 +1,51 @@
+@page "/teachersdisciplinesrelations/details"
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Details</PageTitle>
+
+<h1>Details</h1>
+
+<div>
+    <h2>TeachersDisciplinesRelation</h2>
+    <hr />
+    @if (relation is null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else {
+        <dl class="row">
+            <dt class="col-sm-2">teacher</dt>
+            <dd class="col-sm-10">@relation.teacher</dd>
+            <dt class="col-sm-2">discipline</dt>
+            <dd class="col-sm-10">@relation.discipline</dd>
+        </dl>
+        <div>
+            <a href="@($"/teachersdisciplinesrelations/edit?teacher={relation.teacher}&discipline={relation.discipline}")">Edit</a> |
+            <a href="@($"/teachersdisciplinesrelations")">Back to List</a>
+        </div>
+    }
+</div>
+
+@code {
+    private TeachersDisciplinesRelation? relation;
+
+    [SupplyParameterFromQuery]
+    private int teacher { get; set; }
+
+    [SupplyParameterFromQuery]
+    private int discipline { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        relation = await context.TeachersDisciplinesRelation.FirstOrDefaultAsync(m => m.teacher == teacher && m.discipline == discipline);
+
+        if (relation is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+}

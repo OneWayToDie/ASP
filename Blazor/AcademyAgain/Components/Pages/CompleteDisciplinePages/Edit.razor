@@ -1,0 +1,88 @@
+@page "/completedisciplines/edit"
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit</PageTitle>
+
+<h1>Edit</h1>
+
+<h2>CompleteDiscipline</h2>
+<hr />
+@if (CompleteDiscipline is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="CompleteDiscipline" OnValidSubmit="UpdateCompleteDiscipline" FormName="edit" Enhance>
+                <DataAnnotationsValidator />
+                <ValidationSummary role="alert"/>
+                <input type="hidden" name="CompleteDiscipline.group" value="@CompleteDiscipline.group" />
+                <input type="hidden" name="CompleteDiscipline.discipline" value="@CompleteDiscipline.discipline" />
+                <button type="submit" class="btn btn-primary">Save</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<div>
+    <a href="/completedisciplines">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private int group { get; set; }
+
+    [SupplyParameterFromQuery]
+    private int discipline { get; set; }
+
+    [SupplyParameterFromForm]
+    private CompleteDiscipline? CompleteDiscipline { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        CompleteDiscipline ??= await context.CompleteDisciplines.FirstOrDefaultAsync(m => m.group == group && m.discipline == discipline);
+
+        if (CompleteDiscipline is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+
+    // To protect from overposting attacks, enable the specific properties you want to bind to.
+    // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task UpdateCompleteDiscipline()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(CompleteDiscipline!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!CompleteDisciplineExists(CompleteDiscipline!.group, CompleteDiscipline.discipline))
+            {
+                NavigationManager.NavigateTo("notfound");
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/completedisciplines");
+    }
+
+    private bool CompleteDisciplineExists(int group, int discipline)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return context.CompleteDisciplines.Any(e => e.group == group && e.discipline == discipline);
+    }
+}

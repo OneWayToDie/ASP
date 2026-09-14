@@ -1,0 +1,50 @@
+@page "/salarys/details"
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Details</PageTitle>
+
+<h1>Details</h1>
+
+<div>
+    <h2>Salary</h2>
+    <hr />
+    @if (salary is null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else {
+        <dl class="row">
+            <dt class="col-sm-2">teacher</dt>
+            <dd class="col-sm-10">@salary.teacher</dd>
+            <dt class="col-sm-2">accrued</dt>
+            <dd class="col-sm-10">@salary.accrued</dd>
+            <dt class="col-sm-2">received</dt>
+            <dd class="col-sm-10">@salary.received</dd>
+        </dl>
+        <div>
+            <a href="@($"/salarys/edit?payment_id={salary.payment_id}")">Edit</a> |
+            <a href="@($"/salarys")">Back to List</a>
+        </div>
+    }
+</div>
+
+@code {
+    private Salary? salary;
+
+    [SupplyParameterFromQuery]
+    private long payment_id { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        salary = await context.Salary.FirstOrDefaultAsync(m => m.payment_id == payment_id);
+
+        if (salary is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+}

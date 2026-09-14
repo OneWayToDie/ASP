@@ -1,0 +1,37 @@
+@page "/completedisciplines"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@implements IAsyncDisposable
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Index</PageTitle>
+
+<h1>Index</h1>
+
+<p>
+    <a href="completedisciplines/create">Create New</a>
+</p>
+
+<QuickGrid Class="table" Items="context.CompleteDisciplines">
+    <PropertyColumn Property="complete => complete.group" />
+    <PropertyColumn Property="complete => complete.discipline" />
+
+    <TemplateColumn Context="complete">
+        <a href="@($"completedisciplines/edit?group={complete.group}&discipline={complete.discipline}")">Edit</a> |
+        <a href="@($"completedisciplines/details?group={complete.group}&discipline={complete.discipline}")">Details</a> |
+        <a href="@($"completedisciplines/delete?group={complete.group}&discipline={complete.discipline}")">Delete</a>
+    </TemplateColumn>
+</QuickGrid>
+
+@code {
+    private AcademyAgainContext context = default!;
+
+    protected override void OnInitialized()
+    {
+        context = DbFactory.CreateDbContext();
+    }
+
+    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+}
