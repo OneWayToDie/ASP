@@ -1,0 +1,46 @@
+@page "/groups"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@implements IAsyncDisposable
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Index</PageTitle>
+
+<h1>Index</h1>
+
+<p>
+    <a href="groups/create">Create New</a>
+</p>
+
+<QuickGrid Class="table" Items="groups">
+    @* <PropertyColumn Property="group => group.group_name" /> *@
+
+    <TemplateColumn Context="group">
+        <a href="@($"groups/details?group_id={group.group_Id}")">@group.group_name</a>
+    </TemplateColumn>
+    <PropertyColumn Property="group => group.Direction == null ? null : group.Direction.direction_Name" />
+    <PropertyColumn Property="group => group.learning_days" />
+    <PropertyColumn Property="group => group.start_time" />
+    <PropertyColumn Property="group => group.start_date" />
+
+    @* <TemplateColumn Context="group">
+        <a href="@($"groups/edit?group_id={group.group_Id}")">Edit</a> |
+        <a href="@($"groups/details?group_id={group.group_Id}")">Details</a> |
+        <a href="@($"groups/delete?group_id={group.group_Id}")">Delete</a>
+    </TemplateColumn> *@
+</QuickGrid>
+
+@code {
+    private AcademyAgainContext context = default!;
+    IQueryable<Group> groups = default!;
+
+    protected override void OnInitialized()
+    {
+        context = DbFactory.CreateDbContext();
+        groups = context.Groups.Include(g => g.Direction);
+    }
+
+    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+}
