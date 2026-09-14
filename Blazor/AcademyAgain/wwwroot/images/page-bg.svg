@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="240" viewBox="0 0 360 240" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffca7a" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#ffca7a" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- desk line -->
+  <line x1="16" y1="226" x2="344" y2="226" stroke="#ffffff" stroke-opacity="0.04" stroke-width="1.5"/>
+
+  <!-- lamp glow -->
+  <circle cx="296" cy="84" r="78" fill="url(#glow)"/>
+
+  <!-- banker lamp -->
+  <ellipse cx="296" cy="114" rx="15" ry="4.5" fill="none" stroke="#ffffff" stroke-opacity="0.07" stroke-width="2"/>
+  <line x1="296" y1="109" x2="296" y2="88" stroke="#ffffff" stroke-opacity="0.07" stroke-width="2.5"/>
+  <path d="M268 84 Q296 54 324 84 Z" fill="none" stroke="#ffca7a" stroke-opacity="0.18" stroke-width="2"/>
+  <path d="M268 84 Q296 90 324 84 Z" fill="none" stroke="#ffffff" stroke-opacity="0.07" stroke-width="1.5"/>
+
+  <!-- open book -->
+  <path d="M46 166 Q84 152 120 154 L120 220 Q84 224 50 222 Z" fill="none" stroke="#ffffff" stroke-opacity="0.10" stroke-width="2.5"/>
+  <path d="M120 154 Q156 152 194 166 L190 222 Q156 224 120 220 Z" fill="none" stroke="#ffffff" stroke-opacity="0.10" stroke-width="2.5"/>
+  <line x1="62" y1="170" x2="106" y2="164" stroke="#ffffff" stroke-opacity="0.05" stroke-width="2"/>
+  <line x1="62" y1="180" x2="106" y2="175" stroke="#ffffff" stroke-opacity="0.05" stroke-width="2"/>
+  <line x1="62" y1="190" x2="100" y2="186" stroke="#ffffff" stroke-opacity="0.05" stroke-width="2"/>
+  <line x1="134" y1="164" x2="178" y2="170" stroke="#ffffff" stroke-opacity="0.05" stroke-width="2"/>
+  <line x1="134" y1="175" x2="178" y2="180" stroke="#ffffff" stroke-opacity="0.05" stroke-width="2"/>
+  <line x1="134" y1="186" x2="172" y2="190" stroke="#ffffff" stroke-opacity="0.05" stroke-width="2"/>
+  <line x1="120" y1="154" x2="120" y2="220" stroke="#ffffff" stroke-opacity="0.12" stroke-width="2"/>
+
+  <!-- stack of books -->
+  <rect x="230" y="202" width="72" height="16" rx="2" transform="rotate(-6 266 210)" fill="none" stroke="#ffffff" stroke-opacity="0.09" stroke-width="2.2"/>
+  <rect x="236" y="186" width="62" height="15" rx="2" transform="rotate(5 267 194)" fill="none" stroke="#ffffff" stroke-opacity="0.09" stroke-width="2.2"/>
+  <rect x="242" y="172" width="54" height="13" rx="2" transform="rotate(-3 269 178)" fill="none" stroke="#ffffff" stroke-opacity="0.09" stroke-width="2.2"/>
+  <line x1="262" y1="172" x2="262" y2="208" stroke="#8ab4ff" stroke-opacity="0.18" stroke-width="2"/>
+
+  <!-- graduation cap -->
+  <g fill="none" stroke="#ffffff" stroke-opacity="0.09" stroke-width="2">
+    <polygon points="192,96 216,84 240,96 216,108"/>
+    <line x1="183" y1="99" x2="249" y2="99" stroke-opacity="0.05"/>
+    <circle cx="216" cy="84" r="2"/>
+    <line x1="216" y1="84" x2="224" y2="72"/>
+    <circle cx="225" cy="71" r="1.6"/>
+  </g>
+
+  <!-- sparkles -->
+  <g stroke="#ffca7a" stroke-opacity="0.15" stroke-width="1.5">
+    <line x1="44" y1="52" x2="60" y2="52"/>
+    <line x1="52" y1="44" x2="52" y2="60"/>
+    <line x1="156" y1="104" x2="172" y2="104"/>
+    <line x1="164" y1="96" x2="164" y2="112"/>
+  </g>
+</svg>

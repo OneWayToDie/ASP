@@ -1,115 +1,126 @@
 ﻿<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">AcademyAgain</a>
+        <a class="navbar-brand" href="">Академия</a>
     </div>
 </div>
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+<input type="checkbox" title="Меню" class="navbar-toggler" />
 
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
     <nav class="nav flex-column">
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+                <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7.5 8 2.5l6 5V14a1 1 0 0 1-1 1H9v-4H7v4H3a1 1 0 0 1-1-1Z"/></svg>
+                <span class="nav-label">Панель</span>
             </NavLink>
         </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="disciplines">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Discipline
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="teachers">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Teacher
-            </NavLink>
-        </div>
+        <div class="nav-group-title px-3">Учебный процесс</div>
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="students">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Student
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="directions">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Direction
+                <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="5" r="2.5"/><path d="M3.5 14c.4-3 2.5-4.5 4.5-4.5S12.1 11 12.5 14"/></svg>
+                <span class="nav-label">Студенты</span>
             </NavLink>
         </div>
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="groups">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Group
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="holidays">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Holiday
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="salarys">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Salary
+                <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h3v3H3ZM10 3h3v3h-3ZM3 10h3v3H3ZM10 10h3v3h-3"/></svg>
+                <span class="nav-label">Группы</span>
             </NavLink>
         </div>
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="schedules">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Schedule
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="exams">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Exam
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="grades">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Grade
+                <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11.5" rx="1.5"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>
+                <span class="nav-label">Расписание</span>
             </NavLink>
         </div>
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="attendances">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Attendance
+                <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="1.5" width="8" height="13" rx="1"/><path d="M6 1.5h4v2H6ZM5.5 9.5l2 1.5 3-3.5"/></svg>
+                <span class="nav-label">Посещаемость</span>
             </NavLink>
         </div>
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="completedisciplines">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Complete Discipline
+            <NavLink class="nav-link" href="grades">
+                <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 2.2 1.8 3.7 4.1.6-3 2.9.7 4.1L8 11.6 4.4 13.5l.7-4.1-3-2.9 4.1-.6Z"/></svg>
+                <span class="nav-label">Оценки</span>
             </NavLink>
         </div>
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="dependentdisciplines">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Dependent Discipline
+            <NavLink class="nav-link" href="exams">
+                <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2" width="8" height="12" rx="1"/><path d="M6 5h4M6 8h4M6 11h3"/></svg>
+                <span class="nav-label">Экзамены</span>
+            </NavLink>
+        </div>
+
+        <div class="nav-group-title px-3">Справочники</div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="directions">
+                <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="m8.4 4.6 1.6 5.4-5.4 1.4 1.4-5.4Z"/></svg>
+                <span class="nav-label">Направления</span>
             </NavLink>
         </div>
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="requireddisciplines">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Required Discipline
+            <NavLink class="nav-link" href="disciplines">
+                <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 3.5C3.5 2.5 5.5 3 8 4.5 10.5 3 12.5 2.5 14.5 3.5V12.5C12.5 11.5 10.5 12 8 13.5 5.5 12 3.5 11.5 1.5 12.5Z"/><path d="M8 4.5v9"/></svg>
+                <span class="nav-label">Дисциплины</span>
             </NavLink>
         </div>
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="disciplinesdirectionsrelations">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Disciplines Directions Relation
+            <NavLink class="nav-link" href="teachers">
+                <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7" cy="4.5" r="2"/><path d="M3 13.5c.35-2.5 2.2-3.8 4-3.8s3.65 1.3 4 3.8"/><rect x="11.5" y="10" width="3" height="3.5" rx=".5"/><path d="M13 11.3v1"/></svg>
+                <span class="nav-label">Преподаватели</span>
             </NavLink>
         </div>
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="teachersdisciplinesrelations">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Teachers Disciplines Relation
+            <NavLink class="nav-link" href="holidays">
+                <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="4.5" width="11" height="3" rx=".5"/><path d="M8 7.5v6M5.5 4.5c-.2-1.8 1-3 2.5-2.9S11 2.7 10.5 4.5M4 13.5h8"/></svg>
+                <span class="nav-label">Праздники</span>
             </NavLink>
         </div>
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="daysoffs">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Days OFF
+                <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.2 9.5A5.5 5.5 0 1 1 6.5 2.8C3.3 4.7 5.6 9.5 9 9.5c1.4 0 3.5 0 4.2 0Z"/></svg>
+                <span class="nav-label">Выходные дни</span>
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="salarys">
+                <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.5" y="4.5" width="13" height="7" rx="1"/><circle cx="8" cy="8" r="2"/><path d="M4 6.5v3M12 6.5v3"/></svg>
+                <span class="nav-label">Зарплаты</span>
+            </NavLink>
+        </div>
+
+        <div class="nav-group-title px-3">Связи</div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="completedisciplines">
+                <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="m5.5 8.3 1.8 1.8 3.3-4"/></svg>
+                <span class="nav-label">Пройденные дисциплины</span>
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="dependentdisciplines">
+                <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 13 4 8l5-5"/><path d="M4 8h8.5"/></svg>
+                <span class="nav-label">Зависимые дисциплины</span>
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="requireddisciplines">
+                <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 5v6M5 8h6"/></svg>
+                <span class="nav-label">Требуемые дисциплины</span>
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="disciplinesdirectionsrelations">
+                <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 2.5 6 3.5-6 3.5L2 6Z"/><path d="m4 8.5 4 2.3 4-2.3M4 11l4 2.3 4-2.3"/></svg>
+                <span class="nav-label">Дисциплины направлений</span>
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="teachersdisciplinesrelations">
+                <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 6.5 12 4c1-1 .8-2.6-.3-3.6-1.1-1-2.6-.9-3.6.2L5.5 2.6C4 4.2 4.6 6.4 6 7.8"/><path d="M6.5 9.5 4 12c-1 1-.8 2.6.3 3.6 1.1 1 2.6.9 3.6-.2l3.2-3.2c1.5-1.6.9-3.8-.5-5.2"/></svg>
+                <span class="nav-label">Преподаватели и дисциплины</span>
             </NavLink>
         </div>
     </nav>
 </div>
-

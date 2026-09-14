@@ -6,22 +6,21 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Index</PageTitle>
+<PageTitle>Дисциплины направлений</PageTitle>
 
-<h1>Index</h1>
-
-<p>
-    <a href="disciplinesdirectionsrelations/create">Create New</a>
-</p>
+<div class="list-header">
+    <h1>Дисциплины направлений</h1>
+    <a class="btn btn-primary" href="disciplinesdirectionsrelations/create">Создать</a>
+</div>
 
 <QuickGrid Class="table" Items="context.DisciplinesDirectionsRelation">
-    <PropertyColumn Property="relation => relation.direction" />
-    <PropertyColumn Property="relation => relation.discipline" />
+    <PropertyColumn Property="relation => relation.direction" Title="Направление" />
+    <PropertyColumn Property="relation => relation.discipline" Title="Дисциплина" />
 
     <TemplateColumn Context="relation">
-        <a href="@($"disciplinesdirectionsrelations/edit?direction={relation.direction}&discipline={relation.discipline}")">Edit</a> |
-        <a href="@($"disciplinesdirectionsrelations/details?direction={relation.direction}&discipline={relation.discipline}")">Details</a> |
-        <a href="@($"disciplinesdirectionsrelations/delete?direction={relation.direction}&discipline={relation.discipline}")">Delete</a>
+        <a href="@($"disciplinesdirectionsrelations/edit?direction={relation.direction}&discipline={relation.discipline}")">Изменить</a> |
+        <a href="@($"disciplinesdirectionsrelations/details?direction={relation.direction}&discipline={relation.discipline}")">Подробно</a> |
+        <a href="@($"disciplinesdirectionsrelations/delete?direction={relation.direction}&discipline={relation.discipline}")">Удалить</a>
     </TemplateColumn>
 </QuickGrid>
 

@@ -1,43 +1,129 @@
 @page "/students"
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
-@implements IAsyncDisposable
+@using AcademyAgain.Helpers
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Index</PageTitle>
+<PageTitle>Студенты</PageTitle>
 
-<h1>Index</h1>
+<div class="list-header">
+    <h1>Студенты</h1>
+    <a class="btn btn-primary" href="students/create">Создать</a>
+</div>
 
-<p>
-    <a href="students/create">Create New</a>
-</p>
+<div class="filter-bar">
+    <label class="form-label mb-0">Направление</label>
+    <select class="form-select" value="@selectedDirection" @onchange="OnDirectionChanged">
+        <option value="">Все</option>
+        @foreach (var dir in directions.OrderBy(d => d.direction_id))
+        {
+            <option value="@dir.direction_id">@dir.direction_name</option>
+        }
+    </select>
+    <label class="form-label mb-0">Группа</label>
+    <select class="form-select" value="@selectedGroup" @onchange="OnGroupChanged">
+        <option value="">Все</option>
+        @foreach (var grp in availableGroups.OrderBy(g => g.group_name))
+        {
+            <option value="@grp.group_id">@grp.group_name</option>
+        }
+    </select>
+</div>
 
-<QuickGrid Class="table" Items="context.Students">
-    <PropertyColumn Property="student => student.last_name" />
-    <PropertyColumn Property="student => student.first_name" />
-    <PropertyColumn Property="student => student.middle_name" />
-    <PropertyColumn Property="student => student.birth_date" />
-    <PropertyColumn Property="student => student.email" />
-    <PropertyColumn Property="student => student.phone" />
-    <PropertyColumn Property="student => student.photo" />
-    <PropertyColumn Property="student => student.group" />
+<QuickGrid Class="table" Items="filteredStudents">
+    <TemplateColumn Title="Фото" Context="s">
+        @if (Photo.DataSrc(s.photo) is string src)
+        {
+            <img class="photo-thumb" src="@src" alt="@(s.last_name) @(s.first_name)" />
+        }
+        else
+        {
+            <span class="photo-empty">—</span>
+        }
+    </TemplateColumn>
+    <PropertyColumn Property="s => s.last_name" Title="Фамилия" />
+    <PropertyColumn Property="s => s.first_name" Title="Имя" />
+    <PropertyColumn Property="s => s.middle_name" Title="Отчество" />
+    <TemplateColumn Title="Группа" Context="s">
+        @GroupName(s.group)
+    </TemplateColumn>
+    <TemplateColumn Title="Направление" Context="s">
+        @GroupDirectionName(s.group)
+    </TemplateColumn>
+    <PropertyColumn Property="s => s.birth_date" Title="Дата рождения" />
 
-    <TemplateColumn Context="student">
-        <a href="@($"students/edit?stud_id={student.stud_id}")">Edit</a> |
-        <a href="@($"students/details?stud_id={student.stud_id}")">Details</a> |
-        <a href="@($"students/delete?stud_id={student.stud_id}")">Delete</a>
+    <TemplateColumn Context="s">
+        <a href="@($"students/edit?stud_id={s.stud_id}")">Изменить</a> |
+        <a href="@($"students/details?stud_id={s.stud_id}")">Подробно</a> |
+        <a href="@($"students/delete?stud_id={s.stud_id}")">Удалить</a>
     </TemplateColumn>
 </QuickGrid>
 
 @code {
-    private AcademyAgainContext context = default!;
+    private List<Direction> directions = new();
+    private List<Group> allGroups = new();
+    private List<Student> allStudents = new();
+    private IQueryable<Student> filteredStudents = new List<Student>().AsQueryable();
 
-    protected override void OnInitialized()
+    private int? selectedDirection;
+    private int? selectedGroup;
+
+    private List<Group> availableGroups
+        => allGroups
+            .Where(g => selectedDirection is null || g.direction == selectedDirection)
+            .ToList();
+
+    protected override async Task OnInitializedAsync()
     {
-        context = DbFactory.CreateDbContext();
+        await using var context = DbFactory.CreateDbContext();
+        directions = await context.Directions.ToListAsync();
+        allGroups = await context.Groups.ToListAsync();
+        allStudents = await context.Students.ToListAsync();
+        ApplyFilter();
     }
 
-    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+    private void OnDirectionChanged(ChangeEventArgs e)
+    {
+        selectedDirection = int.TryParse(e.Value?.ToString(), out var value) ? value : null;
+        selectedGroup = null;
+        ApplyFilter();
+    }
+
+    private void OnGroupChanged(ChangeEventArgs e)
+    {
+        selectedGroup = int.TryParse(e.Value?.ToString(), out var value) ? value : null;
+        ApplyFilter();
+    }
+
+    private void ApplyFilter()
+    {
+        IEnumerable<Student> query = allStudents;
+
+        if (selectedGroup is int groupId)
+        {
+            query = query.Where(s => s.group == groupId);
+        }
+        else if (selectedDirection is int directionId)
+        {
+            var groupIds = allGroups
+                .Where(g => g.direction == directionId)
+                .Select(g => g.group_id)
+                .ToHashSet();
+            query = query.Where(s => s.group is int g && groupIds.Contains(g));
+        }
+
+        filteredStudents = query.OrderBy(s => s.last_name).ThenBy(s => s.first_name).AsQueryable();
+    }
+
+    private string GroupName(int? id)
+        => allGroups.FirstOrDefault(g => g.group_id == id)?.group_name ?? "—";
+
+    private string GroupDirectionName(int? id)
+    {
+        var groupId = allGroups.FirstOrDefault(g => g.group_id == id)?.direction;
+        return directions.FirstOrDefault(d => d.direction_id == groupId)?.direction_name ?? "—";
+    }
 }

@@ -6,23 +6,22 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Index</PageTitle>
+<PageTitle>Посещаемость</PageTitle>
 
-<h1>Index</h1>
-
-<p>
-    <a href="attendances/create">Create New</a>
-</p>
+<div class="list-header">
+    <h1>Посещаемость</h1>
+    <a class="btn btn-primary" href="attendances/create">Создать</a>
+</div>
 
 <QuickGrid Class="table" Items="context.Attendance">
-    <PropertyColumn Property="att => att.student" />
-    <PropertyColumn Property="att => att.lesson" />
-    <PropertyColumn Property="att => att.present" />
+    <PropertyColumn Property="att => att.student" Title="Студент" />
+    <PropertyColumn Property="att => att.lesson" Title="Занятие" />
+    <PropertyColumn Property="att => att.present" Title="Присутствовал" />
 
     <TemplateColumn Context="att">
-        <a href="@($"attendances/edit?student={att.student}&lesson={att.lesson}")">Edit</a> |
-        <a href="@($"attendances/details?student={att.student}&lesson={att.lesson}")">Details</a> |
-        <a href="@($"attendances/delete?student={att.student}&lesson={att.lesson}")">Delete</a>
+        <a href="@($"attendances/edit?student={att.student}&lesson={att.lesson}")">Изменить</a> |
+        <a href="@($"attendances/details?student={att.student}&lesson={att.lesson}")">Подробно</a> |
+        <a href="@($"attendances/delete?student={att.student}&lesson={att.lesson}")">Удалить</a>
     </TemplateColumn>
 </QuickGrid>
 

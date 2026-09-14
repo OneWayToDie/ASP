@@ -6,6 +6,7 @@ namespace AcademyAgain.Models
 	public class Holiday
 	{
 		[Key]
+		[DatabaseGenerated(DatabaseGeneratedOption.None)]
 		[Required]
 		[Column(TypeName = "TINYINT")]
 		public int holiday_id { get; set; }

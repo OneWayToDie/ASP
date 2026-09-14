@@ -6,21 +6,21 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Index</PageTitle>
+<PageTitle>Выходные дни</PageTitle>
 
-<h1>Index</h1>
-
-<p>
-    <a href="daysoffs/create">Create New</a>
-</p>
+<div class="list-header">
+    <h1>Выходные дни</h1>
+    <a class="btn btn-primary" href="daysoffs/create">Создать</a>
+</div>
 
 <QuickGrid Class="table" Items="context.DaysOFF">
-    <PropertyColumn Property="daysoff => daysoff.holiday" />
+    <PropertyColumn Property="daysoff => daysoff.date" Title="Дата" />
+    <PropertyColumn Property="daysoff => daysoff.holiday" Title="Праздник" />
 
     <TemplateColumn Context="daysoff">
-        <a href="@($"daysoffs/edit?date={daysoff.date}")">Edit</a> |
-        <a href="@($"daysoffs/details?date={daysoff.date}")">Details</a> |
-        <a href="@($"daysoffs/delete?date={daysoff.date}")">Delete</a>
+        <a href="@($"daysoffs/edit?date={daysoff.date}")">Изменить</a> |
+        <a href="@($"daysoffs/details?date={daysoff.date}")">Подробно</a> |
+        <a href="@($"daysoffs/delete?date={daysoff.date}")">Удалить</a>
     </TemplateColumn>
 </QuickGrid>
 

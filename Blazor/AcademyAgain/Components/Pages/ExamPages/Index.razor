@@ -6,24 +6,23 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Index</PageTitle>
+<PageTitle>Экзамены</PageTitle>
 
-<h1>Index</h1>
-
-<p>
-    <a href="exams/create">Create New</a>
-</p>
+<div class="list-header">
+    <h1>Экзамены</h1>
+    <a class="btn btn-primary" href="exams/create">Создать</a>
+</div>
 
 <QuickGrid Class="table" Items="context.Exams">
-    <PropertyColumn Property="exam => exam.student" />
-    <PropertyColumn Property="exam => exam.discipline" />
-    <PropertyColumn Property="exam => exam.date" />
-    <PropertyColumn Property="exam => exam.grade" />
+    <PropertyColumn Property="exam => exam.student" Title="Студент" />
+    <PropertyColumn Property="exam => exam.discipline" Title="Дисциплина" />
+    <PropertyColumn Property="exam => exam.date" Title="Дата" />
+    <PropertyColumn Property="exam => exam.grade" Title="Оценка" />
 
     <TemplateColumn Context="exam">
-        <a href="@($"exams/edit?student={exam.student}&discipline={exam.discipline}")">Edit</a> |
-        <a href="@($"exams/details?student={exam.student}&discipline={exam.discipline}")">Details</a> |
-        <a href="@($"exams/delete?student={exam.student}&discipline={exam.discipline}")">Delete</a>
+        <a href="@($"exams/edit?student={exam.student}&discipline={exam.discipline}")">Изменить</a> |
+        <a href="@($"exams/details?student={exam.student}&discipline={exam.discipline}")">Подробно</a> |
+        <a href="@($"exams/delete?student={exam.student}&discipline={exam.discipline}")">Удалить</a>
     </TemplateColumn>
 </QuickGrid>
 

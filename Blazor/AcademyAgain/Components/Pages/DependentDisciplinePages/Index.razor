@@ -6,22 +6,21 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Index</PageTitle>
+<PageTitle>Зависимые дисциплины</PageTitle>
 
-<h1>Index</h1>
-
-<p>
-    <a href="dependentdisciplines/create">Create New</a>
-</p>
+<div class="list-header">
+    <h1>Зависимые дисциплины</h1>
+    <a class="btn btn-primary" href="dependentdisciplines/create">Создать</a>
+</div>
 
 <QuickGrid Class="table" Items="context.DependentDisciplines">
-    <PropertyColumn Property="dependent => dependent.discipline" />
-    <PropertyColumn Property="dependent => dependent.dependent_discipline" />
+    <PropertyColumn Property="dependent => dependent.discipline" Title="Дисциплина" />
+    <PropertyColumn Property="dependent => dependent.dependent_discipline" Title="Зависимая дисциплина" />
 
     <TemplateColumn Context="dependent">
-        <a href="@($"dependentdisciplines/edit?discipline={dependent.discipline}&dependent_discipline={dependent.dependent_discipline}")">Edit</a> |
-        <a href="@($"dependentdisciplines/details?discipline={dependent.discipline}&dependent_discipline={dependent.dependent_discipline}")">Details</a> |
-        <a href="@($"dependentdisciplines/delete?discipline={dependent.discipline}&dependent_discipline={dependent.dependent_discipline}")">Delete</a>
+        <a href="@($"dependentdisciplines/edit?discipline={dependent.discipline}&dependent_discipline={dependent.dependent_discipline}")">Изменить</a> |
+        <a href="@($"dependentdisciplines/details?discipline={dependent.discipline}&dependent_discipline={dependent.dependent_discipline}")">Подробно</a> |
+        <a href="@($"dependentdisciplines/delete?discipline={dependent.discipline}&dependent_discipline={dependent.dependent_discipline}")">Удалить</a>
     </TemplateColumn>
 </QuickGrid>
 

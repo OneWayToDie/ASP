@@ -1,40 +1,76 @@
 @page "/groups"
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
-@implements IAsyncDisposable
+@using AcademyAgain.Helpers
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Index</PageTitle>
+<PageTitle>Группы</PageTitle>
 
-<h1>Index</h1>
+<div class="list-header">
+    <h1>Группы</h1>
+    <a class="btn btn-primary" href="groups/create">Создать</a>
+</div>
 
-<p>
-    <a href="groups/create">Create New</a>
-</p>
+<div class="filter-bar">
+    <label class="form-label mb-0">Направление</label>
+    <select class="form-select" value="@selectedDirection" @onchange="OnDirectionChanged">
+        <option value="">Все</option>
+        @foreach (var dir in directions.OrderBy(d => d.direction_id))
+        {
+            <option value="@dir.direction_id">@dir.direction_name</option>
+        }
+    </select>
+</div>
 
-<QuickGrid Class="table" Items="context.Groups">
-    <PropertyColumn Property="group => group.group_name" />
-    <PropertyColumn Property="group => group.direction" />
-    <PropertyColumn Property="group => group.weekdays" />
-    <PropertyColumn Property="group => group.start_time" />
-    <PropertyColumn Property="group => group.start_date" />
+<QuickGrid Class="table" Items="filteredGroups">
+    <PropertyColumn Property="g => g.group_name" Title="Название" />
+    <TemplateColumn Title="Направление" Context="g">
+        @DirectionName(g.direction)
+    </TemplateColumn>
+    <TemplateColumn Title="Дни недели" Context="g">
+        @Weekdays.ToDisplay(g.weekdays)
+    </TemplateColumn>
+    <PropertyColumn Property="g => g.start_time" Title="Время начала" />
+    <PropertyColumn Property="g => g.start_date" Title="Дата начала" />
 
-    <TemplateColumn Context="group">
-        <a href="@($"groups/edit?group_id={group.group_id}")">Edit</a> |
-        <a href="@($"groups/details?group_id={group.group_id}")">Details</a> |
-        <a href="@($"groups/delete?group_id={group.group_id}")">Delete</a>
+    <TemplateColumn Context="g">
+        <a href="@($"groups/edit?group_id={g.group_id}")">Изменить</a> |
+        <a href="@($"groups/details?group_id={g.group_id}")">Подробно</a> |
+        <a href="@($"groups/delete?group_id={g.group_id}")">Удалить</a>
     </TemplateColumn>
 </QuickGrid>
 
 @code {
-    private AcademyAgainContext context = default!;
+    private List<Direction> directions = new();
+    private List<Group> allGroups = new();
+    private IQueryable<Group> filteredGroups = new List<Group>().AsQueryable();
+    private int? selectedDirection;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        context = DbFactory.CreateDbContext();
+        await using var context = DbFactory.CreateDbContext();
+        directions = await context.Directions.ToListAsync();
+        allGroups = await context.Groups.ToListAsync();
+        ApplyFilter();
     }
 
-    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+    private void OnDirectionChanged(ChangeEventArgs e)
+    {
+        selectedDirection = int.TryParse(e.Value?.ToString(), out var value) ? value : null;
+        ApplyFilter();
+    }
+
+    private void ApplyFilter()
+    {
+        filteredGroups = allGroups
+            .Where(g => selectedDirection is null || g.direction == selectedDirection)
+            .OrderBy(g => g.group_id)
+            .AsQueryable();
+    }
+
+    private string DirectionName(int? id)
+        => directions.FirstOrDefault(d => d.direction_id == id)?.direction_name ?? "—";
 }

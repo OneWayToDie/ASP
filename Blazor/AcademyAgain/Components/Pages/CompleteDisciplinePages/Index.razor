@@ -6,22 +6,21 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Index</PageTitle>
+<PageTitle>Пройденные дисциплины</PageTitle>
 
-<h1>Index</h1>
-
-<p>
-    <a href="completedisciplines/create">Create New</a>
-</p>
+<div class="list-header">
+    <h1>Пройденные дисциплины</h1>
+    <a class="btn btn-primary" href="completedisciplines/create">Создать</a>
+</div>
 
 <QuickGrid Class="table" Items="context.CompleteDisciplines">
-    <PropertyColumn Property="complete => complete.group" />
-    <PropertyColumn Property="complete => complete.discipline" />
+    <PropertyColumn Property="complete => complete.group" Title="Группа" />
+    <PropertyColumn Property="complete => complete.discipline" Title="Дисциплина" />
 
     <TemplateColumn Context="complete">
-        <a href="@($"completedisciplines/edit?group={complete.group}&discipline={complete.discipline}")">Edit</a> |
-        <a href="@($"completedisciplines/details?group={complete.group}&discipline={complete.discipline}")">Details</a> |
-        <a href="@($"completedisciplines/delete?group={complete.group}&discipline={complete.discipline}")">Delete</a>
+        <a href="@($"completedisciplines/edit?group={complete.group}&discipline={complete.discipline}")">Изменить</a> |
+        <a href="@($"completedisciplines/details?group={complete.group}&discipline={complete.discipline}")">Подробно</a> |
+        <a href="@($"completedisciplines/delete?group={complete.group}&discipline={complete.discipline}")">Удалить</a>
     </TemplateColumn>
 </QuickGrid>
 

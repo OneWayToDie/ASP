@@ -6,24 +6,23 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Index</PageTitle>
+<PageTitle>Праздники</PageTitle>
 
-<h1>Index</h1>
-
-<p>
-    <a href="holidays/create">Create New</a>
-</p>
+<div class="list-header">
+    <h1>Праздники</h1>
+    <a class="btn btn-primary" href="holidays/create">Создать</a>
+</div>
 
 <QuickGrid Class="table" Items="context.Holidays">
-    <PropertyColumn Property="holiday => holiday.holiday_name" />
-    <PropertyColumn Property="holiday => holiday.duration" />
-    <PropertyColumn Property="holiday => holiday.month" />
-    <PropertyColumn Property="holiday => holiday.day" />
+    <PropertyColumn Property="holiday => holiday.holiday_name" Title="Название" />
+    <PropertyColumn Property="holiday => holiday.duration" Title="Длительность" />
+    <PropertyColumn Property="holiday => holiday.month" Title="Месяц" />
+    <PropertyColumn Property="holiday => holiday.day" Title="День" />
 
     <TemplateColumn Context="holiday">
-        <a href="@($"holidays/edit?holiday_id={holiday.holiday_id}")">Edit</a> |
-        <a href="@($"holidays/details?holiday_id={holiday.holiday_id}")">Details</a> |
-        <a href="@($"holidays/delete?holiday_id={holiday.holiday_id}")">Delete</a>
+        <a href="@($"holidays/edit?holiday_id={holiday.holiday_id}")">Изменить</a> |
+        <a href="@($"holidays/details?holiday_id={holiday.holiday_id}")">Подробно</a> |
+        <a href="@($"holidays/delete?holiday_id={holiday.holiday_id}")">Удалить</a>
     </TemplateColumn>
 </QuickGrid>
 

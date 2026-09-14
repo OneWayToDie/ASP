@@ -1,7 +1,70 @@
 ﻿@page "/"
+@using Microsoft.EntityFrameworkCore
+@implements IAsyncDisposable
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Панель управления</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="page-header">
+    <h1>Панель управления</h1>
+    <p class="page-subtitle">Учётная система академии: студенты, преподаватели, дисциплины и расписание.</p>
+</div>
 
-Welcome to your new app.
+@foreach (var section in sections)
+{
+    <h2 class="section-title">@(section.Title)</h2>
+    <div class="card-grid">
+        @foreach (var card in section.Cards)
+        {
+            <a class="stat-card" href="@card.Url">
+                <span class="stat-value">@card.Count</span>
+                <span class="stat-label">@card.Label</span>
+            </a>
+        }
+    </div>
+}
+
+@code {
+    private AcademyAgainContext context = default!;
+    private List<Section> sections = new();
+
+    protected override void OnInitialized()
+    {
+        context = DbFactory.CreateDbContext();
+
+        sections = new()
+        {
+            new Section("Учебный процесс", new()
+            {
+                new Card("Студенты", context.Students.Count(), "students"),
+                new Card("Группы", context.Groups.Count(), "groups"),
+                new Card("Расписание", context.Schedule.Count(), "schedules"),
+                new Card("Посещаемость", context.Attendance.Count(), "attendances"),
+                new Card("Оценки", context.Grades.Count(), "grades"),
+                new Card("Экзамены", context.Exams.Count(), "exams"),
+            }),
+            new Section("Справочники", new()
+            {
+                new Card("Направления", context.Directions.Count(), "directions"),
+                new Card("Дисциплины", context.Disciplines.Count(), "disciplines"),
+                new Card("Преподаватели", context.Teachers.Count(), "teachers"),
+                new Card("Праздники", context.Holidays.Count(), "holidays"),
+                new Card("Выходные дни", context.DaysOFF.Count(), "daysoffs"),
+                new Card("Зарплаты", context.Salary.Count(), "salarys"),
+            }),
+            new Section("Связи", new()
+            {
+                new Card("Пройденные дисциплины", context.CompleteDisciplines.Count(), "completedisciplines"),
+                new Card("Зависимые дисциплины", context.DependentDisciplines.Count(), "dependentdisciplines"),
+                new Card("Требуемые дисциплины", context.RequiredDisciplines.Count(), "requireddisciplines"),
+                new Card("Дисциплины направлений", context.DisciplinesDirectionsRelation.Count(), "disciplinesdirectionsrelations"),
+                new Card("Преподаватели и дисциплины", context.TeachersDisciplinesRelation.Count(), "teachersdisciplinesrelations"),
+            }),
+        };
+    }
+
+    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+
+    private record Card(string Label, int Count, string Url);
+    private record Section(string Title, List<Card> Cards);
+}

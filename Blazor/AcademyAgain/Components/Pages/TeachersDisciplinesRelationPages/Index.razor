@@ -6,22 +6,21 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Index</PageTitle>
+<PageTitle>Преподаватели и дисциплины</PageTitle>
 
-<h1>Index</h1>
-
-<p>
-    <a href="teachersdisciplinesrelations/create">Create New</a>
-</p>
+<div class="list-header">
+    <h1>Преподаватели и дисциплины</h1>
+    <a class="btn btn-primary" href="teachersdisciplinesrelations/create">Создать</a>
+</div>
 
 <QuickGrid Class="table" Items="context.TeachersDisciplinesRelation">
-    <PropertyColumn Property="relation => relation.teacher" />
-    <PropertyColumn Property="relation => relation.discipline" />
+    <PropertyColumn Property="relation => relation.teacher" Title="Преподаватель" />
+    <PropertyColumn Property="relation => relation.discipline" Title="Дисциплина" />
 
     <TemplateColumn Context="relation">
-        <a href="@($"teachersdisciplinesrelations/edit?teacher={relation.teacher}&discipline={relation.discipline}")">Edit</a> |
-        <a href="@($"teachersdisciplinesrelations/details?teacher={relation.teacher}&discipline={relation.discipline}")">Details</a> |
-        <a href="@($"teachersdisciplinesrelations/delete?teacher={relation.teacher}&discipline={relation.discipline}")">Delete</a>
+        <a href="@($"teachersdisciplinesrelations/edit?teacher={relation.teacher}&discipline={relation.discipline}")">Изменить</a> |
+        <a href="@($"teachersdisciplinesrelations/details?teacher={relation.teacher}&discipline={relation.discipline}")">Подробно</a> |
+        <a href="@($"teachersdisciplinesrelations/delete?teacher={relation.teacher}&discipline={relation.discipline}")">Удалить</a>
     </TemplateColumn>
 </QuickGrid>
 

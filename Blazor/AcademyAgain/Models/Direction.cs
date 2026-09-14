@@ -6,6 +6,7 @@ namespace AcademyAgain.Models
 	public class Direction
 	{
 		[Key]
+		[DatabaseGenerated(DatabaseGeneratedOption.None)]
 		[Required]
 		[Column(TypeName = "TINYINT")]
 		public int direction_id { get; set; }

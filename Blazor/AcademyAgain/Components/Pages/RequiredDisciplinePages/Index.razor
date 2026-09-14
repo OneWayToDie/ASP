@@ -6,22 +6,21 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Index</PageTitle>
+<PageTitle>Требуемые дисциплины</PageTitle>
 
-<h1>Index</h1>
-
-<p>
-    <a href="requireddisciplines/create">Create New</a>
-</p>
+<div class="list-header">
+    <h1>Требуемые дисциплины</h1>
+    <a class="btn btn-primary" href="requireddisciplines/create">Создать</a>
+</div>
 
 <QuickGrid Class="table" Items="context.RequiredDisciplines">
-    <PropertyColumn Property="required => required.discipline" />
-    <PropertyColumn Property="required => required.required_discipline" />
+    <PropertyColumn Property="required => required.discipline" Title="Дисциплина" />
+    <PropertyColumn Property="required => required.required_discipline" Title="Требуемая дисциплина" />
 
     <TemplateColumn Context="required">
-        <a href="@($"requireddisciplines/edit?discipline={required.discipline}&required_discipline={required.required_discipline}")">Edit</a> |
-        <a href="@($"requireddisciplines/details?discipline={required.discipline}&required_discipline={required.required_discipline}")">Details</a> |
-        <a href="@($"requireddisciplines/delete?discipline={required.discipline}&required_discipline={required.required_discipline}")">Delete</a>
+        <a href="@($"requireddisciplines/edit?discipline={required.discipline}&required_discipline={required.required_discipline}")">Изменить</a> |
+        <a href="@($"requireddisciplines/details?discipline={required.discipline}&required_discipline={required.required_discipline}")">Подробно</a> |
+        <a href="@($"requireddisciplines/delete?discipline={required.discipline}&required_discipline={required.required_discipline}")">Удалить</a>
     </TemplateColumn>
 </QuickGrid>
 

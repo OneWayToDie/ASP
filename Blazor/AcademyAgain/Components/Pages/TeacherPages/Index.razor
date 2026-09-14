@@ -2,33 +2,42 @@
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
+@using AcademyAgain.Helpers
 @implements IAsyncDisposable
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Index</PageTitle>
+<PageTitle>Преподаватели</PageTitle>
 
-<h1>Index</h1>
-
-<p>
-    <a href="teachers/create">Create New</a>
-</p>
+<div class="list-header">
+    <h1>Преподаватели</h1>
+    <a class="btn btn-primary" href="teachers/create">Создать</a>
+</div>
 
 <QuickGrid Class="table" Items="context.Teachers">
-    <PropertyColumn Property="teacher => teacher.last_name" />
-    <PropertyColumn Property="teacher => teacher.first_name" />
-    <PropertyColumn Property="teacher => teacher.middle_name" />
-    <PropertyColumn Property="teacher => teacher.birth_date" />
-    <PropertyColumn Property="teacher => teacher.email" />
-    <PropertyColumn Property="teacher => teacher.phone" />
-    <PropertyColumn Property="teacher => teacher.photo" />
-    <PropertyColumn Property="teacher => teacher.work_since" />
-    <PropertyColumn Property="teacher => teacher.rate" />
+    <TemplateColumn Title="Фото" Context="teacher">
+        @if (Photo.DataSrc(teacher.photo) is string src)
+        {
+            <img class="photo-thumb" src="@src" alt="@(teacher.last_name) @(teacher.first_name)" />
+        }
+        else
+        {
+            <span class="photo-empty">—</span>
+        }
+    </TemplateColumn>
+    <PropertyColumn Property="teacher => teacher.last_name" Title="Фамилия" />
+    <PropertyColumn Property="teacher => teacher.first_name" Title="Имя" />
+    <PropertyColumn Property="teacher => teacher.middle_name" Title="Отчество" />
+    <PropertyColumn Property="teacher => teacher.birth_date" Title="Дата рождения" />
+    <PropertyColumn Property="teacher => teacher.email" Title="Email" />
+    <PropertyColumn Property="teacher => teacher.phone" Title="Телефон" />
+    <PropertyColumn Property="teacher => teacher.work_since" Title="Работает с" />
+    <PropertyColumn Property="teacher => teacher.rate" Title="Ставка" />
 
     <TemplateColumn Context="teacher">
-        <a href="@($"teachers/edit?teacher_id={teacher.teacher_id}")">Edit</a> |
-        <a href="@($"teachers/details?teacher_id={teacher.teacher_id}")">Details</a> |
-        <a href="@($"teachers/delete?teacher_id={teacher.teacher_id}")">Delete</a>
+        <a href="@($"teachers/edit?teacher_id={teacher.teacher_id}")">Изменить</a> |
+        <a href="@($"teachers/details?teacher_id={teacher.teacher_id}")">Подробно</a> |
+        <a href="@($"teachers/delete?teacher_id={teacher.teacher_id}")">Удалить</a>
     </TemplateColumn>
 </QuickGrid>
 

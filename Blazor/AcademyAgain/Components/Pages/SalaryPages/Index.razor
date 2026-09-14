@@ -6,23 +6,22 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Index</PageTitle>
+<PageTitle>Зарплаты</PageTitle>
 
-<h1>Index</h1>
-
-<p>
-    <a href="salarys/create">Create New</a>
-</p>
+<div class="list-header">
+    <h1>Зарплаты</h1>
+    <a class="btn btn-primary" href="salarys/create">Создать</a>
+</div>
 
 <QuickGrid Class="table" Items="context.Salary">
-    <PropertyColumn Property="salary => salary.teacher" />
-    <PropertyColumn Property="salary => salary.accrued" />
-    <PropertyColumn Property="salary => salary.received" />
+    <PropertyColumn Property="salary => salary.teacher" Title="Преподаватель" />
+    <PropertyColumn Property="salary => salary.accrued" Title="Начислено" />
+    <PropertyColumn Property="salary => salary.received" Title="Выплачено" />
 
     <TemplateColumn Context="salary">
-        <a href="@($"salarys/edit?payment_id={salary.payment_id}")">Edit</a> |
-        <a href="@($"salarys/details?payment_id={salary.payment_id}")">Details</a> |
-        <a href="@($"salarys/delete?payment_id={salary.payment_id}")">Delete</a>
+        <a href="@($"salarys/edit?payment_id={salary.payment_id}")">Изменить</a> |
+        <a href="@($"salarys/details?payment_id={salary.payment_id}")">Подробно</a> |
+        <a href="@($"salarys/delete?payment_id={salary.payment_id}")">Удалить</a>
     </TemplateColumn>
 </QuickGrid>
 

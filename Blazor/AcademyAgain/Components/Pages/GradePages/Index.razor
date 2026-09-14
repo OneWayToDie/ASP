@@ -6,24 +6,23 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Index</PageTitle>
+<PageTitle>Оценки</PageTitle>
 
-<h1>Index</h1>
-
-<p>
-    <a href="grades/create">Create New</a>
-</p>
+<div class="list-header">
+    <h1>Оценки</h1>
+    <a class="btn btn-primary" href="grades/create">Создать</a>
+</div>
 
 <QuickGrid Class="table" Items="context.Grades">
-    <PropertyColumn Property="grade => grade.student" />
-    <PropertyColumn Property="grade => grade.lesson" />
-    <PropertyColumn Property="grade => grade.grade_1" />
-    <PropertyColumn Property="grade => grade.grade_2" />
+    <PropertyColumn Property="grade => grade.student" Title="Студент" />
+    <PropertyColumn Property="grade => grade.lesson" Title="Занятие" />
+    <PropertyColumn Property="grade => grade.grade_1" Title="Оценка 1" />
+    <PropertyColumn Property="grade => grade.grade_2" Title="Оценка 2" />
 
     <TemplateColumn Context="grade">
-        <a href="@($"grades/edit?student={grade.student}&lesson={grade.lesson}")">Edit</a> |
-        <a href="@($"grades/details?student={grade.student}&lesson={grade.lesson}")">Details</a> |
-        <a href="@($"grades/delete?student={grade.student}&lesson={grade.lesson}")">Delete</a>
+        <a href="@($"grades/edit?student={grade.student}&lesson={grade.lesson}")">Изменить</a> |
+        <a href="@($"grades/details?student={grade.student}&lesson={grade.lesson}")">Подробно</a> |
+        <a href="@($"grades/delete?student={grade.student}&lesson={grade.lesson}")">Удалить</a>
     </TemplateColumn>
 </QuickGrid>
 

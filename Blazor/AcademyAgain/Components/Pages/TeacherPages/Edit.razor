@@ -1,75 +1,93 @@
 @page "/teachers/edit"
+@using Microsoft.AspNetCore.Http
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
+@using AcademyAgain.Helpers
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Edit</PageTitle>
+<PageTitle>Редактирование преподавателя</PageTitle>
 
-<h1>Edit</h1>
+<h1>Редактирование преподавателя</h1>
 
-<h2>Teacher</h2>
 <hr />
 @if (Teacher is null)
 {
-    <p><em>Loading...</em></p>
+    <p><em>Загрузка...</em></p>
 }
 else
 {
     <div class="row">
         <div class="col-md-4">
-            <EditForm method="post" Model="Teacher" OnValidSubmit="UpdateTeacher" FormName="edit" Enhance>
+            <EditForm method="post" enctype="multipart/form-data" Model="Teacher" OnValidSubmit="UpdateTeacher" FormName="edit" >
                 <DataAnnotationsValidator />
                 <ValidationSummary role="alert"/>
                 <input type="hidden" name="Teacher.teacher_id" value="@Teacher.teacher_id" />
                 <div class="mb-3">
-                    <label for="last_name" class="form-label">last_name:</label>
+                    <label for="last_name" class="form-label">Фамилия:</label>
                     <InputText id="last_name" @bind-Value="Teacher.last_name" class="form-control" />
                     <ValidationMessage For="() => Teacher.last_name" class="text-danger" />
                 </div>
                 <div class="mb-3">
-                    <label for="first_name" class="form-label">first_name:</label>
+                    <label for="first_name" class="form-label">Имя:</label>
                     <InputText id="first_name" @bind-Value="Teacher.first_name" class="form-control" />
                     <ValidationMessage For="() => Teacher.first_name" class="text-danger" />
                 </div>
                 <div class="mb-3">
-                    <label for="middle_name" class="form-label">middle_name:</label>
+                    <label for="middle_name" class="form-label">Отчество:</label>
                     <InputText id="middle_name" @bind-Value="Teacher.middle_name" class="form-control" />
                     <ValidationMessage For="() => Teacher.middle_name" class="text-danger" />
                 </div>
                 <div class="mb-3">
-                    <label for="birth_date" class="form-label">birth_date:</label>
+                    <label for="birth_date" class="form-label">Дата рождения:</label>
                     <InputDate id="birth_date" @bind-Value="Teacher.birth_date" class="form-control" />
                     <ValidationMessage For="() => Teacher.birth_date" class="text-danger" />
                 </div>
                 <div class="mb-3">
-                    <label for="email" class="form-label">email:</label>
+                    <label for="email" class="form-label">Email:</label>
                     <InputText id="email" @bind-Value="Teacher.email" class="form-control" />
                     <ValidationMessage For="() => Teacher.email" class="text-danger" />
                 </div>
                 <div class="mb-3">
-                    <label for="phone" class="form-label">phone:</label>
+                    <label for="phone" class="form-label">Телефон:</label>
                     <InputText id="phone" @bind-Value="Teacher.phone" class="form-control" />
                     <ValidationMessage For="() => Teacher.phone" class="text-danger" />
                 </div>
                 <div class="mb-3">
-                    <label for="work_since" class="form-label">work_since:</label>
+                    <label for="work_since" class="form-label">Работает с:</label>
                     <InputDate id="work_since" @bind-Value="Teacher.work_since" class="form-control" />
                     <ValidationMessage For="() => Teacher.work_since" class="text-danger" />
                 </div>
                 <div class="mb-3">
-                    <label for="rate" class="form-label">rate:</label>
+                    <label for="rate" class="form-label">Ставка:</label>
                     <InputNumber id="rate" @bind-Value="Teacher.rate" class="form-control" />
                     <ValidationMessage For="() => Teacher.rate" class="text-danger" />
                 </div>
-                <button type="submit" class="btn btn-primary">Save</button>
+                <div class="mb-3">
+                    <label class="form-label">Фотография:</label>
+                    @if (previewSrc is not null)
+                    {
+                        <div class="mb-2">
+                            <img class="photo-preview" src="@previewSrc" alt="Текущее фото" />
+                        </div>
+                    }
+                    <input id="PhotoFile" name="PhotoFile" type="file" accept="image/jpeg,image/png" class="form-control" />
+                    @if (previewSrc is not null)
+                    {
+                        <div class="form-check mt-2">
+                            <input id="removePhoto" name="removePhoto" type="checkbox" value="1" class="form-check-input" />
+                            <label for="removePhoto" class="form-check-label">Удалить фото</label>
+                        </div>
+                    }
+                </div>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
             </EditForm>
         </div>
     </div>
 }
 
 <div>
-    <a href="/teachers">Back to List</a>
+    <a href="/teachers">Назад к списку</a>
 </div>
 
 @code {
@@ -78,6 +96,14 @@ else
 
     [SupplyParameterFromForm]
     private Teacher? Teacher { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? removePhoto { get; set; }
+
+    [SupplyParameterFromForm]
+    private IFormFile? PhotoFile { get; set; }
+
+    private string? previewSrc;
 
     protected override async Task OnInitializedAsync()
     {
@@ -88,14 +114,39 @@ else
         {
             NavigationManager.NavigateTo("notfound");
         }
+
+        var photoBytes = await context.Teachers
+            .Where(t => t.teacher_id == teacher_id)
+            .Select(t => t.photo)
+            .FirstOrDefaultAsync();
+        previewSrc = Photo.DataSrc(photoBytes);
     }
 
     // To protect from overposting attacks, enable the specific properties you want to bind to.
     // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
     private async Task UpdateTeacher()
     {
+        if (PhotoFile is { Length: > 0 })
+        {
+            using var stream = new MemoryStream();
+            await PhotoFile.CopyToAsync(stream);
+            Teacher!.photo = stream.ToArray();
+        }
+        else if (removePhoto == "1")
+        {
+            Teacher!.photo = null;
+        }
+        else
+        {
+            using var existing = DbFactory.CreateDbContext();
+            Teacher!.photo = await existing.Teachers
+                .Where(t => t.teacher_id == Teacher.teacher_id)
+                .Select(t => t.photo)
+                .FirstOrDefaultAsync();
+        }
+
         using var context = DbFactory.CreateDbContext();
-        context.Attach(Teacher!).State = EntityState.Modified;
+        context.Attach(Teacher).State = EntityState.Modified;
 
         try
         {

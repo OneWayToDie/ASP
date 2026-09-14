@@ -1,54 +1,95 @@
 @page "/groups/details"
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
+@using AcademyAgain.Helpers
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Details</PageTitle>
+<PageTitle>Группа: @(group?.group_name)</PageTitle>
 
-<h1>Details</h1>
+<h1>Группа: @(group?.group_name)</h1>
 
-<div>
-    <h2>Group</h2>
-    <hr />
-    @if (group is null)
+<hr />
+@if (group is null)
+{
+    <p><em>Загрузка...</em></p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-2">Название</dt>
+        <dd class="col-sm-10">@group.group_name</dd>
+        <dt class="col-sm-2">Направление</dt>
+        <dd class="col-sm-10">@DirectionName</dd>
+        <dt class="col-sm-2">Дни занятий</dt>
+        <dd class="col-sm-10">@Weekdays.ToDisplay(group.weekdays)</dd>
+        <dt class="col-sm-2">Время начала</dt>
+        <dd class="col-sm-10">@group.start_time</dd>
+        <dt class="col-sm-2">Дата начала</dt>
+        <dd class="col-sm-10">@group.start_date</dd>
+    </dl>
+
+    <h2 class="section-title">Студенты группы</h2>
+    @if (students.Count == 0)
     {
-        <p><em>Loading...</em></p>
+        <p class="page-subtitle">В группе пока нет студентов.</p>
     }
-    else {
-        <dl class="row">
-            <dt class="col-sm-2">group_name</dt>
-            <dd class="col-sm-10">@group.group_name</dd>
-            <dt class="col-sm-2">direction</dt>
-            <dd class="col-sm-10">@group.direction</dd>
-            <dt class="col-sm-2">weekdays</dt>
-            <dd class="col-sm-10">@group.weekdays</dd>
-            <dt class="col-sm-2">start_time</dt>
-            <dd class="col-sm-10">@group.start_time</dd>
-            <dt class="col-sm-2">start_date</dt>
-            <dd class="col-sm-10">@group.start_date</dd>
-        </dl>
-        <div>
-            <a href="@($"/groups/edit?group_id={group.group_id}")">Edit</a> |
-            <a href="@($"/groups")">Back to List</a>
-        </div>
+    else
+    {
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>ФИО</th>
+                    <th>Дата рождения</th>
+                    <th>&nbsp;</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var student in students)
+                {
+                    <tr>
+                        <td>@(student.last_name) @(student.first_name) @(student.middle_name)</td>
+                        <td>@student.birth_date</td>
+                        <td><a href="@($"/students/details?stud_id={student.stud_id}")">Подробно</a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
     }
-</div>
+
+    <div>
+        <a href="@($"/groups/edit?group_id={group.group_id}")">Изменить</a> |
+        <a href="@($"/groups")">Назад к списку</a>
+    </div>
+}
 
 @code {
     private Group? group;
+    private List<Student> students = new();
+    private string? DirectionName = "—";
 
     [SupplyParameterFromQuery]
     private int group_id { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
-        using var context = DbFactory.CreateDbContext();
+        await using var context = DbFactory.CreateDbContext();
         group = await context.Groups.FirstOrDefaultAsync(m => m.group_id == group_id);
 
         if (group is null)
         {
             NavigationManager.NavigateTo("notfound");
+        }
+        else
+        {
+            DirectionName = await context.Directions
+                .Where(d => d.direction_id == group.direction)
+                .Select(d => d.direction_name)
+                .FirstOrDefaultAsync() ?? "—";
+            students = await context.Students
+                .Where(s => s.group == group_id)
+                .OrderBy(s => s.last_name).ThenBy(s => s.first_name)
+                .ToListAsync();
         }
     }
 }

@@ -6,6 +6,7 @@ namespace AcademyAgain.Models
 	public class Salary
 	{
 		[Key]
+		[DatabaseGenerated(DatabaseGeneratedOption.None)]
 		[Required]
 		[Column(TypeName = "BIGINT")]
 		public long payment_id { get; set; }

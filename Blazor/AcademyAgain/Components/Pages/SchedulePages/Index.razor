@@ -6,26 +6,25 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Index</PageTitle>
+<PageTitle>Расписание</PageTitle>
 
-<h1>Index</h1>
-
-<p>
-    <a href="schedules/create">Create New</a>
-</p>
+<div class="list-header">
+    <h1>Расписание</h1>
+    <a class="btn btn-primary" href="schedules/create">Создать</a>
+</div>
 
 <QuickGrid Class="table" Items="context.Schedule">
-    <PropertyColumn Property="schedule => schedule.group" />
-    <PropertyColumn Property="schedule => schedule.discipline" />
-    <PropertyColumn Property="schedule => schedule.teacher" />
-    <PropertyColumn Property="schedule => schedule.date" />
-    <PropertyColumn Property="schedule => schedule.time" />
-    <PropertyColumn Property="schedule => schedule.spent" />
+    <PropertyColumn Property="schedule => schedule.group" Title="Группа" />
+    <PropertyColumn Property="schedule => schedule.discipline" Title="Дисциплина" />
+    <PropertyColumn Property="schedule => schedule.teacher" Title="Преподаватель" />
+    <PropertyColumn Property="schedule => schedule.date" Title="Дата" />
+    <PropertyColumn Property="schedule => schedule.time" Title="Время" />
+    <PropertyColumn Property="schedule => schedule.spent" Title="Проведено" />
 
     <TemplateColumn Context="schedule">
-        <a href="@($"schedules/edit?lesson_id={schedule.lesson_id}")">Edit</a> |
-        <a href="@($"schedules/details?lesson_id={schedule.lesson_id}")">Details</a> |
-        <a href="@($"schedules/delete?lesson_id={schedule.lesson_id}")">Delete</a>
+        <a href="@($"schedules/edit?lesson_id={schedule.lesson_id}")">Изменить</a> |
+        <a href="@($"schedules/details?lesson_id={schedule.lesson_id}")">Подробно</a> |
+        <a href="@($"schedules/delete?lesson_id={schedule.lesson_id}")">Удалить</a>
     </TemplateColumn>
 </QuickGrid>
 

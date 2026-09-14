@@ -2,18 +2,18 @@
 @using Microsoft.EntityFrameworkCore
 @using System.Globalization
 @using AcademyAgain.Models
+@using AcademyAgain.Helpers
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Edit</PageTitle>
+<PageTitle>Редактирование группы</PageTitle>
 
-<h1>Edit</h1>
+<h1>Редактирование группы</h1>
 
-<h2>Group</h2>
 <hr />
 @if (Group is null)
 {
-    <p><em>Loading...</em></p>
+    <p><em>Загрузка...</em></p>
 }
 else
 {
@@ -24,37 +24,49 @@ else
                 <ValidationSummary role="alert"/>
                 <input type="hidden" name="Group.group_id" value="@Group.group_id" />
                 <div class="mb-3">
-                    <label for="group_name" class="form-label">group_name:</label>
+                    <label for="group_name" class="form-label">Название:</label>
                     <InputText id="group_name" @bind-Value="Group.group_name" class="form-control" />
                     <ValidationMessage For="() => Group.group_name" class="text-danger" />
                 </div>
                 <div class="mb-3">
-                    <label for="direction" class="form-label">direction:</label>
-                    <InputNumber id="direction" @bind-Value="Group.direction" class="form-control" />
-                    <ValidationMessage For="() => Group.direction" class="text-danger" />
+                    <label for="direction" class="form-label">Направление:</label>
+                    <select id="direction" name="direction" class="form-select">
+                        <option value="">— не выбрано —</option>
+                        @foreach (var dir in directions.OrderBy(d => d.direction_id))
+                        {
+                            <option value="@dir.direction_id" selected="@(SelectedDirection == dir.direction_id)">@dir.direction_name</option>
+                        }
+                    </select>
                 </div>
                 <div class="mb-3">
-                    <label for="weekdays" class="form-label">weekdays:</label>
-                    <InputNumber id="weekdays" @bind-Value="Group.weekdays" class="form-control" />
-                    <ValidationMessage For="() => Group.weekdays" class="text-danger" />
+                    <label class="form-label">Дни недели занятий:</label>
+                    <div class="weekday-grid">
+                        <label class="weekday-item"><input type="checkbox" name="wd_0" value="1" checked="@(DayState(Weekdays.Monday) == "1")" /> Пн</label>
+                        <label class="weekday-item"><input type="checkbox" name="wd_1" value="1" checked="@(DayState(Weekdays.Tuesday) == "1")" /> Вт</label>
+                        <label class="weekday-item"><input type="checkbox" name="wd_2" value="1" checked="@(DayState(Weekdays.Wednesday) == "1")" /> Ср</label>
+                        <label class="weekday-item"><input type="checkbox" name="wd_3" value="1" checked="@(DayState(Weekdays.Thursday) == "1")" /> Чт</label>
+                        <label class="weekday-item"><input type="checkbox" name="wd_4" value="1" checked="@(DayState(Weekdays.Friday) == "1")" /> Пт</label>
+                        <label class="weekday-item"><input type="checkbox" name="wd_5" value="1" checked="@(DayState(Weekdays.Saturday) == "1")" /> Сб</label>
+                        <label class="weekday-item"><input type="checkbox" name="wd_6" value="1" checked="@(DayState(Weekdays.Sunday) == "1")" /> Вс</label>
+                    </div>
                 </div>
                 <div class="mb-3">
-                    <label for="start_time" class="form-label">start_time:</label>
+                    <label for="start_time" class="form-label">Время начала:</label>
                     <input id="start_time" name="start_time" type="time" class="form-control" value="@start_time" />
                 </div>
                 <div class="mb-3">
-                    <label for="start_date" class="form-label">start_date:</label>
+                    <label for="start_date" class="form-label">Дата начала:</label>
                     <InputDate id="start_date" @bind-Value="Group.start_date" class="form-control" />
                     <ValidationMessage For="() => Group.start_date" class="text-danger" />
                 </div>
-                <button type="submit" class="btn btn-primary">Save</button>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
             </EditForm>
         </div>
     </div>
 }
 
 <div>
-    <a href="/groups">Back to List</a>
+    <a href="/groups">Назад к списку</a>
 </div>
 
 @code {
@@ -65,7 +77,38 @@ else
     private Group? Group { get; set; }
 
     [SupplyParameterFromForm]
+    private string? direction { get; set; }
+
+    [SupplyParameterFromForm]
     private string? start_time { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? wd_0 { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? wd_1 { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? wd_2 { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? wd_3 { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? wd_4 { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? wd_5 { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? wd_6 { get; set; }
+
+    private List<Direction> directions = new();
+
+    private int? SelectedDirection
+        => int.TryParse(direction, out var value)
+            ? value
+            : Group?.direction;
 
     protected override async Task OnInitializedAsync()
     {
@@ -78,13 +121,22 @@ else
         }
 
         start_time ??= Group!.start_time?.ToString(@"hh\:mm\:ss") ?? "";
+        directions = await context.Directions.OrderBy(d => d.direction_id).ToListAsync();
     }
+
+    private string? DayState(int bit)
+        => direction is not null
+            ? (Weekdays.HasDay(BuildWeekdayMask(), bit) ? "1" : null)
+            : (Weekdays.HasDay(Group!.weekdays, bit) ? "1" : null);
 
     // To protect from overposting attacks, enable the specific properties you want to bind to.
     // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
     private async Task UpdateGroup()
     {
-        Group!.start_time = ParseTime(start_time);
+        Group!.direction = int.TryParse(direction, out var value) ? value : null;
+        Group.weekdays = BuildWeekdayMask();
+        Group.start_time = ParseTime(start_time);
+
         using var context = DbFactory.CreateDbContext();
         context.Attach(Group).State = EntityState.Modified;
 
@@ -111,6 +163,19 @@ else
     {
         using var context = DbFactory.CreateDbContext();
         return context.Groups.Any(e => e.group_id == group_id);
+    }
+
+    private int BuildWeekdayMask()
+    {
+        var mask = 0;
+        if (wd_0 == "1") mask |= Weekdays.Monday;
+        if (wd_1 == "1") mask |= Weekdays.Tuesday;
+        if (wd_2 == "1") mask |= Weekdays.Wednesday;
+        if (wd_3 == "1") mask |= Weekdays.Thursday;
+        if (wd_4 == "1") mask |= Weekdays.Friday;
+        if (wd_5 == "1") mask |= Weekdays.Saturday;
+        if (wd_6 == "1") mask |= Weekdays.Sunday;
+        return mask;
     }
 
     private static TimeSpan? ParseTime(string? value)

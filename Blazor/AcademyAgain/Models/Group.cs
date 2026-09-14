@@ -6,6 +6,7 @@ namespace AcademyAgain.Models
 	public class Group
 	{
 		[Key]
+		[DatabaseGenerated(DatabaseGeneratedOption.None)]
 		[Required]
 		public int group_id { get; set; }
 

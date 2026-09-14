@@ -6,21 +6,20 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Index</PageTitle>
+<PageTitle>Направления</PageTitle>
 
-<h1>Index</h1>
-
-<p>
-    <a href="directions/create">Create New</a>
-</p>
+<div class="list-header">
+    <h1>Направления</h1>
+    <a class="btn btn-primary" href="directions/create">Создать</a>
+</div>
 
 <QuickGrid Class="table" Items="context.Directions">
-    <PropertyColumn Property="direction => direction.direction_name" />
+    <PropertyColumn Property="direction => direction.direction_name" Title="Название" />
 
     <TemplateColumn Context="direction">
-        <a href="@($"directions/edit?direction_id={direction.direction_id}")">Edit</a> |
-        <a href="@($"directions/details?direction_id={direction.direction_id}")">Details</a> |
-        <a href="@($"directions/delete?direction_id={direction.direction_id}")">Delete</a>
+        <a href="@($"directions/edit?direction_id={direction.direction_id}")">Изменить</a> |
+        <a href="@($"directions/details?direction_id={direction.direction_id}")">Подробно</a> |
+        <a href="@($"directions/delete?direction_id={direction.direction_id}")">Удалить</a>
     </TemplateColumn>
 </QuickGrid>
 
