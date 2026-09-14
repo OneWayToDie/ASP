@@ -114,6 +114,9 @@
         Group.start_time = ParseTime(start_time);
 
         using var context = DbFactory.CreateDbContext();
+        Group.group_id = context.Groups.Any()
+            ? context.Groups.Max(g => g.group_id) + 1
+            : 1;
         context.Groups.Add(Group);
         await context.SaveChangesAsync();
         NavigationManager.NavigateTo("/groups");

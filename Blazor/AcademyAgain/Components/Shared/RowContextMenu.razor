@@ -1,0 +1,24 @@
+@if (MenuItems is { Count: > 0 })
+{
+    <div class="row-menu-backdrop" @onclick="OnClose"></div>
+    <div class="row-menu" style="left: min(@(X)px, calc(100vw - 240px)); top: min(@(Y)px, calc(100vh - 160px));" @onclick:stopPropagation>
+        @foreach (var item in MenuItems)
+        {
+            <a class="row-menu-item @(item.Danger ? "danger" : "")" href="@item.Url" @onclick="OnClose">@item.Label</a>
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public List<RowMenuItem>? MenuItems { get; set; }
+
+    [Parameter]
+    public double X { get; set; }
+
+    [Parameter]
+    public double Y { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+}

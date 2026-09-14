@@ -1,10 +1,11 @@
 @page "/disciplines"
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
-@implements IAsyncDisposable
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
+@inherits RowMenuPage<Discipline>
 
 <PageTitle>Дисциплины</PageTitle>
 
@@ -13,24 +14,38 @@
     <a class="btn btn-primary" href="disciplines/create">Создать</a>
 </div>
 
-<QuickGrid Class="table" Items="context.Disciplines">
-    <PropertyColumn Property="discipline => discipline.discipline_name" Title="Название" />
-    <PropertyColumn Property="discipline => discipline.number_of_lessons" Title="Кол-во занятий" />
-
-    <TemplateColumn Context="discipline">
-        <a href="@($"disciplines/edit?discipline_id={discipline.discipline_id}")">Изменить</a> |
-        <a href="@($"disciplines/details?discipline_id={discipline.discipline_id}")">Подробно</a> |
-        <a href="@($"disciplines/delete?discipline_id={discipline.discipline_id}")">Удалить</a>
+<QuickGrid Class="table context-table" Items="query" ItemKey="discipline => discipline.discipline_id">
+    <TemplateColumn Title="Название" Sortable="true" SortBy="GridSort<Discipline>.ByAscending(d => d.discipline_name)" Context="discipline">
+        <div class="row-key @RowClass(discipline)" data-item-key="@GetKey(discipline)">
+            @DisciplineName(discipline)
+        </div>
     </TemplateColumn>
+    <PropertyColumn Property="discipline => discipline.number_of_lessons" Title="Кол-во занятий" Sortable="true" />
 </QuickGrid>
 
-@code {
-    private AcademyAgainContext context = default!;
+<RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
 
-    protected override void OnInitialized()
+@code {
+    private IQueryable<Discipline> query = new List<Discipline>().AsQueryable();
+
+    protected override async Task OnInitializedAsync()
     {
-        context = DbFactory.CreateDbContext();
+        await using var context = DbFactory.CreateDbContext();
+        query = (await context.Disciplines.ToListAsync()).AsQueryable();
     }
 
-    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+    private string DisciplineName(Discipline d) => d.discipline_name ?? $"№{d.discipline_id}";
+
+    protected override string GetKey(Discipline d) => d.discipline_id.ToString();
+
+    protected override List<RowMenuItem> BuildMenu(string key)
+    {
+        if (!int.TryParse(key, out var id)) return new List<RowMenuItem>();
+        return new List<RowMenuItem>
+        {
+            new("Профиль", $"disciplines/details?discipline_id={id}"),
+            new("Изменить", $"disciplines/edit?discipline_id={id}"),
+            new("Удалить", $"disciplines/delete?discipline_id={id}", Danger: true),
+        };
+    }
 }

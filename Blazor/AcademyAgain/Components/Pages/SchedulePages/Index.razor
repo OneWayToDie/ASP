@@ -1,10 +1,11 @@
 @page "/schedules"
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
-@implements IAsyncDisposable
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
+@inherits RowMenuPage<Schedule>
 
 <PageTitle>Расписание</PageTitle>
 
@@ -13,28 +14,67 @@
     <a class="btn btn-primary" href="schedules/create">Создать</a>
 </div>
 
-<QuickGrid Class="table" Items="context.Schedule">
-    <PropertyColumn Property="schedule => schedule.group" Title="Группа" />
-    <PropertyColumn Property="schedule => schedule.discipline" Title="Дисциплина" />
-    <PropertyColumn Property="schedule => schedule.teacher" Title="Преподаватель" />
-    <PropertyColumn Property="schedule => schedule.date" Title="Дата" />
-    <PropertyColumn Property="schedule => schedule.time" Title="Время" />
-    <PropertyColumn Property="schedule => schedule.spent" Title="Проведено" />
-
-    <TemplateColumn Context="schedule">
-        <a href="@($"schedules/edit?lesson_id={schedule.lesson_id}")">Изменить</a> |
-        <a href="@($"schedules/details?lesson_id={schedule.lesson_id}")">Подробно</a> |
-        <a href="@($"schedules/delete?lesson_id={schedule.lesson_id}")">Удалить</a>
+<QuickGrid Class="table context-table" Items="query" ItemKey="schedule => schedule.lesson_id">
+    <TemplateColumn Title="Группа" Sortable="true" SortBy="GridSort<Schedule>.ByAscending(s => GroupName(s.group))" Context="schedule">
+        <div class="row-key @RowClass(schedule)" data-item-key="@GetKey(schedule)">
+            @(GroupName(schedule.group))
+        </div>
+    </TemplateColumn>
+    <TemplateColumn Title="Дисциплина" Sortable="true" SortBy="GridSort<Schedule>.ByAscending(s => DisciplineName(s.discipline))" Context="schedule">
+        @(DisciplineName(schedule.discipline))
+    </TemplateColumn>
+    <TemplateColumn Title="Преподаватель" Sortable="true" SortBy="GridSort<Schedule>.ByAscending(s => TeacherName(s.teacher))" Context="schedule">
+        @(TeacherName(schedule.teacher))
+    </TemplateColumn>
+    <PropertyColumn Property="schedule => schedule.date" Title="Дата" Format="dd.MM.yyyy" Sortable="true" />
+    <PropertyColumn Property="schedule => schedule.time" Title="Время" Sortable="true" />
+    <TemplateColumn Title="Проведено" Sortable="true" SortBy="GridSort<Schedule>.ByAscending(s => s.spent)" Context="schedule">
+        @(schedule.spent ? "Да" : "Нет")
     </TemplateColumn>
 </QuickGrid>
 
-@code {
-    private AcademyAgainContext context = default!;
+<RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
 
-    protected override void OnInitialized()
+@code {
+    private IQueryable<Schedule> query = new List<Schedule>().AsQueryable();
+    private Dictionary<int, string> groups = new();
+    private Dictionary<int, string> disciplines = new();
+    private Dictionary<int, string> teachers = new();
+
+    protected override async Task OnInitializedAsync()
     {
-        context = DbFactory.CreateDbContext();
+        await using var context = DbFactory.CreateDbContext();
+        groups = (await context.Groups.OrderBy(g => g.group_name).ToListAsync())
+            .ToDictionary(g => g.group_id, g => g.group_name ?? "");
+        disciplines = (await context.Disciplines.OrderBy(d => d.discipline_name).ToListAsync())
+            .ToDictionary(d => d.discipline_id, d => d.discipline_name ?? "");
+        teachers = (await context.Teachers.OrderBy(t => t.last_name).ToListAsync())
+            .ToDictionary(t => t.teacher_id, t => TeacherName(t));
+        query = (await context.Schedule.ToListAsync()).AsQueryable();
     }
 
-    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+    private string GroupName(int id)
+        => groups.TryGetValue(id, out var name) ? name : $"№{id}";
+
+    private string DisciplineName(int id)
+        => disciplines.TryGetValue(id, out var name) ? name : $"№{id}";
+
+    private string TeacherName(int id)
+        => teachers.TryGetValue(id, out var name) ? name : $"№{id}";
+
+    private static string TeacherName(Teacher t)
+        => string.Join(" ", new[] { t.last_name, t.first_name, t.middle_name }.Where(p => !string.IsNullOrWhiteSpace(p)));
+
+    protected override string GetKey(Schedule s) => s.lesson_id.ToString();
+
+    protected override List<RowMenuItem> BuildMenu(string key)
+    {
+        if (!long.TryParse(key, out var id)) return new List<RowMenuItem>();
+        return new List<RowMenuItem>
+        {
+            new("Профиль", $"schedules/details?lesson_id={id}"),
+            new("Изменить", $"schedules/edit?lesson_id={id}"),
+            new("Удалить", $"schedules/delete?lesson_id={id}", Danger: true),
+        };
+    }
 }

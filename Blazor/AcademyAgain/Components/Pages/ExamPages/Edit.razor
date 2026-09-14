@@ -4,15 +4,14 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Edit</PageTitle>
+<PageTitle>Редактирование экзамена</PageTitle>
 
-<h1>Edit</h1>
+<h1>Редактирование экзамена</h1>
 
-<h2>Exam</h2>
 <hr />
 @if (Exam is null)
 {
-    <p><em>Loading...</em></p>
+    <p><em>Загрузка...</em></p>
 }
 else
 {
@@ -24,23 +23,47 @@ else
                 <input type="hidden" name="Exam.student" value="@Exam.student" />
                 <input type="hidden" name="Exam.discipline" value="@Exam.discipline" />
                 <div class="mb-3">
-                    <label for="date" class="form-label">date:</label>
+                    <span class="text-danger">*</span>
+                    <label for="student" class="form-label">Студент:</label>
+                    <select id="student" name="studentSel" class="form-select" aria-required="true">
+                        <option value="">— выберите студента —</option>
+                        @foreach (var student in students)
+                        {
+                            <option value="@student.Key" selected="@(SelectedStudent == student.Key)">@student.Value</option>
+                        }
+                    </select>
+                    <ValidationMessage For="() => Exam.student" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="discipline" class="form-label">Дисциплина:</label>
+                    <select id="discipline" name="disciplineSel" class="form-select" aria-required="true">
+                        <option value="">— выберите дисциплину —</option>
+                        @foreach (var discipline in disciplines)
+                        {
+                            <option value="@discipline.Key" selected="@(SelectedDiscipline == discipline.Key)">@discipline.Value</option>
+                        }
+                    </select>
+                    <ValidationMessage For="() => Exam.discipline" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="date" class="form-label">Дата:</label>
                     <InputDate id="date" @bind-Value="Exam.date" class="form-control" />
                     <ValidationMessage For="() => Exam.date" class="text-danger" />
                 </div>
                 <div class="mb-3">
-                    <label for="grade" class="form-label">grade:</label>
+                    <label for="grade" class="form-label">Оценка:</label>
                     <InputNumber id="grade" @bind-Value="Exam.grade" class="form-control" />
                     <ValidationMessage For="() => Exam.grade" class="text-danger" />
                 </div>
-                <button type="submit" class="btn btn-primary">Save</button>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
             </EditForm>
         </div>
     </div>
 }
 
 <div>
-    <a href="/exams">Back to List</a>
+    <a href="/exams">Назад к списку</a>
 </div>
 
 @code {
@@ -53,10 +76,34 @@ else
     [SupplyParameterFromForm]
     private Exam? Exam { get; set; }
 
+    [SupplyParameterFromForm]
+    private string? studentSel { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? disciplineSel { get; set; }
+
+    private List<KeyValuePair<int, string>> students = new();
+    private List<KeyValuePair<int, string>> disciplines = new();
+
+    private int SelectedStudent
+        => int.TryParse(studentSel, out var value) ? value : Exam?.student ?? 0;
+
+    private int SelectedDiscipline
+        => int.TryParse(disciplineSel, out var value) ? value : Exam?.discipline ?? 0;
+
     protected override async Task OnInitializedAsync()
     {
         using var context = DbFactory.CreateDbContext();
         Exam ??= await context.Exams.FirstOrDefaultAsync(m => m.student == student && m.discipline == discipline);
+        students = (await context.Students.OrderBy(s => s.last_name).ToListAsync())
+            .Select(s => new KeyValuePair<int, string>(s.stud_id,
+                !string.IsNullOrWhiteSpace(s.middle_name)
+                    ? $"{s.last_name} {s.first_name} {s.middle_name}"
+                    : $"{s.last_name} {s.first_name}"))
+            .ToList();
+        disciplines = (await context.Disciplines.OrderBy(d => d.discipline_name).ToListAsync())
+            .Select(d => new KeyValuePair<int, string>(d.discipline_id, d.discipline_name ?? ""))
+            .ToList();
 
         if (Exam is null)
         {
@@ -68,22 +115,48 @@ else
     // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
     private async Task UpdateExam()
     {
-        using var context = DbFactory.CreateDbContext();
-        context.Attach(Exam!).State = EntityState.Modified;
-
-        try
+        if (!int.TryParse(studentSel, out var studentId) || !int.TryParse(disciplineSel, out var disciplineId))
         {
+            return;
+        }
+
+        var originalStudent = Exam!.student;
+        var originalDiscipline = Exam.discipline;
+        var keysChanged = originalStudent != studentId || originalDiscipline != disciplineId;
+
+        using var context = DbFactory.CreateDbContext();
+
+        if (keysChanged)
+        {
+            var original = await context.Exams.FirstOrDefaultAsync(e => e.student == originalStudent && e.discipline == originalDiscipline);
+            if (original is not null)
+            {
+                context.Exams.Remove(original);
+                await context.SaveChangesAsync();
+            }
+
+            Exam.student = studentId;
+            Exam.discipline = disciplineId;
+            context.Exams.Add(Exam);
             await context.SaveChangesAsync();
         }
-        catch (DbUpdateConcurrencyException)
+        else
         {
-            if (!ExamExists(Exam!.student, Exam.discipline))
+            context.Attach(Exam).State = EntityState.Modified;
+            try
             {
-                NavigationManager.NavigateTo("notfound");
+                await context.SaveChangesAsync();
             }
-            else
+            catch (DbUpdateConcurrencyException)
             {
-                throw;
+                if (!ExamExists(Exam.student, Exam.discipline))
+                {
+                    NavigationManager.NavigateTo("notfound");
+                }
+                else
+                {
+                    throw;
+                }
             }
         }
 

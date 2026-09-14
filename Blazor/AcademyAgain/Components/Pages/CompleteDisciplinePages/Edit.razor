@@ -4,15 +4,14 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Edit</PageTitle>
+<PageTitle>Редактирование пройденной дисциплины</PageTitle>
 
-<h1>Edit</h1>
+<h1>Редактирование пройденной дисциплины</h1>
 
-<h2>CompleteDiscipline</h2>
 <hr />
 @if (CompleteDiscipline is null)
 {
-    <p><em>Loading...</em></p>
+    <p><em>Загрузка...</em></p>
 }
 else
 {
@@ -23,14 +22,38 @@ else
                 <ValidationSummary role="alert"/>
                 <input type="hidden" name="CompleteDiscipline.group" value="@CompleteDiscipline.group" />
                 <input type="hidden" name="CompleteDiscipline.discipline" value="@CompleteDiscipline.discipline" />
-                <button type="submit" class="btn btn-primary">Save</button>
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="selected_group" class="form-label">Группа:</label>
+                    <select id="selected_group" name="selected_group" class="form-select" aria-required="true">
+                        <option value="">— выберите группу —</option>
+                        @foreach (var group in groups.OrderBy(g => g.group_name))
+                        {
+                            <option value="@group.group_id" selected="@(SelectedGroup == group.group_id)">@group.group_name</option>
+                        }
+                    </select>
+                    <ValidationMessage For="() => CompleteDiscipline.group" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="selected_discipline" class="form-label">Дисциплина:</label>
+                    <select id="selected_discipline" name="selected_discipline" class="form-select" aria-required="true">
+                        <option value="">— выберите дисциплину —</option>
+                        @foreach (var discipline in disciplines.OrderBy(d => d.discipline_name))
+                        {
+                            <option value="@discipline.discipline_id" selected="@(SelectedDiscipline == discipline.discipline_id)">@discipline.discipline_name</option>
+                        }
+                    </select>
+                    <ValidationMessage For="() => CompleteDiscipline.discipline" class="text-danger" />
+                </div>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
             </EditForm>
         </div>
     </div>
 }
 
 <div>
-    <a href="/completedisciplines">Back to List</a>
+    <a href="/completedisciplines">Назад к списку</a>
 </div>
 
 @code {
@@ -43,10 +66,27 @@ else
     [SupplyParameterFromForm]
     private CompleteDiscipline? CompleteDiscipline { get; set; }
 
+    [SupplyParameterFromForm]
+    private string? selected_group { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? selected_discipline { get; set; }
+
+    private List<Group> groups = new();
+    private List<Discipline> disciplines = new();
+
+    private int? SelectedGroup
+        => int.TryParse(selected_group, out var value) ? value : CompleteDiscipline?.group;
+
+    private int? SelectedDiscipline
+        => int.TryParse(selected_discipline, out var value) ? value : CompleteDiscipline?.discipline;
+
     protected override async Task OnInitializedAsync()
     {
         using var context = DbFactory.CreateDbContext();
         CompleteDiscipline ??= await context.CompleteDisciplines.FirstOrDefaultAsync(m => m.group == group && m.discipline == discipline);
+        groups = await context.Groups.OrderBy(g => g.group_name).ToListAsync();
+        disciplines = await context.Disciplines.OrderBy(d => d.discipline_name).ToListAsync();
 
         if (CompleteDiscipline is null)
         {
@@ -58,22 +98,49 @@ else
     // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
     private async Task UpdateCompleteDiscipline()
     {
-        using var context = DbFactory.CreateDbContext();
-        context.Attach(CompleteDiscipline!).State = EntityState.Modified;
-
-        try
+        if (!int.TryParse(selected_group, out var groupId)
+            || !int.TryParse(selected_discipline, out var disciplineId))
         {
+            return;
+        }
+
+        var originalGroup = CompleteDiscipline!.group;
+        var originalDiscipline = CompleteDiscipline.discipline;
+        var keysChanged = originalGroup != groupId || originalDiscipline != disciplineId;
+
+        using var context = DbFactory.CreateDbContext();
+
+        if (keysChanged)
+        {
+            var original = await context.CompleteDisciplines.FirstOrDefaultAsync(c => c.group == originalGroup && c.discipline == originalDiscipline);
+            if (original is not null)
+            {
+                context.CompleteDisciplines.Remove(original);
+                await context.SaveChangesAsync();
+            }
+
+            CompleteDiscipline.group = groupId;
+            CompleteDiscipline.discipline = disciplineId;
+            context.CompleteDisciplines.Add(CompleteDiscipline);
             await context.SaveChangesAsync();
         }
-        catch (DbUpdateConcurrencyException)
+        else
         {
-            if (!CompleteDisciplineExists(CompleteDiscipline!.group, CompleteDiscipline.discipline))
+            context.Attach(CompleteDiscipline).State = EntityState.Modified;
+            try
             {
-                NavigationManager.NavigateTo("notfound");
+                await context.SaveChangesAsync();
             }
-            else
+            catch (DbUpdateConcurrencyException)
             {
-                throw;
+                if (!CompleteDisciplineExists(CompleteDiscipline!.group, CompleteDiscipline.discipline))
+                {
+                    NavigationManager.NavigateTo("notfound");
+                }
+                else
+                {
+                    throw;
+                }
             }
         }
 

@@ -4,11 +4,10 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Create</PageTitle>
+<PageTitle>Добавление дисциплины направления</PageTitle>
 
-<h1>Create</h1>
+<h1>Добавление дисциплины направления</h1>
 
-<h2>DisciplinesDirectionsRelation</h2>
 <hr />
 <div class="row">
     <div class="col-md-4">
@@ -17,34 +16,73 @@
             <ValidationSummary class="text-danger" role="alert"/>
             <div class="mb-3">
                 <span class="text-danger">*</span>
-                <label for="direction" class="form-label">direction:</label> 
-                <InputNumber id="direction" @bind-Value="DisciplinesDirectionsRelation.direction" class="form-control" aria-required="true"/> 
-                <ValidationMessage For="() => DisciplinesDirectionsRelation.direction" class="text-danger" /> 
-            </div>        
+                <label for="direction" class="form-label">Направление:</label>
+                <select id="direction" name="direction" class="form-select" aria-required="true">
+                    <option value="">— выберите направление —</option>
+                    @foreach (var direction in directions.OrderBy(d => d.direction_name))
+                    {
+                        <option value="@direction.direction_id" selected="@(DisciplinesDirectionsRelation.direction == direction.direction_id)">@direction.direction_name</option>
+                    }
+                </select>
+                <ValidationMessage For="() => DisciplinesDirectionsRelation.direction" class="text-danger" />
+            </div>
             <div class="mb-3">
                 <span class="text-danger">*</span>
-                <label for="discipline" class="form-label">discipline:</label> 
-                <InputNumber id="discipline" @bind-Value="DisciplinesDirectionsRelation.discipline" class="form-control" aria-required="true"/> 
-                <ValidationMessage For="() => DisciplinesDirectionsRelation.discipline" class="text-danger" /> 
-            </div>        
-            <button type="submit" class="btn btn-primary">Create</button>
+                <label for="discipline" class="form-label">Дисциплина:</label>
+                <select id="discipline" name="discipline" class="form-select" aria-required="true">
+                    <option value="">— выберите дисциплину —</option>
+                    @foreach (var discipline in disciplines.OrderBy(d => d.discipline_name))
+                    {
+                        <option value="@discipline.discipline_id" selected="@(DisciplinesDirectionsRelation.discipline == discipline.discipline_id)">@discipline.discipline_name</option>
+                    }
+                </select>
+                <ValidationMessage For="() => DisciplinesDirectionsRelation.discipline" class="text-danger" />
+            </div>
+            <button type="submit" class="btn btn-primary">Создать</button>
         </EditForm>
     </div>
 </div>
 
 <div>
-    <a href="/disciplinesdirectionsrelations">Back to List</a>
+    <a href="/disciplinesdirectionsrelations">Назад к списку</a>
 </div>
 
 @code {
     [SupplyParameterFromForm]
     private DisciplinesDirectionsRelation DisciplinesDirectionsRelation { get; set; } = default!;
 
-    protected override void OnInitialized() => DisciplinesDirectionsRelation ??= new();
+    [SupplyParameterFromForm]
+    private string? direction { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? discipline { get; set; }
+
+    private List<Direction> directions = new();
+    private List<Discipline> disciplines = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        DisciplinesDirectionsRelation ??= new();
+        await using var context = DbFactory.CreateDbContext();
+        directions = await context.Directions.ToListAsync();
+        disciplines = await context.Disciplines.ToListAsync();
+    }
 
     // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
     private async Task AddDisciplinesDirectionsRelation()
     {
+        if (!int.TryParse(direction, out var directionId))
+        {
+            return;
+        }
+        if (!int.TryParse(discipline, out var disciplineId))
+        {
+            return;
+        }
+
+        DisciplinesDirectionsRelation.direction = directionId;
+        DisciplinesDirectionsRelation.discipline = disciplineId;
+
         using var context = DbFactory.CreateDbContext();
         context.DisciplinesDirectionsRelation.Add(DisciplinesDirectionsRelation);
         await context.SaveChangesAsync();

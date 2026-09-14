@@ -4,11 +4,10 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Create</PageTitle>
+<PageTitle>Добавление посещаемости</PageTitle>
 
-<h1>Create</h1>
+<h1>Добавление посещаемости</h1>
 
-<h2>Attendance</h2>
 <hr />
 <div class="row">
     <div class="col-md-4">
@@ -17,40 +16,96 @@
             <ValidationSummary class="text-danger" role="alert"/>
             <div class="mb-3">
                 <span class="text-danger">*</span>
-                <label for="student" class="form-label">student:</label> 
-                <InputNumber id="student" @bind-Value="Attendance.student" class="form-control" aria-required="true"/> 
-                <ValidationMessage For="() => Attendance.student" class="text-danger" /> 
-            </div>        
+                <label for="student" class="form-label">Студент:</label>
+                <select id="student" name="student" class="form-select" aria-required="true">
+                    <option value="">— выберите студента —</option>
+                    @foreach (var student in students)
+                    {
+                        <option value="@student.Key" selected="@(Attendance.student == student.Key)">@student.Value</option>
+                    }
+                </select>
+                <ValidationMessage For="() => Attendance.student" class="text-danger" />
+            </div>
             <div class="mb-3">
                 <span class="text-danger">*</span>
-                <label for="lesson" class="form-label">lesson:</label> 
-                <InputNumber id="lesson" @bind-Value="Attendance.lesson" class="form-control" aria-required="true"/> 
-                <ValidationMessage For="() => Attendance.lesson" class="text-danger" /> 
-            </div>        
+                <label for="lesson" class="form-label">Занятие:</label>
+                <select id="lesson" name="lesson" class="form-select" aria-required="true">
+                    <option value="">— выберите занятие —</option>
+                    @foreach (var lesson in lessonNames)
+                    {
+                        <option value="@lesson.Key" selected="@(Attendance.lesson == lesson.Key)">@lesson.Value</option>
+                    }
+                </select>
+                <ValidationMessage For="() => Attendance.lesson" class="text-danger" />
+            </div>
             <div class="mb-3">
                 <span class="text-danger">*</span>
-                <label for="present" class="form-label">present:</label> 
-                <InputCheckbox id="present" @bind-Value="Attendance.present" class="form-check-input" aria-required="true"/> 
-                <ValidationMessage For="() => Attendance.present" class="text-danger" /> 
-            </div>        
-            <button type="submit" class="btn btn-primary">Create</button>
+                <label for="present" class="form-label">Присутствовал:</label>
+                <InputCheckbox id="present" @bind-Value="Attendance.present" class="form-check-input" aria-required="true"/>
+                <ValidationMessage For="() => Attendance.present" class="text-danger" />
+            </div>
+            <button type="submit" class="btn btn-primary">Создать</button>
         </EditForm>
     </div>
 </div>
 
 <div>
-    <a href="/attendances">Back to List</a>
+    <a href="/attendances">Назад к списку</a>
 </div>
 
 @code {
     [SupplyParameterFromForm]
     private Attendance Attendance { get; set; } = default!;
 
-    protected override void OnInitialized() => Attendance ??= new();
+    [SupplyParameterFromForm]
+    private string? student { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? lesson { get; set; }
+
+    private List<KeyValuePair<int, string>> students = new();
+    private List<KeyValuePair<long, string>> lessonNames = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Attendance ??= new();
+        await using var context = DbFactory.CreateDbContext();
+        students = (await context.Students.OrderBy(s => s.last_name).ToListAsync())
+            .Select(s => new KeyValuePair<int, string>(s.stud_id,
+                !string.IsNullOrWhiteSpace(s.middle_name)
+                    ? $"{s.last_name} {s.first_name} {s.middle_name}"
+                    : $"{s.last_name} {s.first_name}"))
+            .ToList();
+        lessonNames = await BuildLessonNamesAsync(context);
+    }
+
+    private static async Task<List<KeyValuePair<long, string>>> BuildLessonNamesAsync(AcademyAgainContext context)
+    {
+        var result = new List<KeyValuePair<long, string>>();
+        var groupNames = (await context.Groups.ToListAsync())
+            .ToDictionary(g => g.group_id, g => g.group_name ?? "");
+        var schedule = await context.Schedule.OrderBy(s => s.lesson_id).ToListAsync();
+        foreach (var s in schedule)
+        {
+            var groupName = groupNames.TryGetValue(s.group, out var name) ? name : $"№{s.group}";
+            result.Add(new KeyValuePair<long, string>(s.lesson_id, s.date.HasValue
+                ? $"{s.lesson_id} · {groupName} · {s.date:d}"
+                : $"{s.lesson_id} · {groupName}"));
+        }
+        return result;
+    }
 
     // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
     private async Task AddAttendance()
     {
+        if (!int.TryParse(student, out var studentId) || !long.TryParse(lesson, out var lessonId))
+        {
+            return;
+        }
+
+        Attendance.student = studentId;
+        Attendance.lesson = lessonId;
+
         using var context = DbFactory.CreateDbContext();
         context.Attendance.Add(Attendance);
         await context.SaveChangesAsync();

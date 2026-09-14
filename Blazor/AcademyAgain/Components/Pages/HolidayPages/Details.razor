@@ -4,37 +4,38 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Details</PageTitle>
+<PageTitle>Праздник: @(holiday?.holiday_name)</PageTitle>
 
-<h1>Details</h1>
+<h1>Праздник: @(holiday?.holiday_name)</h1>
 
-<div>
-    <h2>Holiday</h2>
-    <hr />
-    @if (holiday is null)
-    {
-        <p><em>Loading...</em></p>
-    }
-    else {
-        <dl class="row">
-            <dt class="col-sm-2">holiday_name</dt>
-            <dd class="col-sm-10">@holiday.holiday_name</dd>
-            <dt class="col-sm-2">duration</dt>
-            <dd class="col-sm-10">@holiday.duration</dd>
-            <dt class="col-sm-2">month</dt>
-            <dd class="col-sm-10">@holiday.month</dd>
-            <dt class="col-sm-2">day</dt>
-            <dd class="col-sm-10">@holiday.day</dd>
-        </dl>
-        <div>
-            <a href="@($"/holidays/edit?holiday_id={holiday.holiday_id}")">Edit</a> |
-            <a href="@($"/holidays")">Back to List</a>
-        </div>
-    }
-</div>
+<hr />
+@if (holiday is null)
+{
+    <p><em>Загрузка...</em></p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-2">Название</dt>
+        <dd class="col-sm-10">@holiday.holiday_name</dd>
+        <dt class="col-sm-2">Длительность</dt>
+        <dd class="col-sm-10">@holiday.duration</dd>
+        <dt class="col-sm-2">Месяц</dt>
+        <dd class="col-sm-10">@MonthName</dd>
+        <dt class="col-sm-2">День</dt>
+        <dd class="col-sm-10">@(holiday.day?.ToString() ?? "—")</dd>
+    </dl>
+    <div>
+        <a href="@($"/holidays/edit?holiday_id={holiday.holiday_id}")">Изменить</a> |
+        <a href="@($"/holidays")">Назад к списку</a>
+    </div>
+}
 
 @code {
     private Holiday? holiday;
+    private string? MonthName = "—";
+
+    private static readonly string[] MonthNames = { "", "январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь" };
 
     [SupplyParameterFromQuery]
     private int holiday_id { get; set; }
@@ -47,6 +48,10 @@
         if (holiday is null)
         {
             NavigationManager.NavigateTo("notfound");
+        }
+        else if (holiday.month is >= 1 and <= 12)
+        {
+            MonthName = MonthNames[holiday.month.Value];
         }
     }
 }

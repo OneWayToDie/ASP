@@ -11,11 +11,11 @@ namespace AcademyAgain.Models
 
 		[Required]
 		[Column(TypeName = "NVARCHAR(50)")]
-		public string last_name { get; set; }
+		public string last_name { get; set; } = string.Empty;
 
 		[Required]
 		[Column(TypeName = "NVARCHAR(50)")]
-		public string first_name { get; set; }
+		public string first_name { get; set; } = string.Empty;
 
 		[Column(TypeName = "NVARCHAR(50)")]
 		public string? middle_name { get; set; }

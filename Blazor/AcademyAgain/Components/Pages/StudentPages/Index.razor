@@ -6,6 +6,7 @@
 @using AcademyAgain.Helpers
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
+@inherits RowMenuPage<Student>
 
 <PageTitle>Студенты</PageTitle>
 
@@ -33,34 +34,32 @@
     </select>
 </div>
 
-<QuickGrid Class="table" Items="filteredStudents">
+<QuickGrid Class="table context-table" Items="filteredStudents" ItemKey="s => s.stud_id">
     <TemplateColumn Title="Фото" Context="s">
-        @if (Photo.DataSrc(s.photo) is string src)
-        {
-            <img class="photo-thumb" src="@src" alt="@(s.last_name) @(s.first_name)" />
-        }
-        else
-        {
-            <span class="photo-empty">—</span>
-        }
+        <div class="row-key @RowClass(s)" data-item-key="@GetKey(s)">
+            @if (Photo.DataSrc(s.photo) is string src)
+            {
+                <img class="photo-thumb" src="@src" alt="@(s.last_name) @(s.first_name)" />
+            }
+            else
+            {
+                <span class="photo-empty">—</span>
+            }
+        </div>
     </TemplateColumn>
-    <PropertyColumn Property="s => s.last_name" Title="Фамилия" />
-    <PropertyColumn Property="s => s.first_name" Title="Имя" />
-    <PropertyColumn Property="s => s.middle_name" Title="Отчество" />
-    <TemplateColumn Title="Группа" Context="s">
+    <PropertyColumn Property="s => s.last_name" Title="Фамилия" Sortable="true" />
+    <PropertyColumn Property="s => s.first_name" Title="Имя" Sortable="true" />
+    <PropertyColumn Property="s => s.middle_name" Title="Отчество" Sortable="true" />
+    <TemplateColumn Title="Группа" Sortable="true" SortBy="GridSort<Student>.ByAscending(s => GroupName(s.group))" Context="s">
         @GroupName(s.group)
     </TemplateColumn>
-    <TemplateColumn Title="Направление" Context="s">
+    <TemplateColumn Title="Направление" Sortable="true" SortBy="GridSort<Student>.ByAscending(s => GroupDirectionName(s.group))" Context="s">
         @GroupDirectionName(s.group)
     </TemplateColumn>
-    <PropertyColumn Property="s => s.birth_date" Title="Дата рождения" />
-
-    <TemplateColumn Context="s">
-        <a href="@($"students/edit?stud_id={s.stud_id}")">Изменить</a> |
-        <a href="@($"students/details?stud_id={s.stud_id}")">Подробно</a> |
-        <a href="@($"students/delete?stud_id={s.stud_id}")">Удалить</a>
-    </TemplateColumn>
+    <PropertyColumn Property="s => s.birth_date" Title="Дата рождения" Sortable="true" />
 </QuickGrid>
+
+<RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
 
 @code {
     private List<Direction> directions = new();
@@ -125,5 +124,18 @@
     {
         var groupId = allGroups.FirstOrDefault(g => g.group_id == id)?.direction;
         return directions.FirstOrDefault(d => d.direction_id == groupId)?.direction_name ?? "—";
+    }
+
+    protected override string GetKey(Student s) => s.stud_id.ToString();
+
+    protected override List<RowMenuItem> BuildMenu(string key)
+    {
+        if (!int.TryParse(key, out var id)) return new List<RowMenuItem>();
+        return new List<RowMenuItem>
+        {
+            new("Профиль", $"students/details?stud_id={id}"),
+            new("Изменить", $"students/edit?stud_id={id}"),
+            new("Удалить", $"students/delete?stud_id={id}", Danger: true),
+        };
     }
 }

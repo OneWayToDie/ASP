@@ -4,15 +4,14 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Edit</PageTitle>
+<PageTitle>Редактирование праздника</PageTitle>
 
-<h1>Edit</h1>
+<h1>Редактирование праздника</h1>
 
-<h2>Holiday</h2>
 <hr />
 @if (Holiday is null)
 {
-    <p><em>Loading...</em></p>
+    <p><em>Загрузка...</em></p>
 }
 else
 {
@@ -23,35 +22,40 @@ else
                 <ValidationSummary role="alert"/>
                 <input type="hidden" name="Holiday.holiday_id" value="@Holiday.holiday_id" />
                 <div class="mb-3">
-                <span class="text-danger">*</span>
-                    <label for="holiday_name" class="form-label">holiday_name:</label>
+                    <span class="text-danger">*</span>
+                    <label for="holiday_name" class="form-label">Название:</label>
                     <InputText id="holiday_name" @bind-Value="Holiday.holiday_name" class="form-control" aria-required="true"/>
                     <ValidationMessage For="() => Holiday.holiday_name" class="text-danger" />
                 </div>
                 <div class="mb-3">
-                <span class="text-danger">*</span>
-                    <label for="duration" class="form-label">duration:</label>
+                    <span class="text-danger">*</span>
+                    <label for="duration" class="form-label">Длительность:</label>
                     <InputNumber id="duration" @bind-Value="Holiday.duration" class="form-control" aria-required="true"/>
                     <ValidationMessage For="() => Holiday.duration" class="text-danger" />
                 </div>
                 <div class="mb-3">
-                    <label for="month" class="form-label">month:</label>
-                    <InputNumber id="month" @bind-Value="Holiday.month" class="form-control" />
-                    <ValidationMessage For="() => Holiday.month" class="text-danger" />
+                    <label for="month" class="form-label">Месяц:</label>
+                    <select id="month" name="month" class="form-select">
+                        <option value="">— не выбран —</option>
+                        @for (var m = 1; m <= 12; m++)
+                        {
+                            <option value="@m" selected="@(SelectedMonth == m)">@m</option>
+                        }
+                    </select>
                 </div>
                 <div class="mb-3">
-                    <label for="day" class="form-label">day:</label>
+                    <label for="day" class="form-label">День:</label>
                     <InputNumber id="day" @bind-Value="Holiday.day" class="form-control" />
                     <ValidationMessage For="() => Holiday.day" class="text-danger" />
                 </div>
-                <button type="submit" class="btn btn-primary">Save</button>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
             </EditForm>
         </div>
     </div>
 }
 
 <div>
-    <a href="/holidays">Back to List</a>
+    <a href="/holidays">Назад к списку</a>
 </div>
 
 @code {
@@ -60,6 +64,12 @@ else
 
     [SupplyParameterFromForm]
     private Holiday? Holiday { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? month { get; set; }
+
+    private int? SelectedMonth
+        => int.TryParse(month, out var value) ? value : Holiday?.month;
 
     protected override async Task OnInitializedAsync()
     {
@@ -76,8 +86,10 @@ else
     // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
     private async Task UpdateHoliday()
     {
+        Holiday!.month = int.TryParse(month, out var m) ? m : null;
+
         using var context = DbFactory.CreateDbContext();
-        context.Attach(Holiday!).State = EntityState.Modified;
+        context.Attach(Holiday).State = EntityState.Modified;
 
         try
         {

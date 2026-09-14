@@ -1,10 +1,11 @@
 @page "/holidays"
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
-@implements IAsyncDisposable
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
+@inherits RowMenuPage<Holiday>
 
 <PageTitle>Праздники</PageTitle>
 
@@ -13,26 +14,47 @@
     <a class="btn btn-primary" href="holidays/create">Создать</a>
 </div>
 
-<QuickGrid Class="table" Items="context.Holidays">
-    <PropertyColumn Property="holiday => holiday.holiday_name" Title="Название" />
-    <PropertyColumn Property="holiday => holiday.duration" Title="Длительность" />
-    <PropertyColumn Property="holiday => holiday.month" Title="Месяц" />
-    <PropertyColumn Property="holiday => holiday.day" Title="День" />
-
-    <TemplateColumn Context="holiday">
-        <a href="@($"holidays/edit?holiday_id={holiday.holiday_id}")">Изменить</a> |
-        <a href="@($"holidays/details?holiday_id={holiday.holiday_id}")">Подробно</a> |
-        <a href="@($"holidays/delete?holiday_id={holiday.holiday_id}")">Удалить</a>
+<QuickGrid Class="table context-table" Items="query" ItemKey="holiday => holiday.holiday_id">
+    <TemplateColumn Title="Название" Sortable="true" SortBy="GridSort<Holiday>.ByAscending(h => h.holiday_name)" Context="holiday">
+        <div class="row-key @RowClass(holiday)" data-item-key="@GetKey(holiday)">
+            @HolidayName(holiday)
+        </div>
     </TemplateColumn>
+    <PropertyColumn Property="holiday => holiday.duration" Title="Длительность" Sortable="true" />
+    <TemplateColumn Title="Месяц" Sortable="true" SortBy="GridSort<Holiday>.ByAscending(h => h.month)" Context="holiday">
+        @MonthName(holiday.month)
+    </TemplateColumn>
+    <PropertyColumn Property="holiday => holiday.day" Title="День" Sortable="true" />
 </QuickGrid>
 
-@code {
-    private AcademyAgainContext context = default!;
+<RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
 
-    protected override void OnInitialized()
+@code {
+    private IQueryable<Holiday> query = new List<Holiday>().AsQueryable();
+
+    private static readonly string[] MonthNames = { "", "январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь" };
+
+    protected override async Task OnInitializedAsync()
     {
-        context = DbFactory.CreateDbContext();
+        await using var context = DbFactory.CreateDbContext();
+        query = (await context.Holidays.ToListAsync()).AsQueryable();
     }
 
-    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+    private string HolidayName(Holiday h) => h.holiday_name ?? $"№{h.holiday_id}";
+
+    private string MonthName(int? month)
+        => month is >= 1 and <= 12 ? MonthNames[month.Value] : "—";
+
+    protected override string GetKey(Holiday h) => h.holiday_id.ToString();
+
+    protected override List<RowMenuItem> BuildMenu(string key)
+    {
+        if (!int.TryParse(key, out var id)) return new List<RowMenuItem>();
+        return new List<RowMenuItem>
+        {
+            new("Профиль", $"holidays/details?holiday_id={id}"),
+            new("Изменить", $"holidays/edit?holiday_id={id}"),
+            new("Удалить", $"holidays/delete?holiday_id={id}", Danger: true),
+        };
+    }
 }

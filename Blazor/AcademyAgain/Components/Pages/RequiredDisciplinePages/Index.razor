@@ -1,10 +1,11 @@
 @page "/requireddisciplines"
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
-@implements IAsyncDisposable
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
+@inherits RowMenuPage<RequiredDiscipline>
 
 <PageTitle>Требуемые дисциплины</PageTitle>
 
@@ -13,24 +14,45 @@
     <a class="btn btn-primary" href="requireddisciplines/create">Создать</a>
 </div>
 
-<QuickGrid Class="table" Items="context.RequiredDisciplines">
-    <PropertyColumn Property="required => required.discipline" Title="Дисциплина" />
-    <PropertyColumn Property="required => required.required_discipline" Title="Требуемая дисциплина" />
-
-    <TemplateColumn Context="required">
-        <a href="@($"requireddisciplines/edit?discipline={required.discipline}&required_discipline={required.required_discipline}")">Изменить</a> |
-        <a href="@($"requireddisciplines/details?discipline={required.discipline}&required_discipline={required.required_discipline}")">Подробно</a> |
-        <a href="@($"requireddisciplines/delete?discipline={required.discipline}&required_discipline={required.required_discipline}")">Удалить</a>
+<QuickGrid Class="table context-table" Items="query" ItemKey="required => required.discipline.ToString() + '_' + required.required_discipline.ToString()">
+    <TemplateColumn Title="Дисциплина" Sortable="true" SortBy="GridSort<RequiredDiscipline>.ByAscending(r => DisciplineName(r.discipline))" Context="required">
+        <div class="row-key @RowClass(required)" data-item-key="@GetKey(required)">
+            @DisciplineName(required.discipline)
+        </div>
+    </TemplateColumn>
+    <TemplateColumn Title="Требуемая дисциплина" Sortable="true" SortBy="GridSort<RequiredDiscipline>.ByAscending(r => DisciplineName(r.required_discipline))" Context="required">
+        @DisciplineName(required.required_discipline)
     </TemplateColumn>
 </QuickGrid>
 
-@code {
-    private AcademyAgainContext context = default!;
+<RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
 
-    protected override void OnInitialized()
+@code {
+    private IQueryable<RequiredDiscipline> query = new List<RequiredDiscipline>().AsQueryable();
+    private Dictionary<int, string> disciplineNames = new();
+
+    protected override async Task OnInitializedAsync()
     {
-        context = DbFactory.CreateDbContext();
+        await using var context = DbFactory.CreateDbContext();
+        disciplineNames = await context.Disciplines.ToDictionaryAsync(d => d.discipline_id, d => d.discipline_name ?? $"№{d.discipline_id}");
+        query = (await context.RequiredDisciplines.ToListAsync()).AsQueryable();
     }
 
-    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+    private string DisciplineName(int id)
+        => disciplineNames.TryGetValue(id, out var name) ? name : $"№{id}";
+
+    protected override string GetKey(RequiredDiscipline r) => $"{r.discipline}|{r.required_discipline}";
+
+    protected override List<RowMenuItem> BuildMenu(string key)
+    {
+        var parts = key.Split('|');
+        if (parts.Length != 2 || !int.TryParse(parts[0], out var discipline) || !int.TryParse(parts[1], out var required))
+            return new List<RowMenuItem>();
+        return new List<RowMenuItem>
+        {
+            new("Профиль", $"requireddisciplines/details?discipline={discipline}&required_discipline={required}"),
+            new("Изменить", $"requireddisciplines/edit?discipline={discipline}&required_discipline={required}"),
+            new("Удалить", $"requireddisciplines/delete?discipline={discipline}&required_discipline={required}", Danger: true),
+        };
+    }
 }

@@ -4,15 +4,14 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Edit</PageTitle>
+<PageTitle>Редактирование преподавателя и дисциплины</PageTitle>
 
-<h1>Edit</h1>
+<h1>Редактирование преподавателя и дисциплины</h1>
 
-<h2>TeachersDisciplinesRelation</h2>
 <hr />
 @if (TeachersDisciplinesRelation is null)
 {
-    <p><em>Loading...</em></p>
+    <p><em>Загрузка...</em></p>
 }
 else
 {
@@ -23,14 +22,38 @@ else
                 <ValidationSummary role="alert"/>
                 <input type="hidden" name="TeachersDisciplinesRelation.teacher" value="@TeachersDisciplinesRelation.teacher" />
                 <input type="hidden" name="TeachersDisciplinesRelation.discipline" value="@TeachersDisciplinesRelation.discipline" />
-                <button type="submit" class="btn btn-primary">Save</button>
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="teacher" class="form-label">Преподаватель:</label>
+                    <select id="teacher" name="teacherId" class="form-select" aria-required="true">
+                        <option value="">— выберите преподавателя —</option>
+                        @foreach (var teacher in teachers.OrderBy(t => t.last_name))
+                        {
+                            <option value="@teacher.teacher_id" selected="@(SelectedTeacher == teacher.teacher_id)">@FullName(teacher)</option>
+                        }
+                    </select>
+                    <ValidationMessage For="() => TeachersDisciplinesRelation.teacher" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="discipline" class="form-label">Дисциплина:</label>
+                    <select id="discipline" name="disciplineId" class="form-select" aria-required="true">
+                        <option value="">— выберите дисциплину —</option>
+                        @foreach (var discipline in disciplines.OrderBy(d => d.discipline_name))
+                        {
+                            <option value="@discipline.discipline_id" selected="@(SelectedDiscipline == discipline.discipline_id)">@discipline.discipline_name</option>
+                        }
+                    </select>
+                    <ValidationMessage For="() => TeachersDisciplinesRelation.discipline" class="text-danger" />
+                </div>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
             </EditForm>
         </div>
     </div>
 }
 
 <div>
-    <a href="/teachersdisciplinesrelations">Back to List</a>
+    <a href="/teachersdisciplinesrelations">Назад к списку</a>
 </div>
 
 @code {
@@ -43,10 +66,27 @@ else
     [SupplyParameterFromForm]
     private TeachersDisciplinesRelation? TeachersDisciplinesRelation { get; set; }
 
+    [SupplyParameterFromForm]
+    private string? teacherId { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? disciplineId { get; set; }
+
+    private List<Teacher> teachers = new();
+    private List<Discipline> disciplines = new();
+
+    private int? SelectedTeacher
+        => int.TryParse(teacherId, out var value) ? value : TeachersDisciplinesRelation?.teacher;
+
+    private int? SelectedDiscipline
+        => int.TryParse(disciplineId, out var value) ? value : TeachersDisciplinesRelation?.discipline;
+
     protected override async Task OnInitializedAsync()
     {
         using var context = DbFactory.CreateDbContext();
         TeachersDisciplinesRelation ??= await context.TeachersDisciplinesRelation.FirstOrDefaultAsync(m => m.teacher == teacher && m.discipline == discipline);
+        teachers = await context.Teachers.ToListAsync();
+        disciplines = await context.Disciplines.OrderBy(d => d.discipline_name).ToListAsync();
 
         if (TeachersDisciplinesRelation is null)
         {
@@ -58,22 +98,52 @@ else
     // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
     private async Task UpdateTeachersDisciplinesRelation()
     {
-        using var context = DbFactory.CreateDbContext();
-        context.Attach(TeachersDisciplinesRelation!).State = EntityState.Modified;
-
-        try
+        if (!int.TryParse(teacherId, out var teacherValue))
         {
+            return;
+        }
+        if (!int.TryParse(disciplineId, out var disciplineValue))
+        {
+            return;
+        }
+
+        var originalTeacher = TeachersDisciplinesRelation!.teacher;
+        var originalDiscipline = TeachersDisciplinesRelation.discipline;
+        var keysChanged = originalTeacher != teacherValue || originalDiscipline != disciplineValue;
+
+        using var context = DbFactory.CreateDbContext();
+
+        if (keysChanged)
+        {
+            var original = await context.TeachersDisciplinesRelation.FirstOrDefaultAsync(r => r.teacher == originalTeacher && r.discipline == originalDiscipline);
+            if (original is not null)
+            {
+                context.TeachersDisciplinesRelation.Remove(original);
+                await context.SaveChangesAsync();
+            }
+
+            TeachersDisciplinesRelation.teacher = teacherValue;
+            TeachersDisciplinesRelation.discipline = disciplineValue;
+            context.TeachersDisciplinesRelation.Add(TeachersDisciplinesRelation);
             await context.SaveChangesAsync();
         }
-        catch (DbUpdateConcurrencyException)
+        else
         {
-            if (!TeachersDisciplinesRelationExists(TeachersDisciplinesRelation!.teacher, TeachersDisciplinesRelation.discipline))
+            context.Attach(TeachersDisciplinesRelation).State = EntityState.Modified;
+            try
             {
-                NavigationManager.NavigateTo("notfound");
+                await context.SaveChangesAsync();
             }
-            else
+            catch (DbUpdateConcurrencyException)
             {
-                throw;
+                if (!TeachersDisciplinesRelationExists(TeachersDisciplinesRelation.teacher, TeachersDisciplinesRelation.discipline))
+                {
+                    NavigationManager.NavigateTo("notfound");
+                }
+                else
+                {
+                    throw;
+                }
             }
         }
 
@@ -85,4 +155,7 @@ else
         using var context = DbFactory.CreateDbContext();
         return context.TeachersDisciplinesRelation.Any(e => e.teacher == teacher && e.discipline == discipline);
     }
+
+    private static string FullName(Teacher teacher)
+        => string.Join(" ", new[] { teacher.last_name, teacher.first_name, teacher.middle_name }.Where(n => !string.IsNullOrWhiteSpace(n)));
 }

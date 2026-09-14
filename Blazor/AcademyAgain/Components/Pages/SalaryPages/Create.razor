@@ -4,11 +4,10 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Create</PageTitle>
+<PageTitle>Добавление зарплаты</PageTitle>
 
-<h1>Create</h1>
+<h1>Добавление зарплаты</h1>
 
-<h2>Salary</h2>
 <hr />
 <div class="row">
     <div class="col-md-4">
@@ -17,41 +16,72 @@
             <ValidationSummary class="text-danger" role="alert"/>
             <div class="mb-3">
                 <span class="text-danger">*</span>
-                <label for="teacher" class="form-label">teacher:</label> 
-                <InputNumber id="teacher" @bind-Value="Salary.teacher" class="form-control" aria-required="true"/> 
-                <ValidationMessage For="() => Salary.teacher" class="text-danger" /> 
-            </div>        
+                <label for="teacher" class="form-label">Преподаватель:</label>
+                <select id="teacher" name="teacher" class="form-select" aria-required="true">
+                    <option value="">— выберите преподавателя —</option>
+                    @foreach (var teacher in teachers.OrderBy(t => t.last_name).ThenBy(t => t.first_name))
+                    {
+                        <option value="@teacher.teacher_id" selected="@(Salary.teacher == teacher.teacher_id)">@FullName(teacher)</option>
+                    }
+                </select>
+                <ValidationMessage For="() => Salary.teacher" class="text-danger" />
+            </div>
             <div class="mb-3">
                 <span class="text-danger">*</span>
-                <label for="accrued" class="form-label">accrued:</label> 
-                <InputNumber id="accrued" @bind-Value="Salary.accrued" class="form-control" aria-required="true"/> 
-                <ValidationMessage For="() => Salary.accrued" class="text-danger" /> 
-            </div>        
-            <div class="mb-3">
-                <span class="text-danger">*</span>
-                <label for="received" class="form-label">received:</label> 
-                <InputCheckbox id="received" @bind-Value="Salary.received" class="form-check-input" aria-required="true"/> 
-                <ValidationMessage For="() => Salary.received" class="text-danger" /> 
-            </div>        
-            <button type="submit" class="btn btn-primary">Create</button>
+                <label for="accrued" class="form-label">Начислено:</label>
+                <InputNumber id="accrued" @bind-Value="Salary.accrued" class="form-control" aria-required="true"/>
+                <ValidationMessage For="() => Salary.accrued" class="text-danger" />
+            </div>
+            <div class="mb-3 form-check">
+                <input id="received" type="checkbox" name="received" value="true" checked="@(received == "true")" class="form-check-input" />
+                <label for="received" class="form-check-label">Выплачено</label>
+            </div>
+            <button type="submit" class="btn btn-primary">Создать</button>
         </EditForm>
     </div>
 </div>
 
 <div>
-    <a href="/salarys">Back to List</a>
+    <a href="/salarys">Назад к списку</a>
 </div>
 
 @code {
     [SupplyParameterFromForm]
     private Salary Salary { get; set; } = default!;
 
-    protected override void OnInitialized() => Salary ??= new();
+    [SupplyParameterFromForm]
+    private string? teacher { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? received { get; set; }
+
+    private List<Teacher> teachers = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Salary ??= new();
+        await using var context = DbFactory.CreateDbContext();
+        teachers = await context.Teachers.OrderBy(t => t.last_name).ThenBy(t => t.first_name).ToListAsync();
+    }
+
+    private static string FullName(Teacher t)
+        => $"{t.last_name} {t.first_name} {t.middle_name}".Trim();
 
     // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
     private async Task AddSalary()
     {
+        if (!int.TryParse(teacher, out var teacherId))
+        {
+            return;
+        }
+
+        Salary.teacher = teacherId;
+        Salary.received = received == "true";
+
         using var context = DbFactory.CreateDbContext();
+        Salary.payment_id = context.Salary.Any()
+            ? context.Salary.Max(s => s.payment_id) + 1
+            : 1;
         context.Salary.Add(Salary);
         await context.SaveChangesAsync();
         NavigationManager.NavigateTo("/salarys");

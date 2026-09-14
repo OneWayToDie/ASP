@@ -4,38 +4,42 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Delete</PageTitle>
+<PageTitle>Удаление оценки</PageTitle>
 
-<h1>Delete</h1>
+<h1>Удаление оценки</h1>
 
-<p>Are you sure you want to delete this?</p>
+<p class="text-danger">Вы уверены, что хотите удалить эту оценку?</p>
 <div>
-    <h2>Grade</h2>
     <hr />
     @if (grade is null)
     {
-        <p><em>Loading...</em></p>
+        <p><em>Загрузка...</em></p>
     }
-    else {
+    else
+    {
         <dl class="row">
-            <dt class="col-sm-2">student</dt>
-            <dd class="col-sm-10">@grade.student</dd>
-            <dt class="col-sm-2">lesson</dt>
-            <dd class="col-sm-10">@grade.lesson</dd>
-            <dt class="col-sm-2">grade_1</dt>
-            <dd class="col-sm-10">@grade.grade_1</dd>
-            <dt class="col-sm-2">grade_2</dt>
-            <dd class="col-sm-10">@grade.grade_2</dd>
+            <dt class="col-sm-2">Студент</dt>
+            <dd class="col-sm-10">@StudentName</dd>
+            <dt class="col-sm-2">Занятие</dt>
+            <dd class="col-sm-10">@LessonName</dd>
+            <dt class="col-sm-2">Оценка 1</dt>
+            <dd class="col-sm-10">@(grade.grade_1?.ToString() ?? "—")</dd>
+            <dt class="col-sm-2">Оценка 2</dt>
+            <dd class="col-sm-10">@(grade.grade_2?.ToString() ?? "—")</dd>
         </dl>
         <EditForm method="post" Model="grade" OnValidSubmit="DeleteGrade" FormName="delete" Enhance>
-            <button type="submit" class="btn btn-danger" disabled="@(grade is null)">Delete</button> |
-            <a href="/grades">Back to List</a>
+            <input type="hidden" name="Grade.student" value="@grade.student" />
+            <input type="hidden" name="Grade.lesson" value="@grade.lesson" />
+            <button type="submit" class="btn btn-danger">Удалить</button> |
+            <a href="/grades">Назад к списку</a>
         </EditForm>
     }
 </div>
 
 @code {
     private Grade? grade;
+    private string? StudentName = "—";
+    private string? LessonName = "—";
 
     [SupplyParameterFromQuery]
     private int student { get; set; }
@@ -51,6 +55,32 @@
         if (grade is null)
         {
             NavigationManager.NavigateTo("notfound");
+        }
+        else
+        {
+            var stud = await context.Students.FirstOrDefaultAsync(s => s.stud_id == grade.student);
+            if (stud is not null)
+            {
+                StudentName = !string.IsNullOrWhiteSpace(stud.middle_name)
+                    ? $"{stud.last_name} {stud.first_name} {stud.middle_name}"
+                    : $"{stud.last_name} {stud.first_name}";
+            }
+
+            var sched = await context.Schedule.FirstOrDefaultAsync(s => s.lesson_id == grade.lesson);
+            if (sched is not null)
+            {
+                var groupName = await context.Groups
+                    .Where(g => g.group_id == sched.group)
+                    .Select(g => g.group_name)
+                    .FirstOrDefaultAsync() ?? $"№{sched.group}";
+                LessonName = sched.date.HasValue
+                    ? $"{sched.lesson_id} · {groupName} · {sched.date:d}"
+                    : $"{sched.lesson_id} · {groupName}";
+            }
+            else
+            {
+                LessonName = $"№{grade.lesson}";
+            }
         }
     }
 

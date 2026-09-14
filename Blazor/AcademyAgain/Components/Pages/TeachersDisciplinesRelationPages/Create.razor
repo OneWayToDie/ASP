@@ -4,11 +4,10 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Create</PageTitle>
+<PageTitle>Добавление преподавателя и дисциплины</PageTitle>
 
-<h1>Create</h1>
+<h1>Добавление преподавателя и дисциплины</h1>
 
-<h2>TeachersDisciplinesRelation</h2>
 <hr />
 <div class="row">
     <div class="col-md-4">
@@ -17,37 +16,79 @@
             <ValidationSummary class="text-danger" role="alert"/>
             <div class="mb-3">
                 <span class="text-danger">*</span>
-                <label for="teacher" class="form-label">teacher:</label> 
-                <InputNumber id="teacher" @bind-Value="TeachersDisciplinesRelation.teacher" class="form-control" aria-required="true"/> 
-                <ValidationMessage For="() => TeachersDisciplinesRelation.teacher" class="text-danger" /> 
-            </div>        
+                <label for="teacher" class="form-label">Преподаватель:</label>
+                <select id="teacher" name="teacher" class="form-select" aria-required="true">
+                    <option value="">— выберите преподавателя —</option>
+                    @foreach (var teacher in teachers.OrderBy(t => t.last_name))
+                    {
+                        <option value="@teacher.teacher_id" selected="@(TeachersDisciplinesRelation.teacher == teacher.teacher_id)">@FullName(teacher)</option>
+                    }
+                </select>
+                <ValidationMessage For="() => TeachersDisciplinesRelation.teacher" class="text-danger" />
+            </div>
             <div class="mb-3">
                 <span class="text-danger">*</span>
-                <label for="discipline" class="form-label">discipline:</label> 
-                <InputNumber id="discipline" @bind-Value="TeachersDisciplinesRelation.discipline" class="form-control" aria-required="true"/> 
-                <ValidationMessage For="() => TeachersDisciplinesRelation.discipline" class="text-danger" /> 
-            </div>        
-            <button type="submit" class="btn btn-primary">Create</button>
+                <label for="discipline" class="form-label">Дисциплина:</label>
+                <select id="discipline" name="discipline" class="form-select" aria-required="true">
+                    <option value="">— выберите дисциплину —</option>
+                    @foreach (var discipline in disciplines.OrderBy(d => d.discipline_name))
+                    {
+                        <option value="@discipline.discipline_id" selected="@(TeachersDisciplinesRelation.discipline == discipline.discipline_id)">@discipline.discipline_name</option>
+                    }
+                </select>
+                <ValidationMessage For="() => TeachersDisciplinesRelation.discipline" class="text-danger" />
+            </div>
+            <button type="submit" class="btn btn-primary">Создать</button>
         </EditForm>
     </div>
 </div>
 
 <div>
-    <a href="/teachersdisciplinesrelations">Back to List</a>
+    <a href="/teachersdisciplinesrelations">Назад к списку</a>
 </div>
 
 @code {
     [SupplyParameterFromForm]
     private TeachersDisciplinesRelation TeachersDisciplinesRelation { get; set; } = default!;
 
-    protected override void OnInitialized() => TeachersDisciplinesRelation ??= new();
+    [SupplyParameterFromForm]
+    private string? teacher { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? discipline { get; set; }
+
+    private List<Teacher> teachers = new();
+    private List<Discipline> disciplines = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        TeachersDisciplinesRelation ??= new();
+        await using var context = DbFactory.CreateDbContext();
+        teachers = await context.Teachers.ToListAsync();
+        disciplines = await context.Disciplines.ToListAsync();
+    }
 
     // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
     private async Task AddTeachersDisciplinesRelation()
     {
+        if (!int.TryParse(teacher, out var teacherId))
+        {
+            return;
+        }
+        if (!int.TryParse(discipline, out var disciplineId))
+        {
+            return;
+        }
+
+        TeachersDisciplinesRelation.teacher = teacherId;
+        TeachersDisciplinesRelation.discipline = disciplineId;
+
         using var context = DbFactory.CreateDbContext();
         context.TeachersDisciplinesRelation.Add(TeachersDisciplinesRelation);
         await context.SaveChangesAsync();
         NavigationManager.NavigateTo("/teachersdisciplinesrelations");
     }
+
+    private static string FullName(Teacher teacher)
+        => string.Join(" ", new[] { teacher.last_name, teacher.first_name, teacher.middle_name }.Where(n => !string.IsNullOrWhiteSpace(n)));
 }

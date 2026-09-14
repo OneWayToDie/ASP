@@ -1,10 +1,11 @@
 @page "/directions"
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
-@implements IAsyncDisposable
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
+@inherits RowMenuPage<Direction>
 
 <PageTitle>Направления</PageTitle>
 
@@ -13,23 +14,37 @@
     <a class="btn btn-primary" href="directions/create">Создать</a>
 </div>
 
-<QuickGrid Class="table" Items="context.Directions">
-    <PropertyColumn Property="direction => direction.direction_name" Title="Название" />
-
-    <TemplateColumn Context="direction">
-        <a href="@($"directions/edit?direction_id={direction.direction_id}")">Изменить</a> |
-        <a href="@($"directions/details?direction_id={direction.direction_id}")">Подробно</a> |
-        <a href="@($"directions/delete?direction_id={direction.direction_id}")">Удалить</a>
+<QuickGrid Class="table context-table" Items="query" ItemKey="direction => direction.direction_id">
+    <TemplateColumn Title="Название" Sortable="true" SortBy="GridSort<Direction>.ByAscending(d => d.direction_name)" Context="direction">
+        <div class="row-key @RowClass(direction)" data-item-key="@GetKey(direction)">
+            @DirectionName(direction)
+        </div>
     </TemplateColumn>
 </QuickGrid>
 
-@code {
-    private AcademyAgainContext context = default!;
+<RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
 
-    protected override void OnInitialized()
+@code {
+    private IQueryable<Direction> query = new List<Direction>().AsQueryable();
+
+    protected override async Task OnInitializedAsync()
     {
-        context = DbFactory.CreateDbContext();
+        await using var context = DbFactory.CreateDbContext();
+        query = (await context.Directions.ToListAsync()).AsQueryable();
     }
 
-    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+    private string DirectionName(Direction d) => d.direction_name ?? $"№{d.direction_id}";
+
+    protected override string GetKey(Direction d) => d.direction_id.ToString();
+
+    protected override List<RowMenuItem> BuildMenu(string key)
+    {
+        if (!int.TryParse(key, out var id)) return new List<RowMenuItem>();
+        return new List<RowMenuItem>
+        {
+            new("Профиль", $"directions/details?direction_id={id}"),
+            new("Изменить", $"directions/edit?direction_id={id}"),
+            new("Удалить", $"directions/delete?direction_id={id}", Danger: true),
+        };
+    }
 }

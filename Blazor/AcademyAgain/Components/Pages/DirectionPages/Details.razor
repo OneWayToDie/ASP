@@ -4,28 +4,26 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Details</PageTitle>
+<PageTitle>Направление: @direction?.direction_name</PageTitle>
 
-<h1>Details</h1>
+<h1>Направление: @direction?.direction_name</h1>
 
-<div>
-    <h2>Direction</h2>
-    <hr />
-    @if (direction is null)
-    {
-        <p><em>Loading...</em></p>
-    }
-    else {
-        <dl class="row">
-            <dt class="col-sm-2">direction_name</dt>
-            <dd class="col-sm-10">@direction.direction_name</dd>
-        </dl>
-        <div>
-            <a href="@($"/directions/edit?direction_id={direction.direction_id}")">Edit</a> |
-            <a href="@($"/directions")">Back to List</a>
-        </div>
-    }
-</div>
+<hr />
+@if (direction is null)
+{
+    <p><em>Загрузка...</em></p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-2">Название</dt>
+        <dd class="col-sm-10">@direction.direction_name</dd>
+    </dl>
+    <div>
+        <a href="@($"/directions/edit?direction_id={direction.direction_id}")">Изменить</a> |
+        <a href="@($"/directions")">Назад к списку</a>
+    </div>
+}
 
 @code {
     private Direction? direction;

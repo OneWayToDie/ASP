@@ -4,30 +4,28 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Details</PageTitle>
+<PageTitle>Дисциплина: @(discipline?.discipline_name)</PageTitle>
 
-<h1>Details</h1>
+<h1>Дисциплина: @(discipline?.discipline_name)</h1>
 
-<div>
-    <h2>Discipline</h2>
-    <hr />
-    @if (discipline is null)
-    {
-        <p><em>Loading...</em></p>
-    }
-    else {
-        <dl class="row">
-            <dt class="col-sm-2">discipline_name</dt>
-            <dd class="col-sm-10">@discipline.discipline_name</dd>
-            <dt class="col-sm-2">number_of_lessons</dt>
-            <dd class="col-sm-10">@discipline.number_of_lessons</dd>
-        </dl>
-        <div>
-            <a href="@($"/disciplines/edit?discipline_id={discipline.discipline_id}")">Edit</a> |
-            <a href="@($"/disciplines")">Back to List</a>
-        </div>
-    }
-</div>
+<hr />
+@if (discipline is null)
+{
+    <p><em>Загрузка...</em></p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-2">Название</dt>
+        <dd class="col-sm-10">@discipline.discipline_name</dd>
+        <dt class="col-sm-2">Кол-во занятий</dt>
+        <dd class="col-sm-10">@discipline.number_of_lessons</dd>
+    </dl>
+    <div>
+        <a href="@($"/disciplines/edit?discipline_id={discipline.discipline_id}")">Изменить</a> |
+        <a href="@($"/disciplines")">Назад к списку</a>
+    </div>
+}
 
 @code {
     private Discipline? discipline;

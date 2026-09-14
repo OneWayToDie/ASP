@@ -4,36 +4,40 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Delete</PageTitle>
+<PageTitle>Удаление посещаемости</PageTitle>
 
-<h1>Delete</h1>
+<h1>Удаление посещаемости</h1>
 
-<p>Are you sure you want to delete this?</p>
+<p class="text-danger">Вы уверены, что хотите удалить эту запись посещаемости?</p>
 <div>
-    <h2>Attendance</h2>
     <hr />
     @if (attendance is null)
     {
-        <p><em>Loading...</em></p>
+        <p><em>Загрузка...</em></p>
     }
-    else {
+    else
+    {
         <dl class="row">
-            <dt class="col-sm-2">student</dt>
-            <dd class="col-sm-10">@attendance.student</dd>
-            <dt class="col-sm-2">lesson</dt>
-            <dd class="col-sm-10">@attendance.lesson</dd>
-            <dt class="col-sm-2">present</dt>
-            <dd class="col-sm-10">@attendance.present</dd>
+            <dt class="col-sm-2">Студент</dt>
+            <dd class="col-sm-10">@StudentName</dd>
+            <dt class="col-sm-2">Занятие</dt>
+            <dd class="col-sm-10">@LessonName</dd>
+            <dt class="col-sm-2">Присутствовал</dt>
+            <dd class="col-sm-10">@(attendance.present ? "Да" : "Нет")</dd>
         </dl>
         <EditForm method="post" Model="attendance" OnValidSubmit="DeleteAttendance" FormName="delete" Enhance>
-            <button type="submit" class="btn btn-danger" disabled="@(attendance is null)">Delete</button> |
-            <a href="/attendances">Back to List</a>
+            <input type="hidden" name="Attendance.student" value="@attendance.student" />
+            <input type="hidden" name="Attendance.lesson" value="@attendance.lesson" />
+            <button type="submit" class="btn btn-danger">Удалить</button> |
+            <a href="/attendances">Назад к списку</a>
         </EditForm>
     }
 </div>
 
 @code {
     private Attendance? attendance;
+    private string? StudentName = "—";
+    private string? LessonName = "—";
 
     [SupplyParameterFromQuery]
     private int student { get; set; }
@@ -49,6 +53,32 @@
         if (attendance is null)
         {
             NavigationManager.NavigateTo("notfound");
+        }
+        else
+        {
+            var stud = await context.Students.FirstOrDefaultAsync(s => s.stud_id == attendance.student);
+            if (stud is not null)
+            {
+                StudentName = !string.IsNullOrWhiteSpace(stud.middle_name)
+                    ? $"{stud.last_name} {stud.first_name} {stud.middle_name}"
+                    : $"{stud.last_name} {stud.first_name}";
+            }
+
+            var sched = await context.Schedule.FirstOrDefaultAsync(s => s.lesson_id == attendance.lesson);
+            if (sched is not null)
+            {
+                var groupName = await context.Groups
+                    .Where(g => g.group_id == sched.group)
+                    .Select(g => g.group_name)
+                    .FirstOrDefaultAsync() ?? $"№{sched.group}";
+                LessonName = sched.date.HasValue
+                    ? $"{sched.lesson_id} · {groupName} · {sched.date:d}"
+                    : $"{sched.lesson_id} · {groupName}";
+            }
+            else
+            {
+                LessonName = $"№{attendance.lesson}";
+            }
         }
     }
 

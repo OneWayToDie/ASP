@@ -4,34 +4,38 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Delete</PageTitle>
+<PageTitle>Удаление преподавателя и дисциплины</PageTitle>
 
-<h1>Delete</h1>
+<h1>Удаление преподавателя и дисциплины</h1>
 
-<p>Are you sure you want to delete this?</p>
+<p class="text-danger">Вы уверены, что хотите удалить эту связь преподавателя и дисциплины?</p>
 <div>
-    <h2>TeachersDisciplinesRelation</h2>
     <hr />
     @if (relation is null)
     {
-        <p><em>Loading...</em></p>
+        <p><em>Загрузка...</em></p>
     }
-    else {
+    else
+    {
         <dl class="row">
-            <dt class="col-sm-2">teacher</dt>
-            <dd class="col-sm-10">@relation.teacher</dd>
-            <dt class="col-sm-2">discipline</dt>
-            <dd class="col-sm-10">@relation.discipline</dd>
+            <dt class="col-sm-2">Преподаватель</dt>
+            <dd class="col-sm-10">@TeacherName</dd>
+            <dt class="col-sm-2">Дисциплина</dt>
+            <dd class="col-sm-10">@DisciplineName</dd>
         </dl>
         <EditForm method="post" Model="relation" OnValidSubmit="DeleteTeachersDisciplinesRelation" FormName="delete" Enhance>
-            <button type="submit" class="btn btn-danger" disabled="@(relation is null)">Delete</button> |
-            <a href="/teachersdisciplinesrelations">Back to List</a>
+            <input type="hidden" name="TeachersDisciplinesRelation.teacher" value="@relation.teacher" />
+            <input type="hidden" name="TeachersDisciplinesRelation.discipline" value="@relation.discipline" />
+            <button type="submit" class="btn btn-danger">Удалить</button> |
+            <a href="/teachersdisciplinesrelations">Назад к списку</a>
         </EditForm>
     }
 </div>
 
 @code {
     private TeachersDisciplinesRelation? relation;
+    private string? TeacherName = "—";
+    private string? DisciplineName = "—";
 
     [SupplyParameterFromQuery]
     private int teacher { get; set; }
@@ -48,6 +52,15 @@
         {
             NavigationManager.NavigateTo("notfound");
         }
+        else
+        {
+            var teacherEntity = await context.Teachers.FirstOrDefaultAsync(t => t.teacher_id == relation.teacher);
+            TeacherName = teacherEntity is null ? "—" : FullName(teacherEntity);
+            DisciplineName = await context.Disciplines
+                .Where(d => d.discipline_id == relation.discipline)
+                .Select(d => d.discipline_name)
+                .FirstOrDefaultAsync() ?? "—";
+        }
     }
 
     private async Task DeleteTeachersDisciplinesRelation()
@@ -57,4 +70,7 @@
         await context.SaveChangesAsync();
         NavigationManager.NavigateTo("/teachersdisciplinesrelations");
     }
+
+    private static string FullName(Teacher teacher)
+        => string.Join(" ", new[] { teacher.last_name, teacher.first_name, teacher.middle_name }.Where(n => !string.IsNullOrWhiteSpace(n)));
 }

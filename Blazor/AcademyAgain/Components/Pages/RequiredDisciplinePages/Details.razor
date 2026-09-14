@@ -1,36 +1,36 @@
-@page "/requireddisciplines/details"
+﻿@page "/requireddisciplines/details"
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Details</PageTitle>
+<PageTitle>РџРѕРґСЂРѕР±РЅРѕСЃС‚Рё: С‚СЂРµР±СѓРµРјР°СЏ РґРёСЃС†РёРїР»РёРЅР°</PageTitle>
 
-<h1>Details</h1>
+<h1>РџРѕРґСЂРѕР±РЅРѕСЃС‚Рё: С‚СЂРµР±СѓРµРјР°СЏ РґРёСЃС†РёРїР»РёРЅР°</h1>
 
-<div>
-    <h2>RequiredDiscipline</h2>
-    <hr />
-    @if (requireddiscipline is null)
-    {
-        <p><em>Loading...</em></p>
-    }
-    else {
-        <dl class="row">
-            <dt class="col-sm-2">discipline</dt>
-            <dd class="col-sm-10">@requireddiscipline.discipline</dd>
-            <dt class="col-sm-2">required_discipline</dt>
-            <dd class="col-sm-10">@requireddiscipline.required_discipline</dd>
-        </dl>
-        <div>
-            <a href="@($"/requireddisciplines/edit?discipline={requireddiscipline.discipline}&required_discipline={requireddiscipline.required_discipline}")">Edit</a> |
-            <a href="@($"/requireddisciplines")">Back to List</a>
-        </div>
-    }
-</div>
+<hr />
+@if (requireddiscipline is null)
+{
+    <p><em>Р—Р°РіСЂСѓР·РєР°...</em></p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-2">Р”РёСЃС†РёРїР»РёРЅР°</dt>
+        <dd class="col-sm-10">@DisciplineName</dd>
+        <dt class="col-sm-2">РўСЂРµР±СѓРµРјР°СЏ РґРёСЃС†РёРїР»РёРЅР°</dt>
+        <dd class="col-sm-10">@RequiredDisciplineName</dd>
+    </dl>
+    <div>
+        <a href="@($"/requireddisciplines/edit?discipline={requireddiscipline.discipline}&required_discipline={requireddiscipline.required_discipline}")">РР·РјРµРЅРёС‚СЊ</a> |
+        <a href="@($"/requireddisciplines")">РќР°Р·Р°Рґ Рє СЃРїРёСЃРєСѓ</a>
+    </div>
+}
 
 @code {
     private RequiredDiscipline? requireddiscipline;
+    private string? DisciplineName = "вЂ”";
+    private string? RequiredDisciplineName = "вЂ”";
 
     [SupplyParameterFromQuery]
     private int discipline { get; set; }
@@ -46,6 +46,17 @@
         if (requireddiscipline is null)
         {
             NavigationManager.NavigateTo("notfound");
+        }
+        else
+        {
+            DisciplineName = await context.Disciplines
+                .Where(d => d.discipline_id == requireddiscipline.discipline)
+                .Select(d => d.discipline_name)
+                .FirstOrDefaultAsync() ?? "вЂ”";
+            RequiredDisciplineName = await context.Disciplines
+                .Where(d => d.discipline_id == requireddiscipline.required_discipline)
+                .Select(d => d.discipline_name)
+                .FirstOrDefaultAsync() ?? "вЂ”";
         }
     }
 }

@@ -6,6 +6,7 @@
 @using AcademyAgain.Helpers
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
+@inherits RowMenuPage<Group>
 
 <PageTitle>Группы</PageTitle>
 
@@ -25,23 +26,23 @@
     </select>
 </div>
 
-<QuickGrid Class="table" Items="filteredGroups">
-    <PropertyColumn Property="g => g.group_name" Title="Название" />
-    <TemplateColumn Title="Направление" Context="g">
+<QuickGrid Class="table context-table" Items="filteredGroups" ItemKey="g => g.group_id">
+    <TemplateColumn Title="Название" Sortable="true" SortBy="GridSort<Group>.ByAscending(g => GroupName(g))" Context="g">
+        <div class="row-key @RowClass(g)" data-item-key="@GetKey(g)">
+            @GroupName(g)
+        </div>
+    </TemplateColumn>
+    <TemplateColumn Title="Направление" Sortable="true" SortBy="GridSort<Group>.ByAscending(g => DirectionName(g.direction))" Context="g">
         @DirectionName(g.direction)
     </TemplateColumn>
-    <TemplateColumn Title="Дни недели" Context="g">
+    <TemplateColumn Title="Дни недели" Sortable="true" SortBy="GridSort<Group>.ByAscending(g => Weekdays.ToDisplay(g.weekdays))" Context="g">
         @Weekdays.ToDisplay(g.weekdays)
     </TemplateColumn>
-    <PropertyColumn Property="g => g.start_time" Title="Время начала" />
-    <PropertyColumn Property="g => g.start_date" Title="Дата начала" />
-
-    <TemplateColumn Context="g">
-        <a href="@($"groups/edit?group_id={g.group_id}")">Изменить</a> |
-        <a href="@($"groups/details?group_id={g.group_id}")">Подробно</a> |
-        <a href="@($"groups/delete?group_id={g.group_id}")">Удалить</a>
-    </TemplateColumn>
+    <PropertyColumn Property="g => g.start_time" Title="Время начала" Sortable="true" />
+    <PropertyColumn Property="g => g.start_date" Title="Дата начала" Sortable="true" />
 </QuickGrid>
+
+<RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
 
 @code {
     private List<Direction> directions = new();
@@ -71,6 +72,21 @@
             .AsQueryable();
     }
 
+    private string GroupName(Group g) => g.group_name ?? $"№{g.group_id}";
+
     private string DirectionName(int? id)
         => directions.FirstOrDefault(d => d.direction_id == id)?.direction_name ?? "—";
+
+    protected override string GetKey(Group g) => g.group_id.ToString();
+
+    protected override List<RowMenuItem> BuildMenu(string key)
+    {
+        if (!int.TryParse(key, out var id)) return new List<RowMenuItem>();
+        return new List<RowMenuItem>
+        {
+            new("Профиль", $"groups/details?group_id={id}"),
+            new("Изменить", $"groups/edit?group_id={id}"),
+            new("Удалить", $"groups/delete?group_id={id}", Danger: true),
+        };
+    }
 }

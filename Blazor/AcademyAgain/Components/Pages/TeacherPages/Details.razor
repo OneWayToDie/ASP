@@ -5,58 +5,161 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Преподаватель: @(teacher?.last_name) @(teacher?.first_name)</PageTitle>
+<PageTitle>Профиль: @(teacher?.last_name) @(teacher?.first_name)</PageTitle>
 
-<h1>Преподаватель: @(teacher?.last_name) @(teacher?.first_name)</h1>
-
-<hr />
 @if (teacher is null)
 {
     <p><em>Загрузка...</em></p>
 }
 else
 {
-    <div class="row">
-        <div class="col-md-3">
-            @if (photoSrc is not null)
-            {
-                <img class="photo-large" src="@photoSrc" alt="@(teacher.last_name) @(teacher.first_name)" />
-            }
-            else
-            {
-                <div class="photo-empty-large">фото нет</div>
-            }
-        </div>
-        <div class="col-md-9">
-            <dl class="row">
-                <dt class="col-sm-3">Фамилия</dt>
-                <dd class="col-sm-9">@teacher.last_name</dd>
-                <dt class="col-sm-3">Имя</dt>
-                <dd class="col-sm-9">@teacher.first_name</dd>
-                <dt class="col-sm-3">Отчество</dt>
-                <dd class="col-sm-9">@teacher.middle_name</dd>
-                <dt class="col-sm-3">Дата рождения</dt>
-                <dd class="col-sm-9">@teacher.birth_date</dd>
-                <dt class="col-sm-3">Email</dt>
-                <dd class="col-sm-9">@teacher.email</dd>
-                <dt class="col-sm-3">Телефон</dt>
-                <dd class="col-sm-9">@teacher.phone</dd>
-                <dt class="col-sm-3">Работает с</dt>
-                <dd class="col-sm-9">@teacher.work_since</dd>
-                <dt class="col-sm-3">Ставка</dt>
-                <dd class="col-sm-9">@teacher.rate</dd>
-            </dl>
+    <div class="profile">
+        <div class="profile-head">
             <div>
-                <a href="@($"/teachers/edit?teacher_id={teacher.teacher_id}")">Изменить</a> |
-                <a href="@($"/teachers")">Назад к списку</a>
+                @if (photoSrc is not null)
+                {
+                    <img class="photo-large" src="@photoSrc" alt="@(teacher.last_name) @(teacher.first_name)" />
+                }
+                else
+                {
+                    <div class="photo-empty-large">фото нет</div>
+                }
+            </div>
+            <div class="profile-head-info">
+                <h1>@FullName</h1>
+                <p class="profile-head-sub">преподаватель</p>
+                <p class="profile-head-contacts">
+                    @teacher.email
+                    @if (!string.IsNullOrWhiteSpace(teacher.email) && !string.IsNullOrWhiteSpace(teacher.phone))
+                    {
+                        <span> · </span>
+                    }
+                    @teacher.phone
+                </p>
+            </div>
+        </div>
+        <div class="profile-body">
+            <div class="profile-stats">
+                <div class="stat-card">
+                    <div class="stat-value">@DisciplinesCount</div>
+                    <div class="stat-label">Ведёт дисциплин</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">@SalaryTotal.ToString("N2")</div>
+                    <div class="stat-label">Начислено всего</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">@SalaryPaid.ToString("N2")</div>
+                    <div class="stat-label">Выплачено</div>
+                </div>
+            </div>
+
+            <div class="profile-facts">
+                <div class="profile-fact">
+                    <span class="profile-fact-label">Дата рождения</span>
+                    <span class="profile-fact-value">@(teacher.birth_date?.ToString("dd.MM.yyyy") ?? "—")</span>
+                </div>
+                <div class="profile-fact">
+                    <span class="profile-fact-label">Работает с</span>
+                    <span class="profile-fact-value">@(teacher.work_since?.ToString("dd.MM.yyyy") ?? "—")</span>
+                </div>
+                <div class="profile-fact">
+                    <span class="profile-fact-label">Ставка</span>
+                    <span class="profile-fact-value">@(teacher.rate?.ToString("C") ?? "—")</span>
+                </div>
+            </div>
+
+            <div class="profile-sections">
+                <div class="profile-section">
+                    <h3>Дисциплины</h3>
+                    @if (Disciplines.Count == 0)
+                    {
+                        <div class="section-empty">Дисциплин нет</div>
+                    }
+                    else
+                    {
+                        <ul class="mb-0">
+                            @foreach (var name in Disciplines)
+                            {
+                                <li>@name</li>
+                            }
+                        </ul>
+                    }
+                </div>
+                <div class="profile-section">
+                    <h3>Занятия</h3>
+                    @if (Lessons.Count == 0)
+                    {
+                        <div class="section-empty">Занятий нет</div>
+                    }
+                    else
+                    {
+                        <table class="table table-sm">
+                            <thead>
+                                <tr><th>Группа</th><th>Дисциплина</th><th>Дата</th></tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var l in Lessons)
+                                {
+                                    <tr>
+                                        <td>@l.Group</td>
+                                        <td>@l.Discipline</td>
+                                        <td>@l.Date</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+                <div class="profile-section">
+                    <h3>Зарплата</h3>
+                    @if (Salaries.Count == 0)
+                    {
+                        <div class="section-empty">Выплат нет</div>
+                    }
+                    else
+                    {
+                        <table class="table table-sm">
+                            <thead>
+                                <tr><th>№ платежа</th><th>Нaчислено</th><th>Выплачено</th></tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var s in Salaries)
+                                {
+                                    <tr>
+                                        <td>@s.Id</td>
+                                        <td>@s.Accrued.ToString("N2")</td>
+                                        <td>@(s.Received ? "да" : "нет")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            </div>
+
+            <div class="profile-actions">
+                <a class="btn btn-primary" href="@($"teachers/edit?teacher_id={teacher.teacher_id}")">Изменить</a>
+                <a class="btn btn-outline-secondary" href="@($"teachers")">Назад к списку</a>
             </div>
         </div>
     </div>
 }
 
 @code {
+    private sealed record LessonRow(string Group, string Discipline, string Date);
+    private sealed record SalaryRow(long Id, decimal Accrued, bool Received);
+
     private Teacher? teacher;
     private string? photoSrc;
+    private string FullName = "—";
+    private int DisciplinesCount;
+    private decimal SalaryTotal;
+    private decimal SalaryPaid;
+
+    private List<string> Disciplines = new();
+    private List<LessonRow> Lessons = new();
+    private List<SalaryRow> Salaries = new();
 
     [SupplyParameterFromQuery]
     private int teacher_id { get; set; }
@@ -69,10 +172,48 @@ else
         if (teacher is null)
         {
             NavigationManager.NavigateTo("notfound");
+            return;
         }
-        else
-        {
-            photoSrc = Photo.DataSrc(teacher.photo);
-        }
+
+        photoSrc = Photo.DataSrc(teacher.photo);
+
+        FullName = string.Join(" ", new[] { teacher.last_name, teacher.first_name, teacher.middle_name }
+            .Where(p => !string.IsNullOrWhiteSpace(p)));
+
+        var disciplines = await context.Disciplines.ToDictionaryAsync(d => d.discipline_id);
+
+        var relations = await context.TeachersDisciplinesRelation
+            .Where(r => r.teacher == teacher.teacher_id)
+            .OrderBy(r => r.discipline)
+            .ToListAsync();
+        Disciplines = relations
+            .Select(r => disciplines.TryGetValue(r.discipline, out var disc) && !string.IsNullOrWhiteSpace(disc.discipline_name)
+                ? disc.discipline_name!
+                : $"№{r.discipline}")
+            .ToList();
+        DisciplinesCount = Disciplines.Count;
+
+        var groups = await context.Groups.ToDictionaryAsync(g => g.group_id);
+
+        var scheduleList = await context.Schedule
+            .Where(s => s.teacher == teacher.teacher_id)
+            .OrderBy(s => s.date)
+            .ToListAsync();
+        Lessons = scheduleList
+            .Select(s => new LessonRow(
+                groups.TryGetValue(s.group, out var g) && !string.IsNullOrWhiteSpace(g.group_name) ? g.group_name! : $"№{s.group}",
+                disciplines.TryGetValue(s.discipline, out var disc) ? disc.discipline_name ?? $"№{s.discipline}" : $"№{s.discipline}",
+                s.date?.ToString("dd.MM.yyyy") ?? "—"))
+            .ToList();
+
+        var salaryList = await context.Salary
+            .Where(s => s.teacher == teacher.teacher_id)
+            .OrderBy(s => s.payment_id)
+            .ToListAsync();
+        Salaries = salaryList
+            .Select(s => new SalaryRow(s.payment_id, s.accrued, s.received))
+            .ToList();
+        SalaryTotal = salaryList.Sum(s => s.accrued);
+        SalaryPaid = salaryList.Where(s => s.received).Sum(s => s.accrued);
     }
 }

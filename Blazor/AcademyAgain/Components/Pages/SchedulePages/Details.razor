@@ -4,41 +4,42 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Details</PageTitle>
+<PageTitle>Занятие</PageTitle>
 
-<h1>Details</h1>
+<h1>Занятие</h1>
 
-<div>
-    <h2>Schedule</h2>
-    <hr />
-    @if (schedule is null)
-    {
-        <p><em>Loading...</em></p>
-    }
-    else {
-        <dl class="row">
-            <dt class="col-sm-2">group</dt>
-            <dd class="col-sm-10">@schedule.group</dd>
-            <dt class="col-sm-2">discipline</dt>
-            <dd class="col-sm-10">@schedule.discipline</dd>
-            <dt class="col-sm-2">teacher</dt>
-            <dd class="col-sm-10">@schedule.teacher</dd>
-            <dt class="col-sm-2">date</dt>
-            <dd class="col-sm-10">@schedule.date</dd>
-            <dt class="col-sm-2">time</dt>
-            <dd class="col-sm-10">@schedule.time</dd>
-            <dt class="col-sm-2">spent</dt>
-            <dd class="col-sm-10">@schedule.spent</dd>
-        </dl>
-        <div>
-            <a href="@($"/schedules/edit?lesson_id={schedule.lesson_id}")">Edit</a> |
-            <a href="@($"/schedules")">Back to List</a>
-        </div>
-    }
-</div>
+<hr />
+@if (schedule is null)
+{
+    <p><em>Загрузка...</em></p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-2">Группа</dt>
+        <dd class="col-sm-10">@GroupName</dd>
+        <dt class="col-sm-2">Дисциплина</dt>
+        <dd class="col-sm-10">@DisciplineName</dd>
+        <dt class="col-sm-2">Преподаватель</dt>
+        <dd class="col-sm-10">@TeacherName</dd>
+        <dt class="col-sm-2">Дата</dt>
+        <dd class="col-sm-10">@(schedule.date?.ToString("dd.MM.yyyy") ?? "—")</dd>
+        <dt class="col-sm-2">Время</dt>
+        <dd class="col-sm-10">@(schedule.time?.ToString() ?? "—")</dd>
+        <dt class="col-sm-2">Проведено</dt>
+        <dd class="col-sm-10">@(schedule.spent ? "Да" : "Нет")</dd>
+    </dl>
+    <div>
+        <a href="@($"/schedules/edit?lesson_id={schedule.lesson_id}")">Изменить</a> |
+        <a href="@($"/schedules")">Назад к списку</a>
+    </div>
+}
 
 @code {
     private Schedule? schedule;
+    private string? GroupName = "—";
+    private string? DisciplineName = "—";
+    private string? TeacherName = "—";
 
     [SupplyParameterFromQuery]
     private long lesson_id { get; set; }
@@ -51,6 +52,23 @@
         if (schedule is null)
         {
             NavigationManager.NavigateTo("notfound");
+        }
+        else
+        {
+            GroupName = await context.Groups
+                .Where(g => g.group_id == schedule.group)
+                .Select(g => g.group_name)
+                .FirstOrDefaultAsync() ?? "—";
+            DisciplineName = await context.Disciplines
+                .Where(d => d.discipline_id == schedule.discipline)
+                .Select(d => d.discipline_name)
+                .FirstOrDefaultAsync() ?? "—";
+            var teacher = await context.Teachers.FirstOrDefaultAsync(t => t.teacher_id == schedule.teacher);
+            if (teacher is not null)
+            {
+                TeacherName = string.Join(" ", new[] { teacher.last_name, teacher.first_name, teacher.middle_name }
+                    .Where(p => !string.IsNullOrWhiteSpace(p)));
+            }
         }
     }
 }

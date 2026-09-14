@@ -4,11 +4,10 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Create</PageTitle>
+<PageTitle>Добавление пройденной дисциплины</PageTitle>
 
-<h1>Create</h1>
+<h1>Добавление пройденной дисциплины</h1>
 
-<h2>CompleteDiscipline</h2>
 <hr />
 <div class="row">
     <div class="col-md-4">
@@ -17,34 +16,70 @@
             <ValidationSummary class="text-danger" role="alert"/>
             <div class="mb-3">
                 <span class="text-danger">*</span>
-                <label for="group" class="form-label">group:</label> 
-                <InputNumber id="group" @bind-Value="CompleteDiscipline.group" class="form-control" aria-required="true"/> 
-                <ValidationMessage For="() => CompleteDiscipline.group" class="text-danger" /> 
-            </div>        
+                <label for="selected_group" class="form-label">Группа:</label>
+                <select id="selected_group" name="selected_group" class="form-select" aria-required="true">
+                    <option value="">— выберите группу —</option>
+                    @foreach (var group in groups.OrderBy(g => g.group_name))
+                    {
+                        <option value="@group.group_id" selected="@(CompleteDiscipline.group == group.group_id)">@group.group_name</option>
+                    }
+                </select>
+                <ValidationMessage For="() => CompleteDiscipline.group" class="text-danger" />
+            </div>
             <div class="mb-3">
                 <span class="text-danger">*</span>
-                <label for="discipline" class="form-label">discipline:</label> 
-                <InputNumber id="discipline" @bind-Value="CompleteDiscipline.discipline" class="form-control" aria-required="true"/> 
-                <ValidationMessage For="() => CompleteDiscipline.discipline" class="text-danger" /> 
-            </div>        
-            <button type="submit" class="btn btn-primary">Create</button>
+                <label for="selected_discipline" class="form-label">Дисциплина:</label>
+                <select id="selected_discipline" name="selected_discipline" class="form-select" aria-required="true">
+                    <option value="">— выберите дисциплину —</option>
+                    @foreach (var discipline in disciplines.OrderBy(d => d.discipline_name))
+                    {
+                        <option value="@discipline.discipline_id" selected="@(CompleteDiscipline.discipline == discipline.discipline_id)">@discipline.discipline_name</option>
+                    }
+                </select>
+                <ValidationMessage For="() => CompleteDiscipline.discipline" class="text-danger" />
+            </div>
+            <button type="submit" class="btn btn-primary">Создать</button>
         </EditForm>
     </div>
 </div>
 
 <div>
-    <a href="/completedisciplines">Back to List</a>
+    <a href="/completedisciplines">Назад к списку</a>
 </div>
 
 @code {
     [SupplyParameterFromForm]
     private CompleteDiscipline CompleteDiscipline { get; set; } = default!;
 
-    protected override void OnInitialized() => CompleteDiscipline ??= new();
+    [SupplyParameterFromForm]
+    private string? selected_group { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? selected_discipline { get; set; }
+
+    private List<Group> groups = new();
+    private List<Discipline> disciplines = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        CompleteDiscipline ??= new();
+        await using var context = DbFactory.CreateDbContext();
+        groups = await context.Groups.OrderBy(g => g.group_name).ToListAsync();
+        disciplines = await context.Disciplines.OrderBy(d => d.discipline_name).ToListAsync();
+    }
 
     // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
     private async Task AddCompleteDiscipline()
     {
+        if (!int.TryParse(selected_group, out var groupId)
+            || !int.TryParse(selected_discipline, out var disciplineId))
+        {
+            return;
+        }
+
+        CompleteDiscipline.group = groupId;
+        CompleteDiscipline.discipline = disciplineId;
+
         using var context = DbFactory.CreateDbContext();
         context.CompleteDisciplines.Add(CompleteDiscipline);
         await context.SaveChangesAsync();

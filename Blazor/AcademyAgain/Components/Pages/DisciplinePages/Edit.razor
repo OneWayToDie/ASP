@@ -4,15 +4,14 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Edit</PageTitle>
+<PageTitle>Редактирование дисциплины</PageTitle>
 
-<h1>Edit</h1>
+<h1>Редактирование дисциплины</h1>
 
-<h2>Discipline</h2>
 <hr />
 @if (Discipline is null)
 {
-    <p><em>Loading...</em></p>
+    <p><em>Загрузка...</em></p>
 }
 else
 {
@@ -23,25 +22,24 @@ else
                 <ValidationSummary role="alert"/>
                 <input type="hidden" name="Discipline.discipline_id" value="@Discipline.discipline_id" />
                 <div class="mb-3">
-                <span class="text-danger">*</span>
-                    <label for="discipline_name" class="form-label">discipline_name:</label>
-                    <InputText id="discipline_name" @bind-Value="Discipline.discipline_name" class="form-control" aria-required="true"/>
+                    <label for="discipline_name" class="form-label">Название:</label>
+                    <InputText id="discipline_name" @bind-Value="Discipline.discipline_name" class="form-control" />
                     <ValidationMessage For="() => Discipline.discipline_name" class="text-danger" />
                 </div>
                 <div class="mb-3">
-                <span class="text-danger">*</span>
-                    <label for="number_of_lessons" class="form-label">number_of_lessons:</label>
+                    <span class="text-danger">*</span>
+                    <label for="number_of_lessons" class="form-label">Кол-во занятий:</label>
                     <InputNumber id="number_of_lessons" @bind-Value="Discipline.number_of_lessons" class="form-control" aria-required="true"/>
                     <ValidationMessage For="() => Discipline.number_of_lessons" class="text-danger" />
                 </div>
-                <button type="submit" class="btn btn-primary">Save</button>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
             </EditForm>
         </div>
     </div>
 }
 
 <div>
-    <a href="/disciplines">Back to List</a>
+    <a href="/disciplines">Назад к списку</a>
 </div>
 
 @code {

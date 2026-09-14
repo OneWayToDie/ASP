@@ -1,10 +1,11 @@
 @page "/exams"
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
-@implements IAsyncDisposable
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
+@inherits RowMenuPage<Exam>
 
 <PageTitle>Экзамены</PageTitle>
 
@@ -13,26 +14,59 @@
     <a class="btn btn-primary" href="exams/create">Создать</a>
 </div>
 
-<QuickGrid Class="table" Items="context.Exams">
-    <PropertyColumn Property="exam => exam.student" Title="Студент" />
-    <PropertyColumn Property="exam => exam.discipline" Title="Дисциплина" />
-    <PropertyColumn Property="exam => exam.date" Title="Дата" />
-    <PropertyColumn Property="exam => exam.grade" Title="Оценка" />
-
-    <TemplateColumn Context="exam">
-        <a href="@($"exams/edit?student={exam.student}&discipline={exam.discipline}")">Изменить</a> |
-        <a href="@($"exams/details?student={exam.student}&discipline={exam.discipline}")">Подробно</a> |
-        <a href="@($"exams/delete?student={exam.student}&discipline={exam.discipline}")">Удалить</a>
+<QuickGrid Class="table context-table" Items="query" ItemKey="exam => exam.student.ToString() + '_' + exam.discipline.ToString()">
+    <TemplateColumn Title="Студент" Sortable="true" SortBy="GridSort<Exam>.ByAscending(e => StudentName(e.student))" Context="exam">
+        <div class="row-key @RowClass(exam)" data-item-key="@GetKey(exam)">
+            @(StudentName(exam.student))
+        </div>
     </TemplateColumn>
+    <TemplateColumn Title="Дисциплина" Sortable="true" SortBy="GridSort<Exam>.ByAscending(e => DisciplineName(e.discipline))" Context="exam">
+        @(DisciplineName(exam.discipline))
+    </TemplateColumn>
+    <PropertyColumn Property="exam => exam.date" Title="Дата" Format="dd.MM.yyyy" Sortable="true" />
+    <PropertyColumn Property="exam => exam.grade" Title="Оценка" Sortable="true" />
 </QuickGrid>
 
-@code {
-    private AcademyAgainContext context = default!;
+<RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
 
-    protected override void OnInitialized()
+@code {
+    private IQueryable<Exam> query = new List<Exam>().AsQueryable();
+    private Dictionary<int, string> students = new();
+    private Dictionary<int, string> disciplines = new();
+
+    protected override async Task OnInitializedAsync()
     {
-        context = DbFactory.CreateDbContext();
+        await using var context = DbFactory.CreateDbContext();
+        students = (await context.Students.OrderBy(s => s.last_name).ToListAsync())
+            .ToDictionary(s => s.stud_id, s => StudentName(s));
+        disciplines = (await context.Disciplines.OrderBy(d => d.discipline_name).ToListAsync())
+            .ToDictionary(d => d.discipline_id, d => d.discipline_name ?? "");
+        query = (await context.Exams.ToListAsync()).AsQueryable();
     }
 
-    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+    private string StudentName(int id)
+        => students.TryGetValue(id, out var name) ? name : $"№{id}";
+
+    private string DisciplineName(int id)
+        => disciplines.TryGetValue(id, out var name) ? name : $"№{id}";
+
+    private static string StudentName(Student s)
+        => !string.IsNullOrWhiteSpace(s.middle_name)
+            ? $"{s.last_name} {s.first_name} {s.middle_name}"
+            : $"{s.last_name} {s.first_name}";
+
+    protected override string GetKey(Exam e) => $"{e.student}|{e.discipline}";
+
+    protected override List<RowMenuItem> BuildMenu(string key)
+    {
+        var parts = key.Split('|');
+        if (parts.Length != 2 || !int.TryParse(parts[0], out var student) || !int.TryParse(parts[1], out var discipline))
+            return new List<RowMenuItem>();
+        return new List<RowMenuItem>
+        {
+            new("Профиль", $"exams/details?student={student}&discipline={discipline}"),
+            new("Изменить", $"exams/edit?student={student}&discipline={discipline}"),
+            new("Удалить", $"exams/delete?student={student}&discipline={discipline}", Danger: true),
+        };
+    }
 }

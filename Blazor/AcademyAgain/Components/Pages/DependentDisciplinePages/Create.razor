@@ -4,11 +4,10 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Create</PageTitle>
+<PageTitle>Добавление зависимой дисциплины</PageTitle>
 
-<h1>Create</h1>
+<h1>Добавление зависимой дисциплины</h1>
 
-<h2>DependentDiscipline</h2>
 <hr />
 <div class="row">
     <div class="col-md-4">
@@ -17,34 +16,71 @@
             <ValidationSummary class="text-danger" role="alert"/>
             <div class="mb-3">
                 <span class="text-danger">*</span>
-                <label for="discipline" class="form-label">discipline:</label> 
-                <InputNumber id="discipline" @bind-Value="DependentDiscipline.discipline" class="form-control" aria-required="true"/> 
-                <ValidationMessage For="() => DependentDiscipline.discipline" class="text-danger" /> 
-            </div>        
+                <label for="discipline" class="form-label">Дисциплина:</label>
+                <select id="discipline" name="discipline" class="form-select" aria-required="true">
+                    <option value="">— выберите дисциплину —</option>
+                    @foreach (var discipline in disciplines.OrderBy(d => d.discipline_name))
+                    {
+                        <option value="@discipline.discipline_id" selected="@(DependentDiscipline.discipline == discipline.discipline_id)">@discipline.discipline_name</option>
+                    }
+                </select>
+                <ValidationMessage For="() => DependentDiscipline.discipline" class="text-danger" />
+            </div>
             <div class="mb-3">
                 <span class="text-danger">*</span>
-                <label for="dependent_discipline" class="form-label">dependent_discipline:</label> 
-                <InputNumber id="dependent_discipline" @bind-Value="DependentDiscipline.dependent_discipline" class="form-control" aria-required="true"/> 
-                <ValidationMessage For="() => DependentDiscipline.dependent_discipline" class="text-danger" /> 
-            </div>        
-            <button type="submit" class="btn btn-primary">Create</button>
+                <label for="dependent_discipline" class="form-label">Зависимая дисциплина:</label>
+                <select id="dependent_discipline" name="dependent_discipline" class="form-select" aria-required="true">
+                    <option value="">— выберите дисциплину —</option>
+                    @foreach (var discipline in disciplines.OrderBy(d => d.discipline_name))
+                    {
+                        <option value="@discipline.discipline_id" selected="@(DependentDiscipline.dependent_discipline == discipline.discipline_id)">@discipline.discipline_name</option>
+                    }
+                </select>
+                <ValidationMessage For="() => DependentDiscipline.dependent_discipline" class="text-danger" />
+            </div>
+            <button type="submit" class="btn btn-primary">Создать</button>
         </EditForm>
     </div>
 </div>
 
 <div>
-    <a href="/dependentdisciplines">Back to List</a>
+    <a href="/dependentdisciplines">Назад к списку</a>
 </div>
 
 @code {
     [SupplyParameterFromForm]
     private DependentDiscipline DependentDiscipline { get; set; } = default!;
 
-    protected override void OnInitialized() => DependentDiscipline ??= new();
+    [SupplyParameterFromForm]
+    private string? discipline { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? dependent_discipline { get; set; }
+
+    private List<Discipline> disciplines = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        DependentDiscipline ??= new();
+        await using var context = DbFactory.CreateDbContext();
+        disciplines = await context.Disciplines.ToListAsync();
+    }
 
     // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
     private async Task AddDependentDiscipline()
     {
+        if (!int.TryParse(discipline, out var disciplineId))
+        {
+            return;
+        }
+        if (!int.TryParse(dependent_discipline, out var dependentDisciplineId))
+        {
+            return;
+        }
+
+        DependentDiscipline.discipline = disciplineId;
+        DependentDiscipline.dependent_discipline = dependentDisciplineId;
+
         using var context = DbFactory.CreateDbContext();
         context.DependentDisciplines.Add(DependentDiscipline);
         await context.SaveChangesAsync();

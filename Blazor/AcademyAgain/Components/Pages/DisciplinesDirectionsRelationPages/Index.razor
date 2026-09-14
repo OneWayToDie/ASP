@@ -1,10 +1,11 @@
 @page "/disciplinesdirectionsrelations"
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
-@implements IAsyncDisposable
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
+@inherits RowMenuPage<DisciplinesDirectionsRelation>
 
 <PageTitle>Дисциплины направлений</PageTitle>
 
@@ -13,24 +14,50 @@
     <a class="btn btn-primary" href="disciplinesdirectionsrelations/create">Создать</a>
 </div>
 
-<QuickGrid Class="table" Items="context.DisciplinesDirectionsRelation">
-    <PropertyColumn Property="relation => relation.direction" Title="Направление" />
-    <PropertyColumn Property="relation => relation.discipline" Title="Дисциплина" />
-
-    <TemplateColumn Context="relation">
-        <a href="@($"disciplinesdirectionsrelations/edit?direction={relation.direction}&discipline={relation.discipline}")">Изменить</a> |
-        <a href="@($"disciplinesdirectionsrelations/details?direction={relation.direction}&discipline={relation.discipline}")">Подробно</a> |
-        <a href="@($"disciplinesdirectionsrelations/delete?direction={relation.direction}&discipline={relation.discipline}")">Удалить</a>
+<QuickGrid Class="table context-table" Items="query" ItemKey="relation => relation.direction.ToString() + '_' + relation.discipline.ToString()">
+    <TemplateColumn Title="Направление" Sortable="true" SortBy="GridSort<DisciplinesDirectionsRelation>.ByAscending(r => DirectionName(r.direction))" Context="relation">
+        <div class="row-key @RowClass(relation)" data-item-key="@GetKey(relation)">
+            @DirectionName(relation.direction)
+        </div>
+    </TemplateColumn>
+    <TemplateColumn Title="Дисциплина" Sortable="true" SortBy="GridSort<DisciplinesDirectionsRelation>.ByAscending(r => DisciplineName(r.discipline))" Context="relation">
+        @DisciplineName(relation.discipline)
     </TemplateColumn>
 </QuickGrid>
 
-@code {
-    private AcademyAgainContext context = default!;
+<RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
 
-    protected override void OnInitialized()
+@code {
+    private IQueryable<DisciplinesDirectionsRelation> query = new List<DisciplinesDirectionsRelation>().AsQueryable();
+    private Dictionary<int, string> directionNames = new();
+    private Dictionary<int, string> disciplineNames = new();
+
+    protected override async Task OnInitializedAsync()
     {
-        context = DbFactory.CreateDbContext();
+        await using var context = DbFactory.CreateDbContext();
+        directionNames = await context.Directions.ToDictionaryAsync(d => d.direction_id, d => d.direction_name ?? $"№{d.direction_id}");
+        disciplineNames = await context.Disciplines.ToDictionaryAsync(d => d.discipline_id, d => d.discipline_name ?? $"№{d.discipline_id}");
+        query = (await context.DisciplinesDirectionsRelation.ToListAsync()).AsQueryable();
     }
 
-    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+    private string DirectionName(int id)
+        => directionNames.TryGetValue(id, out var name) ? name : $"№{id}";
+
+    private string DisciplineName(int id)
+        => disciplineNames.TryGetValue(id, out var name) ? name : $"№{id}";
+
+    protected override string GetKey(DisciplinesDirectionsRelation r) => $"{r.direction}|{r.discipline}";
+
+    protected override List<RowMenuItem> BuildMenu(string key)
+    {
+        var parts = key.Split('|');
+        if (parts.Length != 2 || !int.TryParse(parts[0], out var direction) || !int.TryParse(parts[1], out var discipline))
+            return new List<RowMenuItem>();
+        return new List<RowMenuItem>
+        {
+            new("Профиль", $"disciplinesdirectionsrelations/details?direction={direction}&discipline={discipline}"),
+            new("Изменить", $"disciplinesdirectionsrelations/edit?direction={direction}&discipline={discipline}"),
+            new("Удалить", $"disciplinesdirectionsrelations/delete?direction={direction}&discipline={discipline}", Danger: true),
+        };
+    }
 }

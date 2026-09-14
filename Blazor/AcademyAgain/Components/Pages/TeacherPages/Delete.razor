@@ -1,67 +1,64 @@
 @page "/teachers/delete"
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
+@using AcademyAgain.Helpers
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Delete</PageTitle>
+<PageTitle>Удаление преподавателя</PageTitle>
 
-<h1>Delete</h1>
+<h1>Удаление преподавателя</h1>
 
-<p>Are you sure you want to delete this?</p>
+<p class="text-danger">Вы уверены, что хотите удалить этого преподавателя?</p>
 <div>
-    <h2>Teacher</h2>
     <hr />
     @if (teacher is null)
     {
-        <p><em>Loading...</em></p>
+        <p><em>Загрузка...</em></p>
     }
-    else {
+    else
+    {
         <dl class="row">
-            <dt class="col-sm-2">last_name</dt>
+            <dt class="col-sm-2">Фото</dt>
+            <dd class="col-sm-10">
+                @if (photoSrc is not null)
+                {
+                    <img class="photo-large" src="@photoSrc" alt="@(teacher.last_name) @(teacher.first_name)" />
+                }
+                else
+                {
+                    <div class="photo-empty-large">фото нет</div>
+                }
+            </dd>
+            <dt class="col-sm-2">Фамилия</dt>
             <dd class="col-sm-10">@teacher.last_name</dd>
-        </dl>
-        <dl class="row">
-            <dt class="col-sm-2">first_name</dt>
+            <dt class="col-sm-2">Имя</dt>
             <dd class="col-sm-10">@teacher.first_name</dd>
-        </dl>
-        <dl class="row">
-            <dt class="col-sm-2">middle_name</dt>
+            <dt class="col-sm-2">Отчество</dt>
             <dd class="col-sm-10">@teacher.middle_name</dd>
-        </dl>
-        <dl class="row">
-            <dt class="col-sm-2">birth_date</dt>
+            <dt class="col-sm-2">Дата рождения</dt>
             <dd class="col-sm-10">@teacher.birth_date</dd>
-        </dl>
-        <dl class="row">
-            <dt class="col-sm-2">email</dt>
+            <dt class="col-sm-2">Email</dt>
             <dd class="col-sm-10">@teacher.email</dd>
-        </dl>
-        <dl class="row">
-            <dt class="col-sm-2">phone</dt>
+            <dt class="col-sm-2">Телефон</dt>
             <dd class="col-sm-10">@teacher.phone</dd>
-        </dl>
-        <dl class="row">
-            <dt class="col-sm-2">photo</dt>
-            <dd class="col-sm-10">@teacher.photo</dd>
-        </dl>
-        <dl class="row">
-            <dt class="col-sm-2">work_since</dt>
+            <dt class="col-sm-2">Работает с</dt>
             <dd class="col-sm-10">@teacher.work_since</dd>
-        </dl>
-        <dl class="row">
-            <dt class="col-sm-2">rate</dt>
+            <dt class="col-sm-2">Ставка</dt>
             <dd class="col-sm-10">@teacher.rate</dd>
         </dl>
+
         <EditForm method="post" Model="teacher" OnValidSubmit="DeleteTeacher" FormName="delete" Enhance>
-            <button type="submit" class="btn btn-danger" disabled="@(teacher is null)">Delete</button> |
-            <a href="/teachers">Back to List</a>
+            <input type="hidden" name="Teacher.teacher_id" value="@teacher.teacher_id" />
+            <button type="submit" class="btn btn-danger">Удалить</button> |
+            <a href="/teachers">Назад к списку</a>
         </EditForm>
     }
 </div>
 
 @code {
     private Teacher? teacher;
+    private string? photoSrc;
 
     [SupplyParameterFromQuery]
     private int teacher_id { get; set; }
@@ -74,6 +71,10 @@
         if (teacher is null)
         {
             NavigationManager.NavigateTo("notfound");
+        }
+        else
+        {
+            photoSrc = Photo.DataSrc(teacher.photo);
         }
     }
 

@@ -4,11 +4,10 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Create</PageTitle>
+<PageTitle>Добавление выходного дня</PageTitle>
 
-<h1>Create</h1>
+<h1>Добавление выходного дня</h1>
 
-<h2>DaysOFF</h2>
 <hr />
 <div class="row">
     <div class="col-md-4">
@@ -17,28 +16,57 @@
             <ValidationSummary class="text-danger" role="alert"/>
             <div class="mb-3">
                 <span class="text-danger">*</span>
-                <label for="holiday" class="form-label">holiday:</label> 
-                <InputNumber id="holiday" @bind-Value="DaysOFF.holiday" class="form-control" aria-required="true"/> 
-                <ValidationMessage For="() => DaysOFF.holiday" class="text-danger" /> 
-            </div>        
-            <button type="submit" class="btn btn-primary">Create</button>
+                <label for="date" class="form-label">Дата:</label>
+                <InputDate id="date" @bind-Value="DaysOFF.date" class="form-control" aria-required="true"/>
+                <ValidationMessage For="() => DaysOFF.date" class="text-danger" />
+            </div>
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="holiday" class="form-label">Праздник:</label>
+                <select id="holiday" name="holiday" class="form-select" aria-required="true">
+                    <option value="">— выберите праздник —</option>
+                    @foreach (var holiday in holidays.OrderBy(h => h.holiday_name))
+                    {
+                        <option value="@holiday.holiday_id" selected="@(DaysOFF.holiday == holiday.holiday_id)">@holiday.holiday_name</option>
+                    }
+                </select>
+                <ValidationMessage For="() => DaysOFF.holiday" class="text-danger" />
+            </div>
+            <button type="submit" class="btn btn-primary">Создать</button>
         </EditForm>
     </div>
 </div>
 
 <div>
-    <a href="/daysoffs">Back to List</a>
+    <a href="/daysoffs">Назад к списку</a>
 </div>
 
 @code {
     [SupplyParameterFromForm]
     private DaysOFF DaysOFF { get; set; } = default!;
 
-    protected override void OnInitialized() => DaysOFF ??= new();
+    [SupplyParameterFromForm]
+    private string? holiday { get; set; }
+
+    private List<Holiday> holidays = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        DaysOFF ??= new();
+        await using var context = DbFactory.CreateDbContext();
+        holidays = await context.Holidays.OrderBy(h => h.holiday_name).ToListAsync();
+    }
 
     // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
     private async Task AddDaysOFF()
     {
+        if (!int.TryParse(holiday, out var holidayId))
+        {
+            return;
+        }
+
+        DaysOFF.holiday = holidayId;
+
         using var context = DbFactory.CreateDbContext();
         context.DaysOFF.Add(DaysOFF);
         await context.SaveChangesAsync();

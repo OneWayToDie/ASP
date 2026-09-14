@@ -1,10 +1,11 @@
 @page "/grades"
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
-@implements IAsyncDisposable
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
+@inherits RowMenuPage<Grade>
 
 <PageTitle>Оценки</PageTitle>
 
@@ -13,26 +14,70 @@
     <a class="btn btn-primary" href="grades/create">Создать</a>
 </div>
 
-<QuickGrid Class="table" Items="context.Grades">
-    <PropertyColumn Property="grade => grade.student" Title="Студент" />
-    <PropertyColumn Property="grade => grade.lesson" Title="Занятие" />
-    <PropertyColumn Property="grade => grade.grade_1" Title="Оценка 1" />
-    <PropertyColumn Property="grade => grade.grade_2" Title="Оценка 2" />
-
-    <TemplateColumn Context="grade">
-        <a href="@($"grades/edit?student={grade.student}&lesson={grade.lesson}")">Изменить</a> |
-        <a href="@($"grades/details?student={grade.student}&lesson={grade.lesson}")">Подробно</a> |
-        <a href="@($"grades/delete?student={grade.student}&lesson={grade.lesson}")">Удалить</a>
+<QuickGrid Class="table context-table" Items="query" ItemKey="grade => grade.student.ToString() + '_' + grade.lesson.ToString()">
+    <TemplateColumn Title="Студент" Sortable="true" SortBy="GridSort<Grade>.ByAscending(g => StudentName(g.student))" Context="grade">
+        <div class="row-key @RowClass(grade)" data-item-key="@GetKey(grade)">
+            @(StudentName(grade.student))
+        </div>
     </TemplateColumn>
+    <TemplateColumn Title="Занятие" Sortable="true" SortBy="GridSort<Grade>.ByAscending(g => LessonName(g.lesson))" Context="grade">
+        @(LessonName(grade.lesson))
+    </TemplateColumn>
+    <PropertyColumn Property="grade => grade.grade_1" Title="Оценка 1" Sortable="true" />
+    <PropertyColumn Property="grade => grade.grade_2" Title="Оценка 2" Sortable="true" />
 </QuickGrid>
 
-@code {
-    private AcademyAgainContext context = default!;
+<RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
 
-    protected override void OnInitialized()
+@code {
+    private IQueryable<Grade> query = new List<Grade>().AsQueryable();
+    private Dictionary<int, string> students = new();
+    private Dictionary<long, string> lessonNames = new();
+
+    protected override async Task OnInitializedAsync()
     {
-        context = DbFactory.CreateDbContext();
+        await using var context = DbFactory.CreateDbContext();
+        students = (await context.Students.OrderBy(s => s.last_name).ToListAsync())
+            .ToDictionary(s => s.stud_id,
+                s => !string.IsNullOrWhiteSpace(s.middle_name)
+                    ? $"{s.last_name} {s.first_name} {s.middle_name}"
+                    : $"{s.last_name} {s.first_name}");
+        await BuildLessonNamesAsync(context);
+        query = (await context.Grades.ToListAsync()).AsQueryable();
     }
 
-    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+    private async Task BuildLessonNamesAsync(AcademyAgainContext context)
+    {
+        lessonNames = new Dictionary<long, string>();
+        var groupNames = (await context.Groups.ToListAsync())
+            .ToDictionary(g => g.group_id, g => g.group_name ?? "");
+        foreach (var s in context.Schedule)
+        {
+            var groupName = groupNames.TryGetValue(s.group, out var name) ? name : $"№{s.group}";
+            lessonNames[s.lesson_id] = s.date.HasValue
+                ? $"{s.lesson_id} · {groupName} · {s.date:d}"
+                : $"{s.lesson_id} · {groupName}";
+        }
+    }
+
+    private string StudentName(int id)
+        => students.TryGetValue(id, out var name) ? name : $"№{id}";
+
+    private string LessonName(long id)
+        => lessonNames.TryGetValue(id, out var label) ? label : $"№{id}";
+
+    protected override string GetKey(Grade g) => $"{g.student}|{g.lesson}";
+
+    protected override List<RowMenuItem> BuildMenu(string key)
+    {
+        var parts = key.Split('|');
+        if (parts.Length != 2 || !int.TryParse(parts[0], out var student) || !long.TryParse(parts[1], out var lesson))
+            return new List<RowMenuItem>();
+        return new List<RowMenuItem>
+        {
+            new("Профиль", $"grades/details?student={student}&lesson={lesson}"),
+            new("Изменить", $"grades/edit?student={student}&lesson={lesson}"),
+            new("Удалить", $"grades/delete?student={student}&lesson={lesson}", Danger: true),
+        };
+    }
 }

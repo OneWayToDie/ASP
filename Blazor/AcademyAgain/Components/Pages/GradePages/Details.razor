@@ -4,37 +4,37 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Details</PageTitle>
+<PageTitle>Оценка</PageTitle>
 
-<h1>Details</h1>
+<h1>Оценка</h1>
 
-<div>
-    <h2>Grade</h2>
-    <hr />
-    @if (grade is null)
-    {
-        <p><em>Loading...</em></p>
-    }
-    else {
-        <dl class="row">
-            <dt class="col-sm-2">student</dt>
-            <dd class="col-sm-10">@grade.student</dd>
-            <dt class="col-sm-2">lesson</dt>
-            <dd class="col-sm-10">@grade.lesson</dd>
-            <dt class="col-sm-2">grade_1</dt>
-            <dd class="col-sm-10">@grade.grade_1</dd>
-            <dt class="col-sm-2">grade_2</dt>
-            <dd class="col-sm-10">@grade.grade_2</dd>
-        </dl>
-        <div>
-            <a href="@($"/grades/edit?student={grade.student}&lesson={grade.lesson}")">Edit</a> |
-            <a href="@($"/grades")">Back to List</a>
-        </div>
-    }
-</div>
+<hr />
+@if (grade is null)
+{
+    <p><em>Загрузка...</em></p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-2">Студент</dt>
+        <dd class="col-sm-10">@StudentName</dd>
+        <dt class="col-sm-2">Занятие</dt>
+        <dd class="col-sm-10">@LessonName</dd>
+        <dt class="col-sm-2">Оценка 1</dt>
+        <dd class="col-sm-10">@(grade.grade_1?.ToString() ?? "—")</dd>
+        <dt class="col-sm-2">Оценка 2</dt>
+        <dd class="col-sm-10">@(grade.grade_2?.ToString() ?? "—")</dd>
+    </dl>
+    <div>
+        <a href="@($"/grades/edit?student={grade.student}&lesson={grade.lesson}")">Изменить</a> |
+        <a href="@($"/grades")">Назад к списку</a>
+    </div>
+}
 
 @code {
     private Grade? grade;
+    private string? StudentName = "—";
+    private string? LessonName = "—";
 
     [SupplyParameterFromQuery]
     private int student { get; set; }
@@ -50,6 +50,32 @@
         if (grade is null)
         {
             NavigationManager.NavigateTo("notfound");
+        }
+        else
+        {
+            var stud = await context.Students.FirstOrDefaultAsync(s => s.stud_id == grade.student);
+            if (stud is not null)
+            {
+                StudentName = !string.IsNullOrWhiteSpace(stud.middle_name)
+                    ? $"{stud.last_name} {stud.first_name} {stud.middle_name}"
+                    : $"{stud.last_name} {stud.first_name}";
+            }
+
+            var sched = await context.Schedule.FirstOrDefaultAsync(s => s.lesson_id == grade.lesson);
+            if (sched is not null)
+            {
+                var groupName = await context.Groups
+                    .Where(g => g.group_id == sched.group)
+                    .Select(g => g.group_name)
+                    .FirstOrDefaultAsync() ?? $"№{sched.group}";
+                LessonName = sched.date.HasValue
+                    ? $"{sched.lesson_id} · {groupName} · {sched.date:d}"
+                    : $"{sched.lesson_id} · {groupName}";
+            }
+            else
+            {
+                LessonName = $"№{grade.lesson}";
+            }
         }
     }
 }

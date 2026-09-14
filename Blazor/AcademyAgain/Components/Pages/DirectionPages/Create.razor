@@ -4,11 +4,10 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Create</PageTitle>
+<PageTitle>Добавление направления</PageTitle>
 
-<h1>Create</h1>
+<h1>Добавление направления</h1>
 
-<h2>Direction</h2>
 <hr />
 <div class="row">
     <div class="col-md-4">
@@ -16,17 +15,17 @@
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" role="alert"/>
             <div class="mb-3">
-                <label for="direction_name" class="form-label">direction_name:</label> 
-                <InputText id="direction_name" @bind-Value="Direction.direction_name" class="form-control" /> 
-                <ValidationMessage For="() => Direction.direction_name" class="text-danger" /> 
-            </div>        
-            <button type="submit" class="btn btn-primary">Create</button>
+                <label for="direction_name" class="form-label">Название:</label>
+                <InputText id="direction_name" @bind-Value="Direction.direction_name" class="form-control" />
+                <ValidationMessage For="() => Direction.direction_name" class="text-danger" />
+            </div>
+            <button type="submit" class="btn btn-primary">Создать</button>
         </EditForm>
     </div>
 </div>
 
 <div>
-    <a href="/directions">Back to List</a>
+    <a href="/directions">Назад к списку</a>
 </div>
 
 @code {

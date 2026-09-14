@@ -1,11 +1,12 @@
 @page "/teachers"
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
 @using AcademyAgain.Helpers
-@implements IAsyncDisposable
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
+@inherits RowMenuPage<Teacher>
 
 <PageTitle>Преподаватели</PageTitle>
 
@@ -14,40 +15,50 @@
     <a class="btn btn-primary" href="teachers/create">Создать</a>
 </div>
 
-<QuickGrid Class="table" Items="context.Teachers">
+<QuickGrid Class="table context-table" Items="query" ItemKey="teacher => teacher.teacher_id">
     <TemplateColumn Title="Фото" Context="teacher">
-        @if (Photo.DataSrc(teacher.photo) is string src)
-        {
-            <img class="photo-thumb" src="@src" alt="@(teacher.last_name) @(teacher.first_name)" />
-        }
-        else
-        {
-            <span class="photo-empty">—</span>
-        }
+        <div class="row-key @RowClass(teacher)" data-item-key="@GetKey(teacher)">
+            @if (Photo.DataSrc(teacher.photo) is string src)
+            {
+                <img class="photo-thumb" src="@src" alt="@(teacher.last_name) @(teacher.first_name)" />
+            }
+            else
+            {
+                <span class="photo-empty">—</span>
+            }
+        </div>
     </TemplateColumn>
-    <PropertyColumn Property="teacher => teacher.last_name" Title="Фамилия" />
-    <PropertyColumn Property="teacher => teacher.first_name" Title="Имя" />
-    <PropertyColumn Property="teacher => teacher.middle_name" Title="Отчество" />
-    <PropertyColumn Property="teacher => teacher.birth_date" Title="Дата рождения" />
-    <PropertyColumn Property="teacher => teacher.email" Title="Email" />
-    <PropertyColumn Property="teacher => teacher.phone" Title="Телефон" />
-    <PropertyColumn Property="teacher => teacher.work_since" Title="Работает с" />
-    <PropertyColumn Property="teacher => teacher.rate" Title="Ставка" />
-
-    <TemplateColumn Context="teacher">
-        <a href="@($"teachers/edit?teacher_id={teacher.teacher_id}")">Изменить</a> |
-        <a href="@($"teachers/details?teacher_id={teacher.teacher_id}")">Подробно</a> |
-        <a href="@($"teachers/delete?teacher_id={teacher.teacher_id}")">Удалить</a>
-    </TemplateColumn>
+    <PropertyColumn Property="teacher => teacher.last_name" Title="Фамилия" Sortable="true" />
+    <PropertyColumn Property="teacher => teacher.first_name" Title="Имя" Sortable="true" />
+    <PropertyColumn Property="teacher => teacher.middle_name" Title="Отчество" Sortable="true" />
+    <PropertyColumn Property="teacher => teacher.birth_date" Title="Дата рождения" Sortable="true" />
+    <PropertyColumn Property="teacher => teacher.email" Title="Email" Sortable="true" />
+    <PropertyColumn Property="teacher => teacher.phone" Title="Телефон" Sortable="true" />
+    <PropertyColumn Property="teacher => teacher.work_since" Title="Работает с" Sortable="true" />
+    <PropertyColumn Property="teacher => teacher.rate" Title="Ставка" Sortable="true" />
 </QuickGrid>
 
-@code {
-    private AcademyAgainContext context = default!;
+<RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
 
-    protected override void OnInitialized()
+@code {
+    private IQueryable<Teacher> query = new List<Teacher>().AsQueryable();
+
+    protected override async Task OnInitializedAsync()
     {
-        context = DbFactory.CreateDbContext();
+        await using var context = DbFactory.CreateDbContext();
+        query = (await context.Teachers.ToListAsync()).AsQueryable();
     }
 
-    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+    protected override string GetKey(Teacher teacher) => teacher.teacher_id.ToString();
+
+    protected override List<RowMenuItem> BuildMenu(string key)
+    {
+        if (!int.TryParse(key, out var id)) return new List<RowMenuItem>();
+        return new List<RowMenuItem>
+        {
+            new("Профиль", $"teachers/details?teacher_id={id}"),
+            new("Изменить", $"teachers/edit?teacher_id={id}"),
+            new("Удалить", $"teachers/delete?teacher_id={id}", Danger: true),
+        };
+    }
 }

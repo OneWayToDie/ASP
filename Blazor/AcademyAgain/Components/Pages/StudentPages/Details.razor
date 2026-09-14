@@ -5,60 +5,184 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Студент: @(student?.last_name) @(student?.first_name)</PageTitle>
+<PageTitle>Профиль: @(student?.last_name) @(student?.first_name)</PageTitle>
 
-<h1>Студент: @(student?.last_name) @(student?.first_name)</h1>
-
-<hr />
 @if (student is null)
 {
     <p><em>Загрузка...</em></p>
 }
 else
 {
-    <div class="row">
-        <div class="col-md-3">
-            @if (photoSrc is not null)
-            {
-                <img class="photo-large" src="@photoSrc" alt="@(student.last_name) @(student.first_name)" />
-            }
-            else
-            {
-                <div class="photo-empty-large">фото нет</div>
-            }
-        </div>
-        <div class="col-md-9">
-            <dl class="row">
-                <dt class="col-sm-3">Фамилия</dt>
-                <dd class="col-sm-9">@student.last_name</dd>
-                <dt class="col-sm-3">Имя</dt>
-                <dd class="col-sm-9">@student.first_name</dd>
-                <dt class="col-sm-3">Отчество</dt>
-                <dd class="col-sm-9">@student.middle_name</dd>
-                <dt class="col-sm-3">Дата рождения</dt>
-                <dd class="col-sm-9">@student.birth_date</dd>
-                <dt class="col-sm-3">Email</dt>
-                <dd class="col-sm-9">@student.email</dd>
-                <dt class="col-sm-3">Телефон</dt>
-                <dd class="col-sm-9">@student.phone</dd>
-                <dt class="col-sm-3">Группа</dt>
-                <dd class="col-sm-9">@GroupName</dd>
-                <dt class="col-sm-3">Направление</dt>
-                <dd class="col-sm-9">@DirectionName</dd>
-            </dl>
+    <div class="profile">
+        <div class="profile-head">
             <div>
-                <a href="@($"/students/edit?stud_id={student.stud_id}")">Изменить</a> |
-                <a href="@($"/students")">Назад к списку</a>
+                @if (photoSrc is not null)
+                {
+                    <img class="photo-large" src="@photoSrc" alt="@(student.last_name) @(student.first_name)" />
+                }
+                else
+                {
+                    <div class="photo-empty-large">фото нет</div>
+                }
+            </div>
+            <div class="profile-head-info">
+                <h1>@FullName</h1>
+                <p class="profile-head-sub">
+                    @if (GroupName != "—")
+                    {
+                        <span>группа @GroupName</span>
+                        <span> · </span>
+                    }
+                    @DirectionName
+                </p>
+                <p class="profile-head-contacts">
+                    @student.email
+                    @if (!string.IsNullOrWhiteSpace(student.email) && !string.IsNullOrWhiteSpace(student.phone))
+                    {
+                        <span> · </span>
+                    }
+                    @student.phone
+                </p>
+            </div>
+        </div>
+        <div class="profile-body">
+            <div class="profile-stats">
+                <div class="stat-card">
+                    <div class="stat-value">@AverageGrade</div>
+                    <div class="stat-label">Средний балл</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">@AttendedCount/@AttendanceTotal</div>
+                    <div class="stat-label">Посещено занятий</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">@ExamsTaken</div>
+                    <div class="stat-label">Экзаменов сдано</div>
+                </div>
+            </div>
+
+            <div class="profile-facts">
+                <div class="profile-fact">
+                    <span class="profile-fact-label">Дата рождения</span>
+                    <span class="profile-fact-value">@student.birth_date.ToString("dd.MM.yyyy")</span>
+                </div>
+                <div class="profile-fact">
+                    <span class="profile-fact-label">Фамилия</span>
+                    <span class="profile-fact-value">@student.last_name</span>
+                </div>
+                <div class="profile-fact">
+                    <span class="profile-fact-label">Имя</span>
+                    <span class="profile-fact-value">@student.first_name</span>
+                </div>
+                <div class="profile-fact">
+                    <span class="profile-fact-label">Отчество</span>
+                    <span class="profile-fact-value">@(student.middle_name ?? "—")</span>
+                </div>
+            </div>
+
+            <div class="profile-sections">
+                <div class="profile-section">
+                    <h3>Успеваемость</h3>
+                    @if (Grades.Count == 0)
+                    {
+                        <div class="section-empty">Оценок пока нет</div>
+                    }
+                    else
+                    {
+                        <table class="table table-sm">
+                            <thead>
+                                <tr><th>Занятие</th><th class="text-end">Оценка 1</th><th class="text-end">Оценка 2</th></tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var g in Grades)
+                                {
+                                    <tr>
+                                        <td>@g.Lesson</td>
+                                        <td class="text-end">@(g.Grade1?.ToString() ?? "—")</td>
+                                        <td class="text-end">@(g.Grade2?.ToString() ?? "—")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+                <div class="profile-section">
+                    <h3>Посещаемость</h3>
+                    @if (Attendance.Count == 0)
+                    {
+                        <div class="section-empty">Занятий не посещал</div>
+                    }
+                    else
+                    {
+                        <table class="table table-sm">
+                            <thead>
+                                <tr><th>Занятие</th><th class="text-end">Присутствовал</th></tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var a in Attendance)
+                                {
+                                    <tr>
+                                        <td>@a.Lesson</td>
+                                        <td class="text-end">@(a.Present ? "Да" : "Нет")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+                <div class="profile-section">
+                    <h3>Экзамены</h3>
+                    @if (Exams.Count == 0)
+                    {
+                        <div class="section-empty">Экзаменов нет</div>
+                    }
+                    else
+                    {
+                        <table class="table table-sm">
+                            <thead>
+                                <tr><th>Дисциплина</th><th>Дата</th><th class="text-end">Оценка</th></tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var e in Exams)
+                                {
+                                    <tr>
+                                        <td>@e.Discipline</td>
+                                        <td>@e.Date</td>
+                                        <td class="text-end">@(e.Grade?.ToString() ?? "—")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            </div>
+
+            <div class="profile-actions">
+                <a class="btn btn-primary" href="@($"students/edit?stud_id={student.stud_id}")">Изменить</a>
+                <a class="btn btn-outline-secondary" href="@($"students")">Назад к списку</a>
             </div>
         </div>
     </div>
 }
 
 @code {
+    private sealed record GradeRow(string Lesson, int? Grade1, int? Grade2);
+    private sealed record AttendanceRow(string Lesson, bool Present);
+    private sealed record ExamRow(string Discipline, string Date, int? Grade);
+
     private Student? student;
     private string? photoSrc;
+    private string FullName = "—";
     private string GroupName = "—";
     private string DirectionName = "—";
+    private string AverageGrade = "—";
+    private string AttendedCount = "0";
+    private string AttendanceTotal = "0";
+    private int ExamsTaken;
+
+    private List<GradeRow> Grades = new();
+    private List<AttendanceRow> Attendance = new();
+    private List<ExamRow> Exams = new();
 
     [SupplyParameterFromQuery]
     private int stud_id { get; set; }
@@ -71,20 +195,76 @@ else
         if (student is null)
         {
             NavigationManager.NavigateTo("notfound");
+            return;
         }
-        else
-        {
-            photoSrc = Photo.DataSrc(student.photo);
 
-            var group = await context.Groups.FirstOrDefaultAsync(g => g.group_id == student.group);
-            if (group is not null)
-            {
-                GroupName = group.group_name ?? "—";
-                DirectionName = await context.Directions
-                    .Where(d => d.direction_id == group.direction)
-                    .Select(d => d.direction_name)
-                    .FirstOrDefaultAsync() ?? "—";
-            }
+        photoSrc = Photo.DataSrc(student.photo);
+
+        FullName = !string.IsNullOrWhiteSpace(student.middle_name)
+            ? $"{student.last_name} {student.first_name} {student.middle_name}"
+            : $"{student.last_name} {student.first_name}";
+
+        var group = await context.Groups.FirstOrDefaultAsync(g => g.group_id == student.group);
+        if (group is not null)
+        {
+            GroupName = group.group_name ?? "—";
+            DirectionName = await context.Directions
+                .Where(d => d.direction_id == group.direction)
+                .Select(d => d.direction_name)
+                .FirstOrDefaultAsync() ?? "—";
         }
+
+        var schedules = await context.Schedule.ToListAsync();
+        var scheduleById = schedules.ToDictionary(s => s.lesson_id);
+        var disciplines = await context.Disciplines.ToDictionaryAsync(d => d.discipline_id);
+
+        string LessonLabel(Schedule s)
+        {
+            var name = disciplines.TryGetValue(s.discipline, out var disc) ? disc.discipline_name ?? $"№{s.discipline}" : $"№{s.discipline}";
+            return s.date.HasValue ? $"{name} ({s.date:d.MM.yyyy})" : name;
+        }
+
+        var gradeList = await context.Grades
+            .Where(g => g.student == student.stud_id)
+            .OrderBy(g => g.lesson)
+            .ToListAsync();
+        Grades = gradeList
+            .Select(g => scheduleById.TryGetValue(g.lesson, out var s)
+                ? new GradeRow(LessonLabel(s), g.grade_1, g.grade_2)
+                : new GradeRow($"№{g.lesson}", g.grade_1, g.grade_2))
+            .ToList();
+
+        var gradeValues = gradeList
+            .SelectMany(g => new[] { g.grade_1, g.grade_2 })
+            .Where(g => g.HasValue)
+            .Select(g => g!.Value)
+            .ToList();
+        AverageGrade = gradeValues.Count == 0
+            ? "—"
+            : $"{gradeValues.Average():0.00}";
+
+        var attendanceList = await context.Attendance
+            .Where(a => a.student == student.stud_id)
+            .OrderBy(a => a.lesson)
+            .ToListAsync();
+        Attendance = attendanceList
+            .Select(a => scheduleById.TryGetValue(a.lesson, out var s)
+                ? new AttendanceRow(LessonLabel(s), a.present)
+                : new AttendanceRow($"№{a.lesson}", a.present))
+            .ToList();
+        AttendedCount = attendanceList.Count(a => a.present).ToString();
+        AttendanceTotal = attendanceList.Count.ToString();
+
+        var examList = await context.Exams
+            .Where(e => e.student == student.stud_id)
+            .OrderBy(e => e.discipline)
+            .ToListAsync();
+        Exams = examList
+            .Select(e => new ExamRow(
+                disciplines.TryGetValue(e.discipline, out var disc) ? disc.discipline_name ?? $"№{e.discipline}" : $"№{e.discipline}",
+                e.date?.ToString("dd.MM.yyyy") ?? "—",
+                e.grade))
+            .ToList();
+        ExamsTaken = examList.Count(e => e.grade.HasValue);
     }
 }

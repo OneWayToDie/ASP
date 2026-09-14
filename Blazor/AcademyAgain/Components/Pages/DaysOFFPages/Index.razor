@@ -1,10 +1,11 @@
 @page "/daysoffs"
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
-@implements IAsyncDisposable
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
+@inherits RowMenuPage<DaysOFF>
 
 <PageTitle>Выходные дни</PageTitle>
 
@@ -13,24 +14,44 @@
     <a class="btn btn-primary" href="daysoffs/create">Создать</a>
 </div>
 
-<QuickGrid Class="table" Items="context.DaysOFF">
-    <PropertyColumn Property="daysoff => daysoff.date" Title="Дата" />
-    <PropertyColumn Property="daysoff => daysoff.holiday" Title="Праздник" />
-
-    <TemplateColumn Context="daysoff">
-        <a href="@($"daysoffs/edit?date={daysoff.date}")">Изменить</a> |
-        <a href="@($"daysoffs/details?date={daysoff.date}")">Подробно</a> |
-        <a href="@($"daysoffs/delete?date={daysoff.date}")">Удалить</a>
+<QuickGrid Class="table context-table" Items="query" ItemKey="daysoff => daysoff.date">
+    <TemplateColumn Title="Дата" Sortable="true" SortBy="GridSort<DaysOFF>.ByAscending(d => d.date)" Context="daysoff">
+        <div class="row-key @RowClass(daysoff)" data-item-key="@GetKey(daysoff)">
+            @daysoff.date.ToString("dd.MM.yyyy")
+        </div>
+    </TemplateColumn>
+    <TemplateColumn Title="Праздник" Sortable="true" SortBy="GridSort<DaysOFF>.ByAscending(d => HolidayName(d.holiday))" Context="daysoff">
+        @HolidayName(daysoff.holiday)
     </TemplateColumn>
 </QuickGrid>
 
-@code {
-    private AcademyAgainContext context = default!;
+<RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
 
-    protected override void OnInitialized()
+@code {
+    private IQueryable<DaysOFF> query = new List<DaysOFF>().AsQueryable();
+    private Dictionary<int, string> holidayNames = new();
+
+    protected override async Task OnInitializedAsync()
     {
-        context = DbFactory.CreateDbContext();
+        await using var context = DbFactory.CreateDbContext();
+        holidayNames = await context.Holidays.ToDictionaryAsync(h => h.holiday_id, h => h.holiday_name);
+        query = (await context.DaysOFF.ToListAsync()).AsQueryable();
     }
 
-    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+    private string HolidayName(int id)
+        => holidayNames.TryGetValue(id, out var name) ? name : $"№{id}";
+
+    protected override string GetKey(DaysOFF d) => d.date.ToString("yyyy-MM-dd");
+
+    protected override List<RowMenuItem> BuildMenu(string key)
+    {
+        if (!DateTime.TryParse(key, out var date)) return new List<RowMenuItem>();
+        var formatted = date.ToString("yyyy-MM-dd");
+        return new List<RowMenuItem>
+        {
+            new("Профиль", $"daysoffs/details?date={formatted}"),
+            new("Изменить", $"daysoffs/edit?date={formatted}"),
+            new("Удалить", $"daysoffs/delete?date={formatted}", Danger: true),
+        };
+    }
 }

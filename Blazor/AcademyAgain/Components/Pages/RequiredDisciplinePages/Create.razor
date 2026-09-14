@@ -4,11 +4,10 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Create</PageTitle>
+<PageTitle>Добавление требуемой дисциплины</PageTitle>
 
-<h1>Create</h1>
+<h1>Добавление требуемой дисциплины</h1>
 
-<h2>RequiredDiscipline</h2>
 <hr />
 <div class="row">
     <div class="col-md-4">
@@ -17,34 +16,71 @@
             <ValidationSummary class="text-danger" role="alert"/>
             <div class="mb-3">
                 <span class="text-danger">*</span>
-                <label for="discipline" class="form-label">discipline:</label> 
-                <InputNumber id="discipline" @bind-Value="RequiredDiscipline.discipline" class="form-control" aria-required="true"/> 
-                <ValidationMessage For="() => RequiredDiscipline.discipline" class="text-danger" /> 
-            </div>        
+                <label for="discipline" class="form-label">Дисциплина:</label>
+                <select id="discipline" name="discipline" class="form-select" aria-required="true">
+                    <option value="">— выберите дисциплину —</option>
+                    @foreach (var discipline in disciplines.OrderBy(d => d.discipline_name))
+                    {
+                        <option value="@discipline.discipline_id" selected="@(RequiredDiscipline.discipline == discipline.discipline_id)">@discipline.discipline_name</option>
+                    }
+                </select>
+                <ValidationMessage For="() => RequiredDiscipline.discipline" class="text-danger" />
+            </div>
             <div class="mb-3">
                 <span class="text-danger">*</span>
-                <label for="required_discipline" class="form-label">required_discipline:</label> 
-                <InputNumber id="required_discipline" @bind-Value="RequiredDiscipline.required_discipline" class="form-control" aria-required="true"/> 
-                <ValidationMessage For="() => RequiredDiscipline.required_discipline" class="text-danger" /> 
-            </div>        
-            <button type="submit" class="btn btn-primary">Create</button>
+                <label for="required_discipline" class="form-label">Требуемая дисциплина:</label>
+                <select id="required_discipline" name="required_discipline" class="form-select" aria-required="true">
+                    <option value="">— выберите дисциплину —</option>
+                    @foreach (var discipline in disciplines.OrderBy(d => d.discipline_name))
+                    {
+                        <option value="@discipline.discipline_id" selected="@(RequiredDiscipline.required_discipline == discipline.discipline_id)">@discipline.discipline_name</option>
+                    }
+                </select>
+                <ValidationMessage For="() => RequiredDiscipline.required_discipline" class="text-danger" />
+            </div>
+            <button type="submit" class="btn btn-primary">Создать</button>
         </EditForm>
     </div>
 </div>
 
 <div>
-    <a href="/requireddisciplines">Back to List</a>
+    <a href="/requireddisciplines">Назад к списку</a>
 </div>
 
 @code {
     [SupplyParameterFromForm]
     private RequiredDiscipline RequiredDiscipline { get; set; } = default!;
 
-    protected override void OnInitialized() => RequiredDiscipline ??= new();
+    [SupplyParameterFromForm]
+    private string? discipline { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? required_discipline { get; set; }
+
+    private List<Discipline> disciplines = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        RequiredDiscipline ??= new();
+        await using var context = DbFactory.CreateDbContext();
+        disciplines = await context.Disciplines.ToListAsync();
+    }
 
     // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
     private async Task AddRequiredDiscipline()
     {
+        if (!int.TryParse(discipline, out var disciplineId))
+        {
+            return;
+        }
+        if (!int.TryParse(required_discipline, out var requiredDisciplineId))
+        {
+            return;
+        }
+
+        RequiredDiscipline.discipline = disciplineId;
+        RequiredDiscipline.required_discipline = requiredDisciplineId;
+
         using var context = DbFactory.CreateDbContext();
         context.RequiredDisciplines.Add(RequiredDiscipline);
         await context.SaveChangesAsync();

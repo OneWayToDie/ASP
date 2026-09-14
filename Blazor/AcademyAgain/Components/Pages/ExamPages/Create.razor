@@ -4,11 +4,10 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Create</PageTitle>
+<PageTitle>Добавление экзамена</PageTitle>
 
-<h1>Create</h1>
+<h1>Добавление экзамена</h1>
 
-<h2>Exam</h2>
 <hr />
 <div class="row">
     <div class="col-md-4">
@@ -17,44 +16,86 @@
             <ValidationSummary class="text-danger" role="alert"/>
             <div class="mb-3">
                 <span class="text-danger">*</span>
-                <label for="student" class="form-label">student:</label> 
-                <InputNumber id="student" @bind-Value="Exam.student" class="form-control" aria-required="true"/> 
-                <ValidationMessage For="() => Exam.student" class="text-danger" /> 
-            </div>        
+                <label for="student" class="form-label">Студент:</label>
+                <select id="student" name="student" class="form-select" aria-required="true">
+                    <option value="">— выберите студента —</option>
+                    @foreach (var student in students)
+                    {
+                        <option value="@student.Key" selected="@(Exam.student == student.Key)">@student.Value</option>
+                    }
+                </select>
+                <ValidationMessage For="() => Exam.student" class="text-danger" />
+            </div>
             <div class="mb-3">
                 <span class="text-danger">*</span>
-                <label for="discipline" class="form-label">discipline:</label> 
-                <InputNumber id="discipline" @bind-Value="Exam.discipline" class="form-control" aria-required="true"/> 
-                <ValidationMessage For="() => Exam.discipline" class="text-danger" /> 
-            </div>        
+                <label for="discipline" class="form-label">Дисциплина:</label>
+                <select id="discipline" name="discipline" class="form-select" aria-required="true">
+                    <option value="">— выберите дисциплину —</option>
+                    @foreach (var discipline in disciplines)
+                    {
+                        <option value="@discipline.Key" selected="@(Exam.discipline == discipline.Key)">@discipline.Value</option>
+                    }
+                </select>
+                <ValidationMessage For="() => Exam.discipline" class="text-danger" />
+            </div>
             <div class="mb-3">
-                <label for="date" class="form-label">date:</label> 
-                <InputDate id="date" @bind-Value="Exam.date" class="form-control" /> 
-                <ValidationMessage For="() => Exam.date" class="text-danger" /> 
-            </div>        
+                <label for="date" class="form-label">Дата:</label>
+                <InputDate id="date" @bind-Value="Exam.date" class="form-control" />
+                <ValidationMessage For="() => Exam.date" class="text-danger" />
+            </div>
             <div class="mb-3">
-                <label for="grade" class="form-label">grade:</label> 
-                <InputNumber id="grade" @bind-Value="Exam.grade" class="form-control" /> 
-                <ValidationMessage For="() => Exam.grade" class="text-danger" /> 
-            </div>        
-            <button type="submit" class="btn btn-primary">Create</button>
+                <label for="grade" class="form-label">Оценка:</label>
+                <InputNumber id="grade" @bind-Value="Exam.grade" class="form-control" />
+                <ValidationMessage For="() => Exam.grade" class="text-danger" />
+            </div>
+            <button type="submit" class="btn btn-primary">Создать</button>
         </EditForm>
     </div>
 </div>
 
 <div>
-    <a href="/exams">Back to List</a>
+    <a href="/exams">Назад к списку</a>
 </div>
 
 @code {
     [SupplyParameterFromForm]
     private Exam Exam { get; set; } = default!;
 
-    protected override void OnInitialized() => Exam ??= new();
+    [SupplyParameterFromForm]
+    private string? student { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? discipline { get; set; }
+
+    private List<KeyValuePair<int, string>> students = new();
+    private List<KeyValuePair<int, string>> disciplines = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Exam ??= new();
+        await using var context = DbFactory.CreateDbContext();
+        students = (await context.Students.OrderBy(s => s.last_name).ToListAsync())
+            .Select(s => new KeyValuePair<int, string>(s.stud_id,
+                !string.IsNullOrWhiteSpace(s.middle_name)
+                    ? $"{s.last_name} {s.first_name} {s.middle_name}"
+                    : $"{s.last_name} {s.first_name}"))
+            .ToList();
+        disciplines = (await context.Disciplines.OrderBy(d => d.discipline_name).ToListAsync())
+            .Select(d => new KeyValuePair<int, string>(d.discipline_id, d.discipline_name ?? ""))
+            .ToList();
+    }
 
     // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
     private async Task AddExam()
     {
+        if (!int.TryParse(student, out var studentId) || !int.TryParse(discipline, out var disciplineId))
+        {
+            return;
+        }
+
+        Exam.student = studentId;
+        Exam.discipline = disciplineId;
+
         using var context = DbFactory.CreateDbContext();
         context.Exams.Add(Exam);
         await context.SaveChangesAsync();

@@ -1,36 +1,36 @@
-@page "/disciplinesdirectionsrelations/details"
+﻿@page "/disciplinesdirectionsrelations/details"
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Details</PageTitle>
+<PageTitle>РџРѕРґСЂРѕР±РЅРѕСЃС‚Рё: РґРёСЃС†РёРїР»РёРЅР° РЅР°РїСЂР°РІР»РµРЅРёСЏ</PageTitle>
 
-<h1>Details</h1>
+<h1>РџРѕРґСЂРѕР±РЅРѕСЃС‚Рё: РґРёСЃС†РёРїР»РёРЅР° РЅР°РїСЂР°РІР»РµРЅРёСЏ</h1>
 
-<div>
-    <h2>DisciplinesDirectionsRelation</h2>
-    <hr />
-    @if (relation is null)
-    {
-        <p><em>Loading...</em></p>
-    }
-    else {
-        <dl class="row">
-            <dt class="col-sm-2">direction</dt>
-            <dd class="col-sm-10">@relation.direction</dd>
-            <dt class="col-sm-2">discipline</dt>
-            <dd class="col-sm-10">@relation.discipline</dd>
-        </dl>
-        <div>
-            <a href="@($"/disciplinesdirectionsrelations/edit?direction={relation.direction}&discipline={relation.discipline}")">Edit</a> |
-            <a href="@($"/disciplinesdirectionsrelations")">Back to List</a>
-        </div>
-    }
-</div>
+<hr />
+@if (relation is null)
+{
+    <p><em>Р—Р°РіСЂСѓР·РєР°...</em></p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-2">РќР°РїСЂР°РІР»РµРЅРёРµ</dt>
+        <dd class="col-sm-10">@DirectionName</dd>
+        <dt class="col-sm-2">Р”РёСЃС†РёРїР»РёРЅР°</dt>
+        <dd class="col-sm-10">@DisciplineName</dd>
+    </dl>
+    <div>
+        <a href="@($"/disciplinesdirectionsrelations/edit?direction={relation.direction}&discipline={relation.discipline}")">РР·РјРµРЅРёС‚СЊ</a> |
+        <a href="@($"/disciplinesdirectionsrelations")">РќР°Р·Р°Рґ Рє СЃРїРёСЃРєСѓ</a>
+    </div>
+}
 
 @code {
     private DisciplinesDirectionsRelation? relation;
+    private string? DirectionName = "вЂ”";
+    private string? DisciplineName = "вЂ”";
 
     [SupplyParameterFromQuery]
     private int direction { get; set; }
@@ -46,6 +46,17 @@
         if (relation is null)
         {
             NavigationManager.NavigateTo("notfound");
+        }
+        else
+        {
+            DirectionName = await context.Directions
+                .Where(d => d.direction_id == relation.direction)
+                .Select(d => d.direction_name)
+                .FirstOrDefaultAsync() ?? "вЂ”";
+            DisciplineName = await context.Disciplines
+                .Where(d => d.discipline_id == relation.discipline)
+                .Select(d => d.discipline_name)
+                .FirstOrDefaultAsync() ?? "вЂ”";
         }
     }
 }

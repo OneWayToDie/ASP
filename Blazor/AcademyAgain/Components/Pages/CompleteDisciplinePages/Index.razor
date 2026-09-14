@@ -1,10 +1,11 @@
 @page "/completedisciplines"
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
-@implements IAsyncDisposable
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
+@inherits RowMenuPage<CompleteDiscipline>
 
 <PageTitle>Пройденные дисциплины</PageTitle>
 
@@ -13,24 +14,50 @@
     <a class="btn btn-primary" href="completedisciplines/create">Создать</a>
 </div>
 
-<QuickGrid Class="table" Items="context.CompleteDisciplines">
-    <PropertyColumn Property="complete => complete.group" Title="Группа" />
-    <PropertyColumn Property="complete => complete.discipline" Title="Дисциплина" />
-
-    <TemplateColumn Context="complete">
-        <a href="@($"completedisciplines/edit?group={complete.group}&discipline={complete.discipline}")">Изменить</a> |
-        <a href="@($"completedisciplines/details?group={complete.group}&discipline={complete.discipline}")">Подробно</a> |
-        <a href="@($"completedisciplines/delete?group={complete.group}&discipline={complete.discipline}")">Удалить</a>
+<QuickGrid Class="table context-table" Items="query" ItemKey="complete => complete.group.ToString() + '_' + complete.discipline.ToString()">
+    <TemplateColumn Title="Группа" Sortable="true" SortBy="GridSort<CompleteDiscipline>.ByAscending(c => GroupName(c.group))" Context="complete">
+        <div class="row-key @RowClass(complete)" data-item-key="@GetKey(complete)">
+            @GroupName(complete.group)
+        </div>
+    </TemplateColumn>
+    <TemplateColumn Title="Дисциплина" Sortable="true" SortBy="GridSort<CompleteDiscipline>.ByAscending(c => DisciplineName(c.discipline))" Context="complete">
+        @DisciplineName(complete.discipline)
     </TemplateColumn>
 </QuickGrid>
 
-@code {
-    private AcademyAgainContext context = default!;
+<RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
 
-    protected override void OnInitialized()
+@code {
+    private IQueryable<CompleteDiscipline> query = new List<CompleteDiscipline>().AsQueryable();
+    private Dictionary<int, string> groupNames = new();
+    private Dictionary<int, string> disciplineNames = new();
+
+    protected override async Task OnInitializedAsync()
     {
-        context = DbFactory.CreateDbContext();
+        await using var context = DbFactory.CreateDbContext();
+        groupNames = await context.Groups.ToDictionaryAsync(g => g.group_id, g => g.group_name?.Trim() ?? $"№{g.group_id}");
+        disciplineNames = await context.Disciplines.ToDictionaryAsync(d => d.discipline_id, d => d.discipline_name ?? $"№{d.discipline_id}");
+        query = (await context.CompleteDisciplines.ToListAsync()).AsQueryable();
     }
 
-    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+    private string GroupName(int id)
+        => groupNames.TryGetValue(id, out var name) ? name : $"№{id}";
+
+    private string DisciplineName(int id)
+        => disciplineNames.TryGetValue(id, out var name) ? name : $"№{id}";
+
+    protected override string GetKey(CompleteDiscipline c) => $"{c.group}|{c.discipline}";
+
+    protected override List<RowMenuItem> BuildMenu(string key)
+    {
+        var parts = key.Split('|');
+        if (parts.Length != 2 || !int.TryParse(parts[0], out var group) || !int.TryParse(parts[1], out var discipline))
+            return new List<RowMenuItem>();
+        return new List<RowMenuItem>
+        {
+            new("Профиль", $"completedisciplines/details?group={group}&discipline={discipline}"),
+            new("Изменить", $"completedisciplines/edit?group={group}&discipline={discipline}"),
+            new("Удалить", $"completedisciplines/delete?group={group}&discipline={discipline}", Danger: true),
+        };
+    }
 }

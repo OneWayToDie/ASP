@@ -4,15 +4,14 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Edit</PageTitle>
+<PageTitle>Редактирование выходного дня</PageTitle>
 
-<h1>Edit</h1>
+<h1>Редактирование выходного дня</h1>
 
-<h2>DaysOFF</h2>
 <hr />
 @if (DaysOFF is null)
 {
-    <p><em>Loading...</em></p>
+    <p><em>Загрузка...</em></p>
 }
 else
 {
@@ -23,32 +22,52 @@ else
                 <ValidationSummary role="alert"/>
                 <input type="hidden" name="DaysOFF.date" value="@DaysOFF.date" />
                 <div class="mb-3">
-                <span class="text-danger">*</span>
-                    <label for="holiday" class="form-label">holiday:</label>
-                    <InputNumber id="holiday" @bind-Value="DaysOFF.holiday" class="form-control" aria-required="true"/>
+                    <span class="text-danger">*</span>
+                    <label for="date" class="form-label">Дата:</label>
+                    <input id="date" class="form-control" value="@DaysOFF.date.ToString("yyyy-MM-dd")" readonly />
+                </div>
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="holiday" class="form-label">Праздник:</label>
+                    <select id="holiday" name="holiday" class="form-select" aria-required="true">
+                        <option value="">— выберите праздник —</option>
+                        @foreach (var holiday in holidays.OrderBy(h => h.holiday_name))
+                        {
+                            <option value="@holiday.holiday_id" selected="@(SelectedHoliday == holiday.holiday_id)">@holiday.holiday_name</option>
+                        }
+                    </select>
                     <ValidationMessage For="() => DaysOFF.holiday" class="text-danger" />
                 </div>
-                <button type="submit" class="btn btn-primary">Save</button>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
             </EditForm>
         </div>
     </div>
 }
 
 <div>
-    <a href="/daysoffs">Back to List</a>
+    <a href="/daysoffs">Назад к списку</a>
 </div>
 
 @code {
     [SupplyParameterFromQuery]
-    private System.DateTime date { get; set; }
+    private DateTime date { get; set; }
 
     [SupplyParameterFromForm]
     private DaysOFF? DaysOFF { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? holiday { get; set; }
+
+    private List<Holiday> holidays = new();
+
+    private int? SelectedHoliday
+        => int.TryParse(holiday, out var value) ? value : DaysOFF?.holiday;
 
     protected override async Task OnInitializedAsync()
     {
         using var context = DbFactory.CreateDbContext();
         DaysOFF ??= await context.DaysOFF.FirstOrDefaultAsync(m => m.date == date);
+        holidays = await context.Holidays.OrderBy(h => h.holiday_name).ToListAsync();
 
         if (DaysOFF is null)
         {
@@ -60,8 +79,15 @@ else
     // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
     private async Task UpdateDaysOFF()
     {
+        if (!int.TryParse(holiday, out var holidayId))
+        {
+            return;
+        }
+
+        DaysOFF!.holiday = holidayId;
+
         using var context = DbFactory.CreateDbContext();
-        context.Attach(DaysOFF!).State = EntityState.Modified;
+        context.Attach(DaysOFF).State = EntityState.Modified;
 
         try
         {
@@ -69,7 +95,7 @@ else
         }
         catch (DbUpdateConcurrencyException)
         {
-            if (!DaysOFFExists(DaysOFF!.date))
+            if (!DaysOFFExists(DaysOFF.date))
             {
                 NavigationManager.NavigateTo("notfound");
             }
@@ -82,7 +108,7 @@ else
         NavigationManager.NavigateTo("/daysoffs");
     }
 
-    private bool DaysOFFExists(System.DateTime date)
+    private bool DaysOFFExists(DateTime date)
     {
         using var context = DbFactory.CreateDbContext();
         return context.DaysOFF.Any(e => e.date == date);

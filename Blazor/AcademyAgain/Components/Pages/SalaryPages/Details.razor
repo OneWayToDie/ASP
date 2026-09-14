@@ -4,35 +4,36 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Details</PageTitle>
+<PageTitle>Зарплата №@(salary?.payment_id)</PageTitle>
 
-<h1>Details</h1>
+<h1>Зарплата №@(salary?.payment_id)</h1>
 
-<div>
-    <h2>Salary</h2>
-    <hr />
-    @if (salary is null)
-    {
-        <p><em>Loading...</em></p>
-    }
-    else {
-        <dl class="row">
-            <dt class="col-sm-2">teacher</dt>
-            <dd class="col-sm-10">@salary.teacher</dd>
-            <dt class="col-sm-2">accrued</dt>
-            <dd class="col-sm-10">@salary.accrued</dd>
-            <dt class="col-sm-2">received</dt>
-            <dd class="col-sm-10">@salary.received</dd>
-        </dl>
-        <div>
-            <a href="@($"/salarys/edit?payment_id={salary.payment_id}")">Edit</a> |
-            <a href="@($"/salarys")">Back to List</a>
-        </div>
-    }
-</div>
+<hr />
+@if (salary is null)
+{
+    <p><em>Загрузка...</em></p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-2">№ платежа</dt>
+        <dd class="col-sm-10">@salary.payment_id</dd>
+        <dt class="col-sm-2">Преподаватель</dt>
+        <dd class="col-sm-10">@TeacherName</dd>
+        <dt class="col-sm-2">Начислено</dt>
+        <dd class="col-sm-10">@salary.accrued</dd>
+        <dt class="col-sm-2">Выплачено</dt>
+        <dd class="col-sm-10">@(salary.received ? "да" : "нет")</dd>
+    </dl>
+    <div>
+        <a href="@($"/salarys/edit?payment_id={salary.payment_id}")">Изменить</a> |
+        <a href="@($"/salarys")">Назад к списку</a>
+    </div>
+}
 
 @code {
     private Salary? salary;
+    private string? TeacherName = "—";
 
     [SupplyParameterFromQuery]
     private long payment_id { get; set; }
@@ -45,6 +46,11 @@
         if (salary is null)
         {
             NavigationManager.NavigateTo("notfound");
+        }
+        else
+        {
+            var teacher = await context.Teachers.FirstOrDefaultAsync(t => t.teacher_id == salary.teacher);
+            TeacherName = teacher is null ? "—" : $"{teacher.last_name} {teacher.first_name} {teacher.middle_name}".Trim();
         }
     }
 }

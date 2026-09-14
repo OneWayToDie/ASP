@@ -5,15 +5,14 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Edit</PageTitle>
+<PageTitle>Редактирование занятия</PageTitle>
 
-<h1>Edit</h1>
+<h1>Редактирование занятия</h1>
 
-<h2>Schedule</h2>
 <hr />
 @if (Schedule is null)
 {
-    <p><em>Loading...</em></p>
+    <p><em>Загрузка...</em></p>
 }
 else
 {
@@ -24,46 +23,64 @@ else
                 <ValidationSummary role="alert"/>
                 <input type="hidden" name="Schedule.lesson_id" value="@Schedule.lesson_id" />
                 <div class="mb-3">
-                <span class="text-danger">*</span>
-                    <label for="group" class="form-label">group:</label>
-                    <InputNumber id="group" @bind-Value="Schedule.group" class="form-control" aria-required="true"/>
+                    <span class="text-danger">*</span>
+                    <label for="group" class="form-label">Группа:</label>
+                    <select id="group" name="group" class="form-select" aria-required="true">
+                        <option value="">— выберите группу —</option>
+                        @foreach (var group in groups)
+                        {
+                            <option value="@group.Key" selected="@(SelectedGroup == group.Key)">@group.Value</option>
+                        }
+                    </select>
                     <ValidationMessage For="() => Schedule.group" class="text-danger" />
                 </div>
                 <div class="mb-3">
-                <span class="text-danger">*</span>
-                    <label for="discipline" class="form-label">discipline:</label>
-                    <InputNumber id="discipline" @bind-Value="Schedule.discipline" class="form-control" aria-required="true"/>
+                    <span class="text-danger">*</span>
+                    <label for="discipline" class="form-label">Дисциплина:</label>
+                    <select id="discipline" name="discipline" class="form-select" aria-required="true">
+                        <option value="">— выберите дисциплину —</option>
+                        @foreach (var discipline in disciplines)
+                        {
+                            <option value="@discipline.Key" selected="@(SelectedDiscipline == discipline.Key)">@discipline.Value</option>
+                        }
+                    </select>
                     <ValidationMessage For="() => Schedule.discipline" class="text-danger" />
                 </div>
                 <div class="mb-3">
-                <span class="text-danger">*</span>
-                    <label for="teacher" class="form-label">teacher:</label>
-                    <InputNumber id="teacher" @bind-Value="Schedule.teacher" class="form-control" aria-required="true"/>
+                    <span class="text-danger">*</span>
+                    <label for="teacher" class="form-label">Преподаватель:</label>
+                    <select id="teacher" name="teacher" class="form-select" aria-required="true">
+                        <option value="">— выберите преподавателя —</option>
+                        @foreach (var teacher in teachers)
+                        {
+                            <option value="@teacher.Key" selected="@(SelectedTeacher == teacher.Key)">@teacher.Value</option>
+                        }
+                    </select>
                     <ValidationMessage For="() => Schedule.teacher" class="text-danger" />
                 </div>
                 <div class="mb-3">
-                    <label for="date" class="form-label">date:</label>
+                    <label for="date" class="form-label">Дата:</label>
                     <InputDate id="date" @bind-Value="Schedule.date" class="form-control" />
                     <ValidationMessage For="() => Schedule.date" class="text-danger" />
                 </div>
                 <div class="mb-3">
-                    <label for="time" class="form-label">time:</label>
+                    <label for="time" class="form-label">Время:</label>
                     <input id="time" name="time" type="time" class="form-control" value="@time" />
                 </div>
                 <div class="mb-3">
-                <span class="text-danger">*</span>
-                    <label for="spent" class="form-label">spent:</label>
+                    <span class="text-danger">*</span>
+                    <label for="spent" class="form-label">Проведено:</label>
                     <InputCheckbox id="spent" @bind-Value="Schedule.spent" class="form-check-input" aria-required="true"/>
                     <ValidationMessage For="() => Schedule.spent" class="text-danger" />
                 </div>
-                <button type="submit" class="btn btn-primary">Save</button>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
             </EditForm>
         </div>
     </div>
 }
 
 <div>
-    <a href="/schedules">Back to List</a>
+    <a href="/schedules">Назад к списку</a>
 </div>
 
 @code {
@@ -74,12 +91,44 @@ else
     private Schedule? Schedule { get; set; }
 
     [SupplyParameterFromForm]
+    private string? group { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? discipline { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? teacher { get; set; }
+
+    [SupplyParameterFromForm]
     private string? time { get; set; }
+
+    private List<KeyValuePair<int, string>> groups = new();
+    private List<KeyValuePair<int, string>> disciplines = new();
+    private List<KeyValuePair<int, string>> teachers = new();
+
+    private int SelectedGroup
+        => int.TryParse(group, out var value) ? value : Schedule?.group ?? 0;
+
+    private int SelectedDiscipline
+        => int.TryParse(discipline, out var value) ? value : Schedule?.discipline ?? 0;
+
+    private int SelectedTeacher
+        => int.TryParse(teacher, out var value) ? value : Schedule?.teacher ?? 0;
 
     protected override async Task OnInitializedAsync()
     {
         using var context = DbFactory.CreateDbContext();
         Schedule ??= await context.Schedule.FirstOrDefaultAsync(m => m.lesson_id == lesson_id);
+        groups = (await context.Groups.OrderBy(g => g.group_name).ToListAsync())
+            .Select(g => new KeyValuePair<int, string>(g.group_id, g.group_name ?? ""))
+            .ToList();
+        disciplines = (await context.Disciplines.OrderBy(d => d.discipline_name).ToListAsync())
+            .Select(d => new KeyValuePair<int, string>(d.discipline_id, d.discipline_name ?? ""))
+            .ToList();
+        teachers = (await context.Teachers.OrderBy(t => t.last_name).ToListAsync())
+            .Select(t => new KeyValuePair<int, string>(t.teacher_id,
+                string.Join(" ", new[] { t.last_name, t.first_name, t.middle_name }.Where(p => !string.IsNullOrWhiteSpace(p)))))
+            .ToList();
 
         if (Schedule is null)
         {
@@ -93,7 +142,16 @@ else
     // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
     private async Task UpdateSchedule()
     {
+        if (!int.TryParse(group, out var groupId) || !int.TryParse(discipline, out var disciplineId) || !int.TryParse(teacher, out var teacherId))
+        {
+            return;
+        }
+
+        Schedule!.group = groupId;
+        Schedule.discipline = disciplineId;
+        Schedule.teacher = teacherId;
         Schedule!.time = ParseTime(time);
+
         using var context = DbFactory.CreateDbContext();
         context.Attach(Schedule).State = EntityState.Modified;
 

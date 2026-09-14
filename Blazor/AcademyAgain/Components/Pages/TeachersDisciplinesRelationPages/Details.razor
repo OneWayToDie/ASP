@@ -1,36 +1,36 @@
-@page "/teachersdisciplinesrelations/details"
+﻿@page "/teachersdisciplinesrelations/details"
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Details</PageTitle>
+<PageTitle>РџРѕРґСЂРѕР±РЅРѕСЃС‚Рё: РїСЂРµРїРѕРґР°РІР°С‚РµР»СЊ Рё РґРёСЃС†РёРїР»РёРЅР°</PageTitle>
 
-<h1>Details</h1>
+<h1>РџРѕРґСЂРѕР±РЅРѕСЃС‚Рё: РїСЂРµРїРѕРґР°РІР°С‚РµР»СЊ Рё РґРёСЃС†РёРїР»РёРЅР°</h1>
 
-<div>
-    <h2>TeachersDisciplinesRelation</h2>
-    <hr />
-    @if (relation is null)
-    {
-        <p><em>Loading...</em></p>
-    }
-    else {
-        <dl class="row">
-            <dt class="col-sm-2">teacher</dt>
-            <dd class="col-sm-10">@relation.teacher</dd>
-            <dt class="col-sm-2">discipline</dt>
-            <dd class="col-sm-10">@relation.discipline</dd>
-        </dl>
-        <div>
-            <a href="@($"/teachersdisciplinesrelations/edit?teacher={relation.teacher}&discipline={relation.discipline}")">Edit</a> |
-            <a href="@($"/teachersdisciplinesrelations")">Back to List</a>
-        </div>
-    }
-</div>
+<hr />
+@if (relation is null)
+{
+    <p><em>Р—Р°РіСЂСѓР·РєР°...</em></p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-2">РџСЂРµРїРѕРґР°РІР°С‚РµР»СЊ</dt>
+        <dd class="col-sm-10">@TeacherName</dd>
+        <dt class="col-sm-2">Р”РёСЃС†РёРїР»РёРЅР°</dt>
+        <dd class="col-sm-10">@DisciplineName</dd>
+    </dl>
+    <div>
+        <a href="@($"/teachersdisciplinesrelations/edit?teacher={relation.teacher}&discipline={relation.discipline}")">РР·РјРµРЅРёС‚СЊ</a> |
+        <a href="@($"/teachersdisciplinesrelations")">РќР°Р·Р°Рґ Рє СЃРїРёСЃРєСѓ</a>
+    </div>
+}
 
 @code {
     private TeachersDisciplinesRelation? relation;
+    private string? TeacherName = "вЂ”";
+    private string? DisciplineName = "вЂ”";
 
     [SupplyParameterFromQuery]
     private int teacher { get; set; }
@@ -47,5 +47,17 @@
         {
             NavigationManager.NavigateTo("notfound");
         }
+        else
+        {
+            var teacherEntity = await context.Teachers.FirstOrDefaultAsync(t => t.teacher_id == relation.teacher);
+            TeacherName = teacherEntity is null ? "вЂ”" : FullName(teacherEntity);
+            DisciplineName = await context.Disciplines
+                .Where(d => d.discipline_id == relation.discipline)
+                .Select(d => d.discipline_name)
+                .FirstOrDefaultAsync() ?? "вЂ”";
+        }
     }
+
+    private static string FullName(Teacher teacher)
+        => string.Join(" ", new[] { teacher.last_name, teacher.first_name, teacher.middle_name }.Where(n => !string.IsNullOrWhiteSpace(n)));
 }

@@ -4,33 +4,33 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Details</PageTitle>
+<PageTitle>Пройденная дисциплина</PageTitle>
 
-<h1>Details</h1>
+<h1>Пройденная дисциплина</h1>
 
-<div>
-    <h2>CompleteDiscipline</h2>
-    <hr />
-    @if (completediscipline is null)
-    {
-        <p><em>Loading...</em></p>
-    }
-    else {
-        <dl class="row">
-            <dt class="col-sm-2">group</dt>
-            <dd class="col-sm-10">@completediscipline.group</dd>
-            <dt class="col-sm-2">discipline</dt>
-            <dd class="col-sm-10">@completediscipline.discipline</dd>
-        </dl>
-        <div>
-            <a href="@($"/completedisciplines/edit?group={completediscipline.group}&discipline={completediscipline.discipline}")">Edit</a> |
-            <a href="@($"/completedisciplines")">Back to List</a>
-        </div>
-    }
-</div>
+<hr />
+@if (completediscipline is null)
+{
+    <p><em>Загрузка...</em></p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-2">Группа</dt>
+        <dd class="col-sm-10">@GroupName</dd>
+        <dt class="col-sm-2">Дисциплина</dt>
+        <dd class="col-sm-10">@DisciplineName</dd>
+    </dl>
+    <div>
+        <a href="@($"/completedisciplines/edit?group={completediscipline.group}&discipline={completediscipline.discipline}")">Изменить</a> |
+        <a href="@($"/completedisciplines")">Назад к списку</a>
+    </div>
+}
 
 @code {
     private CompleteDiscipline? completediscipline;
+    private string? GroupName = "—";
+    private string? DisciplineName = "—";
 
     [SupplyParameterFromQuery]
     private int group { get; set; }
@@ -46,6 +46,17 @@
         if (completediscipline is null)
         {
             NavigationManager.NavigateTo("notfound");
+        }
+        else
+        {
+            GroupName = await context.Groups
+                .Where(g => g.group_id == completediscipline.group)
+                .Select(g => g.group_name)
+                .FirstOrDefaultAsync() ?? "—";
+            DisciplineName = await context.Disciplines
+                .Where(d => d.discipline_id == completediscipline.discipline)
+                .Select(d => d.discipline_name)
+                .FirstOrDefaultAsync() ?? "—";
         }
     }
 }

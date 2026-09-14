@@ -11,6 +11,7 @@
     --app-accent-dim: #1b6ec2;         /* приглушённый акцент: сама кнопка «Создать», активная страница пагинации */
     --app-text: #e6eaf2;               /* основной цвет текста (светлый на тёмном) */
     --app-text-secondary: #98a2b3;     /* вторичный текст: подписи, дефолтные значения */
+    --app-danger: #ff7b7b;             /* опасный/красный: кнопка удаления, пункт «Удалить» */
 }
 
 /* ===== База документа ===== */
@@ -441,4 +442,329 @@ h1:focus
     border-radius: 12px;
     border: 1px dashed var(--app-border-strong); /* пунктирная рамка — видно, что фото ожидалось */
     color: var(--app-text-secondary);            /* подпись «фото нет» вторичным цветом */
+}
+
+/* ===== Таблица с контекстным меню строк ===== */
+.context-table tbody tr 
+{
+    cursor: context-menu; /* намекаем, что по строке работает ПКМ */
+}
+
+.context-table tbody tr:hover 
+{
+    background-color: rgba(110, 168, 254, 0.07); /* подсветка строки при наведении */
+}
+
+.context-table tbody tr:has(.row-selected) 
+{
+    background-color: rgba(110, 168, 254, 0.16); /* выделенная (выбранная) строка подсвечена сильнее */
+}
+
+.context-table .row-key 
+{
+    display: inline-flex; /* якорь строки — это содержимое первой ячейки */
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.context-table .row-anchor 
+{
+    outline: 1px solid rgba(110, 168, 254, 0.4); /* едва заметная рамка выбранной ячейки */
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* ===== Профиль-карточка (Details) ===== */
+.profile 
+{
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.profile-head 
+{
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 1.75rem;
+    background: var(--app-surface-2);
+    border-bottom: 1px solid var(--app-border);
+}
+
+.profile-head .photo-large 
+{
+    width: 128px;
+    height: 128px;
+    max-width: none;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--app-border-strong);
+}
+
+.profile-head .photo-empty-large 
+{
+    width: 128px;
+    height: 128px;
+    max-width: none;
+    border-radius: 50%;
+}
+
+.profile-head-info h1 
+{
+    margin: 0 0 0.4rem;
+    font-size: 1.7rem;
+}
+
+.profile-head-sub 
+{
+    margin: 0;
+    color: var(--app-accent);
+    font-size: 1rem;
+}
+
+.profile-head-contacts 
+{
+    margin: 0.4rem 0 0;
+    color: var(--app-text-secondary);
+    font-size: 0.95rem;
+}
+
+.profile-body 
+{
+    padding: 1.5rem 1.75rem;
+}
+
+.profile-stats 
+{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.profile-stats .stat-card 
+{
+    flex: 1 1 170px;
+    text-align: center;
+    padding: 1rem;
+    background: var(--app-surface-2);
+    border: 1px solid var(--app-border);
+    border-radius: 12px;
+}
+
+.profile-facts 
+{
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.profile-fact 
+{
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.45rem 0.8rem;
+    background: var(--app-surface-2);
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+}
+
+.profile-fact-label 
+{
+    color: var(--app-text-secondary);
+    font-size: 0.9rem;
+}
+
+.profile-fact-value 
+{
+    font-weight: 600;
+    text-align: right;
+}
+
+.profile-sections 
+{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 1.25rem;
+}
+
+.profile-section 
+{
+    background: var(--app-surface-2);
+    border: 1px solid var(--app-border);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+}
+
+.profile-section h3 
+{
+    margin: 0 0 0.75rem;
+    font-size: 1.05rem;
+    color: var(--app-accent);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.profile-section .table 
+{
+    margin-bottom: 0;
+}
+
+.profile-actions 
+{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+}
+
+.section-empty 
+{
+    color: var(--app-text-secondary);
+    font-size: 0.95rem;
+}
+
+/* ===== Контекстное меню строки (ПКМ) ===== */
+.row-menu 
+{
+    position: fixed;                     /* позиционируем в точке клика */
+    z-index: 1080;
+    min-width: 190px;
+    background: var(--app-surface);
+    border: 1px solid var(--app-border-strong);
+    border-radius: 10px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    padding: 0.35rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.row-menu-backdrop 
+{
+    position: fixed;
+    inset: 0;
+    z-index: 1070;                    /* ниже меню, выше всего остального */
+}
+
+.row-menu-item 
+{
+    display: block;
+    padding: 0.5rem 0.9rem;
+    border-radius: 6px;
+    color: var(--app-text);
+    text-decoration: none;
+    font-size: 0.95rem;
+    white-space: nowrap;
+}
+
+.row-menu-item:hover 
+{
+    background-color: rgba(110, 168, 254, 0.14);
+    color: var(--app-text);
+}
+
+.row-menu-item.danger 
+{
+    color: var(--app-danger, #ff8f8f); /* пункт «Удалить» — красный */
+}
+
+.row-menu-item.danger:hover 
+{
+    background-color: rgba(255, 90, 90, 0.15);
+    color: #ff9d9d;
+}
+
+/* ===== Страница «здесь ничего нет» (404) ===== */
+.notfound-page 
+{
+    min-height: 70vh;              /* страница занимает почти весь экран */
+    display: flex;                 /* содержимое по центру вертикально */
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2rem;
+    text-align: center;
+    position: relative;            /* для кнопки «назад» в углу */
+}
+
+.notfound-back 
+{
+    position: absolute;            /* кнопка «← Назад» фиксируется сверху слева */
+    top: 0;
+    left: 0;
+}
+
+.notfound-text 
+{
+    color: var(--app-text-secondary); /* вторичный цвет, чтобы не спорить с глазом */
+    font-size: 1.05rem;
+    max-width: 30rem;
+}
+
+/* ===== Анимированный глаз ===== */
+.notfound-eye 
+{
+    width: 160px;                  /* внешний размер глаза с кольцом */
+    height: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.eye-eye 
+{
+    position: relative;            /* точка отсчёта для зрачка */
+    width: 120px;                  /* глазное яблоко */
+    height: 120px;
+    border-radius: 50%;            /* круг */
+    border: 3px solid #e6eaf2;     /* ч/б обводка */
+    background: radial-gradient(circle at 30% 35%, #fdfdfd 0%, #cfd4dc 55%, #9aa2ae 100%);
+    overflow: hidden;              /* зрачок не вылезает за глаз */
+    box-shadow: 0 0 18px 4px rgba(230, 234, 242, 0.25); /* мягкое свечение */
+}
+
+.eye-iris 
+{
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 60px;                   /* радужка */
+    height: 60px;
+    margin: -30px 0 0 -30px;       /* центрирование */
+    border-radius: 50%;
+    background: radial-gradient(circle at 32% 30%, #6b7280 0%, #33373f 50%, #17191e 100%);
+    display: flex;                 /* зрачок внутрь по центру */
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.08s ease-out; /* плавное слежение, без рывков */
+}
+
+.eye-pupil 
+{
+    width: 24px;                   /* зрачок */
+    height: 24px;
+    border-radius: 50%;
+    background: #0c0d10;           /* чёрный в ч/б гамме */
+    box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.9); /* глубина */
+}
+
+/* мигание глазом — плавное моргание раз в несколько секунд */
+.eye-eye 
+{
+    animation: eye-blink 5s ease-in-out infinite;
+}
+
+@keyframes eye-blink 
+{
+    0%, 92%, 100% { transform: scaleY(1); }      /* глаз открыт почти всё время */
+    96%           { transform: scaleY(0.06); }   /* резкое закрытие */
+    98%           { transform: scaleY(1); }      /* быстрое открытие */
 }

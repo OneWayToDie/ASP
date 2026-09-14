@@ -1,36 +1,36 @@
-@page "/dependentdisciplines/details"
+﻿@page "/dependentdisciplines/details"
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Details</PageTitle>
+<PageTitle>РџРѕРґСЂРѕР±РЅРѕСЃС‚Рё: Р·Р°РІРёСЃРёРјР°СЏ РґРёСЃС†РёРїР»РёРЅР°</PageTitle>
 
-<h1>Details</h1>
+<h1>РџРѕРґСЂРѕР±РЅРѕСЃС‚Рё: Р·Р°РІРёСЃРёРјР°СЏ РґРёСЃС†РёРїР»РёРЅР°</h1>
 
-<div>
-    <h2>DependentDiscipline</h2>
-    <hr />
-    @if (dependentdiscipline is null)
-    {
-        <p><em>Loading...</em></p>
-    }
-    else {
-        <dl class="row">
-            <dt class="col-sm-2">discipline</dt>
-            <dd class="col-sm-10">@dependentdiscipline.discipline</dd>
-            <dt class="col-sm-2">dependent_discipline</dt>
-            <dd class="col-sm-10">@dependentdiscipline.dependent_discipline</dd>
-        </dl>
-        <div>
-            <a href="@($"/dependentdisciplines/edit?discipline={dependentdiscipline.discipline}&dependent_discipline={dependentdiscipline.dependent_discipline}")">Edit</a> |
-            <a href="@($"/dependentdisciplines")">Back to List</a>
-        </div>
-    }
-</div>
+<hr />
+@if (dependentdiscipline is null)
+{
+    <p><em>Р—Р°РіСЂСѓР·РєР°...</em></p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-2">Р”РёСЃС†РёРїР»РёРЅР°</dt>
+        <dd class="col-sm-10">@DisciplineName</dd>
+        <dt class="col-sm-2">Р—Р°РІРёСЃРёРјР°СЏ РґРёСЃС†РёРїР»РёРЅР°</dt>
+        <dd class="col-sm-10">@DependentDisciplineName</dd>
+    </dl>
+    <div>
+        <a href="@($"/dependentdisciplines/edit?discipline={dependentdiscipline.discipline}&dependent_discipline={dependentdiscipline.dependent_discipline}")">РР·РјРµРЅРёС‚СЊ</a> |
+        <a href="@($"/dependentdisciplines")">РќР°Р·Р°Рґ Рє СЃРїРёСЃРєСѓ</a>
+    </div>
+}
 
 @code {
     private DependentDiscipline? dependentdiscipline;
+    private string? DisciplineName = "вЂ”";
+    private string? DependentDisciplineName = "вЂ”";
 
     [SupplyParameterFromQuery]
     private int discipline { get; set; }
@@ -46,6 +46,17 @@
         if (dependentdiscipline is null)
         {
             NavigationManager.NavigateTo("notfound");
+        }
+        else
+        {
+            DisciplineName = await context.Disciplines
+                .Where(d => d.discipline_id == dependentdiscipline.discipline)
+                .Select(d => d.discipline_name)
+                .FirstOrDefaultAsync() ?? "вЂ”";
+            DependentDisciplineName = await context.Disciplines
+                .Where(d => d.discipline_id == dependentdiscipline.dependent_discipline)
+                .Select(d => d.discipline_name)
+                .FirstOrDefaultAsync() ?? "вЂ”";
         }
     }
 }

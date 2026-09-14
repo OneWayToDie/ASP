@@ -68,13 +68,10 @@ else
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Фотография:</label>
-                    @if (previewSrc is not null)
-                    {
-                        <div class="mb-2">
-                            <img class="photo-preview" src="@previewSrc" alt="Текущее фото" />
-                        </div>
-                    }
-                    <input id="PhotoFile" name="PhotoFile" type="file" accept="image/jpeg,image/png" class="form-control" />
+                    <div class="mb-2">
+                        <img id="photoPreview" class="photo-preview" src="@previewSrc" alt="Фото" style="display: @(previewSrc is null ? "none" : "inline-block");" />
+                    </div>
+                    <input id="PhotoFile" name="PhotoFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" class="form-control" data-photo-input="photoPreview" />
                     @if (previewSrc is not null)
                     {
                         <div class="form-check mt-2">

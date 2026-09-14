@@ -4,15 +4,14 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Edit</PageTitle>
+<PageTitle>Редактирование направления</PageTitle>
 
-<h1>Edit</h1>
+<h1>Редактирование направления</h1>
 
-<h2>Direction</h2>
 <hr />
 @if (Direction is null)
 {
-    <p><em>Loading...</em></p>
+    <p><em>Загрузка...</em></p>
 }
 else
 {
@@ -23,18 +22,18 @@ else
                 <ValidationSummary role="alert"/>
                 <input type="hidden" name="Direction.direction_id" value="@Direction.direction_id" />
                 <div class="mb-3">
-                    <label for="direction_name" class="form-label">direction_name:</label>
+                    <label for="direction_name" class="form-label">Название:</label>
                     <InputText id="direction_name" @bind-Value="Direction.direction_name" class="form-control" />
                     <ValidationMessage For="() => Direction.direction_name" class="text-danger" />
                 </div>
-                <button type="submit" class="btn btn-primary">Save</button>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
             </EditForm>
         </div>
     </div>
 }
 
 <div>
-    <a href="/directions">Back to List</a>
+    <a href="/directions">Назад к списку</a>
 </div>
 
 @code {

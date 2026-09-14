@@ -57,8 +57,11 @@
                 <ValidationMessage For="() => Teacher.rate" class="text-danger" />
             </div>
             <div class="mb-3">
-                <label for="PhotoFile" class="form-label">Фотография (JPG/PNG):</label>
-                <input id="PhotoFile" name="PhotoFile" type="file" accept="image/jpeg,image/png" class="form-control" />
+                <label for="PhotoFile" class="form-label">Фотография (JPG/PNG/WebP/GIF/BMP):</label>
+                <div class="mb-2">
+                    <img id="photoPreview" class="photo-preview" src="" alt="Новое фото" style="display: none;" />
+                </div>
+                <input id="PhotoFile" name="PhotoFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" class="form-control" data-photo-input="photoPreview" />
             </div>
             <button type="submit" class="btn btn-primary">Создать</button>
         </EditForm>

@@ -4,34 +4,38 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Delete</PageTitle>
+<PageTitle>Удаление требуемой дисциплины</PageTitle>
 
-<h1>Delete</h1>
+<h1>Удаление требуемой дисциплины</h1>
 
-<p>Are you sure you want to delete this?</p>
+<p class="text-danger">Вы уверены, что хотите удалить эту требуемую дисциплину?</p>
 <div>
-    <h2>RequiredDiscipline</h2>
     <hr />
     @if (requireddiscipline is null)
     {
-        <p><em>Loading...</em></p>
+        <p><em>Загрузка...</em></p>
     }
-    else {
+    else
+    {
         <dl class="row">
-            <dt class="col-sm-2">discipline</dt>
-            <dd class="col-sm-10">@requireddiscipline.discipline</dd>
-            <dt class="col-sm-2">required_discipline</dt>
-            <dd class="col-sm-10">@requireddiscipline.required_discipline</dd>
+            <dt class="col-sm-2">Дисциплина</dt>
+            <dd class="col-sm-10">@DisciplineName</dd>
+            <dt class="col-sm-2">Требуемая дисциплина</dt>
+            <dd class="col-sm-10">@RequiredDisciplineName</dd>
         </dl>
         <EditForm method="post" Model="requireddiscipline" OnValidSubmit="DeleteRequiredDiscipline" FormName="delete" Enhance>
-            <button type="submit" class="btn btn-danger" disabled="@(requireddiscipline is null)">Delete</button> |
-            <a href="/requireddisciplines">Back to List</a>
+            <input type="hidden" name="RequiredDiscipline.discipline" value="@requireddiscipline.discipline" />
+            <input type="hidden" name="RequiredDiscipline.required_discipline" value="@requireddiscipline.required_discipline" />
+            <button type="submit" class="btn btn-danger">Удалить</button> |
+            <a href="/requireddisciplines">Назад к списку</a>
         </EditForm>
     }
 </div>
 
 @code {
     private RequiredDiscipline? requireddiscipline;
+    private string? DisciplineName = "—";
+    private string? RequiredDisciplineName = "—";
 
     [SupplyParameterFromQuery]
     private int discipline { get; set; }
@@ -47,6 +51,17 @@
         if (requireddiscipline is null)
         {
             NavigationManager.NavigateTo("notfound");
+        }
+        else
+        {
+            DisciplineName = await context.Disciplines
+                .Where(d => d.discipline_id == requireddiscipline.discipline)
+                .Select(d => d.discipline_name)
+                .FirstOrDefaultAsync() ?? "—";
+            RequiredDisciplineName = await context.Disciplines
+                .Where(d => d.discipline_id == requireddiscipline.required_discipline)
+                .Select(d => d.discipline_name)
+                .FirstOrDefaultAsync() ?? "—";
         }
     }
 

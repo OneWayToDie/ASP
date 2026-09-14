@@ -4,15 +4,14 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Edit</PageTitle>
+<PageTitle>Редактирование оценки</PageTitle>
 
-<h1>Edit</h1>
+<h1>Редактирование оценки</h1>
 
-<h2>Grade</h2>
 <hr />
 @if (Grade is null)
 {
-    <p><em>Loading...</em></p>
+    <p><em>Загрузка...</em></p>
 }
 else
 {
@@ -24,23 +23,47 @@ else
                 <input type="hidden" name="Grade.student" value="@Grade.student" />
                 <input type="hidden" name="Grade.lesson" value="@Grade.lesson" />
                 <div class="mb-3">
-                    <label for="grade_1" class="form-label">grade_1:</label>
+                    <span class="text-danger">*</span>
+                    <label for="student" class="form-label">Студент:</label>
+                    <select id="student" name="studentSel" class="form-select" aria-required="true">
+                        <option value="">— выберите студента —</option>
+                        @foreach (var student in students)
+                        {
+                            <option value="@student.Key" selected="@(SelectedStudent == student.Key)">@student.Value</option>
+                        }
+                    </select>
+                    <ValidationMessage For="() => Grade.student" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="lesson" class="form-label">Занятие:</label>
+                    <select id="lesson" name="lessonSel" class="form-select" aria-required="true">
+                        <option value="">— выберите занятие —</option>
+                        @foreach (var lesson in lessonNames)
+                        {
+                            <option value="@lesson.Key" selected="@(SelectedLesson == lesson.Key)">@lesson.Value</option>
+                        }
+                    </select>
+                    <ValidationMessage For="() => Grade.lesson" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="grade_1" class="form-label">Оценка 1:</label>
                     <InputNumber id="grade_1" @bind-Value="Grade.grade_1" class="form-control" />
                     <ValidationMessage For="() => Grade.grade_1" class="text-danger" />
                 </div>
                 <div class="mb-3">
-                    <label for="grade_2" class="form-label">grade_2:</label>
+                    <label for="grade_2" class="form-label">Оценка 2:</label>
                     <InputNumber id="grade_2" @bind-Value="Grade.grade_2" class="form-control" />
                     <ValidationMessage For="() => Grade.grade_2" class="text-danger" />
                 </div>
-                <button type="submit" class="btn btn-primary">Save</button>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
             </EditForm>
         </div>
     </div>
 }
 
 <div>
-    <a href="/grades">Back to List</a>
+    <a href="/grades">Назад к списку</a>
 </div>
 
 @code {
@@ -53,10 +76,42 @@ else
     [SupplyParameterFromForm]
     private Grade? Grade { get; set; }
 
+    [SupplyParameterFromForm]
+    private string? studentSel { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? lessonSel { get; set; }
+
+    private List<KeyValuePair<int, string>> students = new();
+    private List<KeyValuePair<long, string>> lessonNames = new();
+
+    private int SelectedStudent
+        => int.TryParse(studentSel, out var value) ? value : Grade?.student ?? 0;
+
+    private long SelectedLesson
+        => long.TryParse(lessonSel, out var value) ? value : Grade?.lesson ?? 0;
+
     protected override async Task OnInitializedAsync()
     {
         using var context = DbFactory.CreateDbContext();
         Grade ??= await context.Grades.FirstOrDefaultAsync(m => m.student == student && m.lesson == lesson);
+        students = (await context.Students.OrderBy(s => s.last_name).ToListAsync())
+            .Select(s => new KeyValuePair<int, string>(s.stud_id,
+                !string.IsNullOrWhiteSpace(s.middle_name)
+                    ? $"{s.last_name} {s.first_name} {s.middle_name}"
+                    : $"{s.last_name} {s.first_name}"))
+            .ToList();
+        var groupNames = (await context.Groups.ToListAsync())
+            .ToDictionary(g => g.group_id, g => g.group_name ?? "");
+        lessonNames = (await context.Schedule.OrderBy(s => s.lesson_id).ToListAsync())
+            .Select(s =>
+            {
+                var groupName = groupNames.TryGetValue(s.group, out var name) ? name : $"№{s.group}";
+                return new KeyValuePair<long, string>(s.lesson_id, s.date.HasValue
+                    ? $"{s.lesson_id} · {groupName} · {s.date:d}"
+                    : $"{s.lesson_id} · {groupName}");
+            })
+            .ToList();
 
         if (Grade is null)
         {
@@ -68,22 +123,48 @@ else
     // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
     private async Task UpdateGrade()
     {
-        using var context = DbFactory.CreateDbContext();
-        context.Attach(Grade!).State = EntityState.Modified;
-
-        try
+        if (!int.TryParse(studentSel, out var studentId) || !long.TryParse(lessonSel, out var lessonId))
         {
+            return;
+        }
+
+        var originalStudent = Grade!.student;
+        var originalLesson = Grade.lesson;
+        var keysChanged = originalStudent != studentId || originalLesson != lessonId;
+
+        using var context = DbFactory.CreateDbContext();
+
+        if (keysChanged)
+        {
+            var original = await context.Grades.FirstOrDefaultAsync(g => g.student == originalStudent && g.lesson == originalLesson);
+            if (original is not null)
+            {
+                context.Grades.Remove(original);
+                await context.SaveChangesAsync();
+            }
+
+            Grade.student = studentId;
+            Grade.lesson = lessonId;
+            context.Grades.Add(Grade);
             await context.SaveChangesAsync();
         }
-        catch (DbUpdateConcurrencyException)
+        else
         {
-            if (!GradeExists(Grade!.student, Grade.lesson))
+            context.Attach(Grade).State = EntityState.Modified;
+            try
             {
-                NavigationManager.NavigateTo("notfound");
+                await context.SaveChangesAsync();
             }
-            else
+            catch (DbUpdateConcurrencyException)
             {
-                throw;
+                if (!GradeExists(Grade.student, Grade.lesson))
+                {
+                    NavigationManager.NavigateTo("notfound");
+                }
+                else
+                {
+                    throw;
+                }
             }
         }
 

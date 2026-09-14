@@ -1,10 +1,11 @@
 @page "/dependentdisciplines"
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
-@implements IAsyncDisposable
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
+@inherits RowMenuPage<DependentDiscipline>
 
 <PageTitle>Зависимые дисциплины</PageTitle>
 
@@ -13,24 +14,45 @@
     <a class="btn btn-primary" href="dependentdisciplines/create">Создать</a>
 </div>
 
-<QuickGrid Class="table" Items="context.DependentDisciplines">
-    <PropertyColumn Property="dependent => dependent.discipline" Title="Дисциплина" />
-    <PropertyColumn Property="dependent => dependent.dependent_discipline" Title="Зависимая дисциплина" />
-
-    <TemplateColumn Context="dependent">
-        <a href="@($"dependentdisciplines/edit?discipline={dependent.discipline}&dependent_discipline={dependent.dependent_discipline}")">Изменить</a> |
-        <a href="@($"dependentdisciplines/details?discipline={dependent.discipline}&dependent_discipline={dependent.dependent_discipline}")">Подробно</a> |
-        <a href="@($"dependentdisciplines/delete?discipline={dependent.discipline}&dependent_discipline={dependent.dependent_discipline}")">Удалить</a>
+<QuickGrid Class="table context-table" Items="query" ItemKey="dependent => dependent.discipline.ToString() + '_' + dependent.dependent_discipline.ToString()">
+    <TemplateColumn Title="Дисциплина" Sortable="true" SortBy="GridSort<DependentDiscipline>.ByAscending(d => DisciplineName(d.discipline))" Context="dependent">
+        <div class="row-key @RowClass(dependent)" data-item-key="@GetKey(dependent)">
+            @DisciplineName(dependent.discipline)
+        </div>
+    </TemplateColumn>
+    <TemplateColumn Title="Зависимая дисциплина" Sortable="true" SortBy="GridSort<DependentDiscipline>.ByAscending(d => DisciplineName(d.dependent_discipline))" Context="dependent">
+        @DisciplineName(dependent.dependent_discipline)
     </TemplateColumn>
 </QuickGrid>
 
-@code {
-    private AcademyAgainContext context = default!;
+<RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
 
-    protected override void OnInitialized()
+@code {
+    private IQueryable<DependentDiscipline> query = new List<DependentDiscipline>().AsQueryable();
+    private Dictionary<int, string> disciplineNames = new();
+
+    protected override async Task OnInitializedAsync()
     {
-        context = DbFactory.CreateDbContext();
+        await using var context = DbFactory.CreateDbContext();
+        disciplineNames = await context.Disciplines.ToDictionaryAsync(d => d.discipline_id, d => d.discipline_name ?? $"№{d.discipline_id}");
+        query = (await context.DependentDisciplines.ToListAsync()).AsQueryable();
     }
 
-    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+    private string DisciplineName(int id)
+        => disciplineNames.TryGetValue(id, out var name) ? name : $"№{id}";
+
+    protected override string GetKey(DependentDiscipline d) => $"{d.discipline}|{d.dependent_discipline}";
+
+    protected override List<RowMenuItem> BuildMenu(string key)
+    {
+        var parts = key.Split('|');
+        if (parts.Length != 2 || !int.TryParse(parts[0], out var discipline) || !int.TryParse(parts[1], out var dependent))
+            return new List<RowMenuItem>();
+        return new List<RowMenuItem>
+        {
+            new("Профиль", $"dependentdisciplines/details?discipline={discipline}&dependent_discipline={dependent}"),
+            new("Изменить", $"dependentdisciplines/edit?discipline={discipline}&dependent_discipline={dependent}"),
+            new("Удалить", $"dependentdisciplines/delete?discipline={discipline}&dependent_discipline={dependent}", Danger: true),
+        };
+    }
 }

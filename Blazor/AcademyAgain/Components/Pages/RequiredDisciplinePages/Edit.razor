@@ -4,15 +4,14 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Edit</PageTitle>
+<PageTitle>Редактирование требуемой дисциплины</PageTitle>
 
-<h1>Edit</h1>
+<h1>Редактирование требуемой дисциплины</h1>
 
-<h2>RequiredDiscipline</h2>
 <hr />
 @if (RequiredDiscipline is null)
 {
-    <p><em>Loading...</em></p>
+    <p><em>Загрузка...</em></p>
 }
 else
 {
@@ -23,14 +22,38 @@ else
                 <ValidationSummary role="alert"/>
                 <input type="hidden" name="RequiredDiscipline.discipline" value="@RequiredDiscipline.discipline" />
                 <input type="hidden" name="RequiredDiscipline.required_discipline" value="@RequiredDiscipline.required_discipline" />
-                <button type="submit" class="btn btn-primary">Save</button>
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="discipline" class="form-label">Дисциплина:</label>
+                    <select id="discipline" name="disciplineId" class="form-select" aria-required="true">
+                        <option value="">— выберите дисциплину —</option>
+                        @foreach (var discipline in disciplines.OrderBy(d => d.discipline_name))
+                        {
+                            <option value="@discipline.discipline_id" selected="@(SelectedDiscipline == discipline.discipline_id)">@discipline.discipline_name</option>
+                        }
+                    </select>
+                    <ValidationMessage For="() => RequiredDiscipline.discipline" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="required_discipline" class="form-label">Требуемая дисциплина:</label>
+                    <select id="required_discipline" name="requiredDisciplineId" class="form-select" aria-required="true">
+                        <option value="">— выберите дисциплину —</option>
+                        @foreach (var discipline in disciplines.OrderBy(d => d.discipline_name))
+                        {
+                            <option value="@discipline.discipline_id" selected="@(SelectedRequiredDiscipline == discipline.discipline_id)">@discipline.discipline_name</option>
+                        }
+                    </select>
+                    <ValidationMessage For="() => RequiredDiscipline.required_discipline" class="text-danger" />
+                </div>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
             </EditForm>
         </div>
     </div>
 }
 
 <div>
-    <a href="/requireddisciplines">Back to List</a>
+    <a href="/requireddisciplines">Назад к списку</a>
 </div>
 
 @code {
@@ -43,10 +66,25 @@ else
     [SupplyParameterFromForm]
     private RequiredDiscipline? RequiredDiscipline { get; set; }
 
+    [SupplyParameterFromForm]
+    private string? disciplineId { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? requiredDisciplineId { get; set; }
+
+    private List<Discipline> disciplines = new();
+
+    private int? SelectedDiscipline
+        => int.TryParse(disciplineId, out var value) ? value : RequiredDiscipline?.discipline;
+
+    private int? SelectedRequiredDiscipline
+        => int.TryParse(requiredDisciplineId, out var value) ? value : RequiredDiscipline?.required_discipline;
+
     protected override async Task OnInitializedAsync()
     {
         using var context = DbFactory.CreateDbContext();
         RequiredDiscipline ??= await context.RequiredDisciplines.FirstOrDefaultAsync(m => m.discipline == discipline && m.required_discipline == required_discipline);
+        disciplines = await context.Disciplines.OrderBy(d => d.discipline_name).ToListAsync();
 
         if (RequiredDiscipline is null)
         {
@@ -58,22 +96,52 @@ else
     // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
     private async Task UpdateRequiredDiscipline()
     {
-        using var context = DbFactory.CreateDbContext();
-        context.Attach(RequiredDiscipline!).State = EntityState.Modified;
-
-        try
+        if (!int.TryParse(disciplineId, out var disciplineValue))
         {
+            return;
+        }
+        if (!int.TryParse(requiredDisciplineId, out var requiredDisciplineValue))
+        {
+            return;
+        }
+
+        var originalDiscipline = RequiredDiscipline!.discipline;
+        var originalRequired = RequiredDiscipline.required_discipline;
+        var keysChanged = originalDiscipline != disciplineValue || originalRequired != requiredDisciplineValue;
+
+        using var context = DbFactory.CreateDbContext();
+
+        if (keysChanged)
+        {
+            var original = await context.RequiredDisciplines.FirstOrDefaultAsync(r => r.discipline == originalDiscipline && r.required_discipline == originalRequired);
+            if (original is not null)
+            {
+                context.RequiredDisciplines.Remove(original);
+                await context.SaveChangesAsync();
+            }
+
+            RequiredDiscipline.discipline = disciplineValue;
+            RequiredDiscipline.required_discipline = requiredDisciplineValue;
+            context.RequiredDisciplines.Add(RequiredDiscipline);
             await context.SaveChangesAsync();
         }
-        catch (DbUpdateConcurrencyException)
+        else
         {
-            if (!RequiredDisciplineExists(RequiredDiscipline!.discipline, RequiredDiscipline.required_discipline))
+            context.Attach(RequiredDiscipline).State = EntityState.Modified;
+            try
             {
-                NavigationManager.NavigateTo("notfound");
+                await context.SaveChangesAsync();
             }
-            else
+            catch (DbUpdateConcurrencyException)
             {
-                throw;
+                if (!RequiredDisciplineExists(RequiredDiscipline.discipline, RequiredDiscipline.required_discipline))
+                {
+                    NavigationManager.NavigateTo("notfound");
+                }
+                else
+                {
+                    throw;
+                }
             }
         }
 

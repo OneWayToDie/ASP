@@ -13,7 +13,7 @@ namespace AcademyAgain.Models
 
 		[Required]
 		[Column(TypeName = "NVARCHAR(150)")]
-		public string holiday_name { get; set; }
+		public string holiday_name { get; set; } = string.Empty;
 
 		[Required]
 		[Column(TypeName = "TINYINT")]

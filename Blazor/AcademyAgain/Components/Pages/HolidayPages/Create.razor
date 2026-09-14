@@ -4,11 +4,10 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Create</PageTitle>
+<PageTitle>Добавление праздника</PageTitle>
 
-<h1>Create</h1>
+<h1>Добавление праздника</h1>
 
-<h2>Holiday</h2>
 <hr />
 <div class="row">
     <div class="col-md-4">
@@ -17,45 +16,61 @@
             <ValidationSummary class="text-danger" role="alert"/>
             <div class="mb-3">
                 <span class="text-danger">*</span>
-                <label for="holiday_name" class="form-label">holiday_name:</label> 
-                <InputText id="holiday_name" @bind-Value="Holiday.holiday_name" class="form-control" aria-required="true"/> 
-                <ValidationMessage For="() => Holiday.holiday_name" class="text-danger" /> 
-            </div>        
+                <label for="holiday_name" class="form-label">Название:</label>
+                <InputText id="holiday_name" @bind-Value="Holiday.holiday_name" class="form-control" aria-required="true"/>
+                <ValidationMessage For="() => Holiday.holiday_name" class="text-danger" />
+            </div>
             <div class="mb-3">
                 <span class="text-danger">*</span>
-                <label for="duration" class="form-label">duration:</label> 
-                <InputNumber id="duration" @bind-Value="Holiday.duration" class="form-control" aria-required="true"/> 
-                <ValidationMessage For="() => Holiday.duration" class="text-danger" /> 
-            </div>        
+                <label for="duration" class="form-label">Длительность:</label>
+                <InputNumber id="duration" @bind-Value="Holiday.duration" class="form-control" aria-required="true"/>
+                <ValidationMessage For="() => Holiday.duration" class="text-danger" />
+            </div>
             <div class="mb-3">
-                <label for="month" class="form-label">month:</label> 
-                <InputNumber id="month" @bind-Value="Holiday.month" class="form-control" /> 
-                <ValidationMessage For="() => Holiday.month" class="text-danger" /> 
-            </div>        
+                <label for="month" class="form-label">Месяц:</label>
+                <select id="month" name="month" class="form-select">
+                    <option value="">— не выбран —</option>
+                    @for (var m = 1; m <= 12; m++)
+                    {
+                        <option value="@m" selected="@(SelectedMonth == m)">@m</option>
+                    }
+                </select>
+            </div>
             <div class="mb-3">
-                <label for="day" class="form-label">day:</label> 
-                <InputNumber id="day" @bind-Value="Holiday.day" class="form-control" /> 
-                <ValidationMessage For="() => Holiday.day" class="text-danger" /> 
-            </div>        
-            <button type="submit" class="btn btn-primary">Create</button>
+                <label for="day" class="form-label">День:</label>
+                <InputNumber id="day" @bind-Value="Holiday.day" class="form-control" />
+                <ValidationMessage For="() => Holiday.day" class="text-danger" />
+            </div>
+            <button type="submit" class="btn btn-primary">Создать</button>
         </EditForm>
     </div>
 </div>
 
 <div>
-    <a href="/holidays">Back to List</a>
+    <a href="/holidays">Назад к списку</a>
 </div>
 
 @code {
     [SupplyParameterFromForm]
     private Holiday Holiday { get; set; } = default!;
 
+    [SupplyParameterFromForm]
+    private string? month { get; set; }
+
+    private int? SelectedMonth
+        => int.TryParse(month, out var value) ? value : Holiday?.month;
+
     protected override void OnInitialized() => Holiday ??= new();
 
     // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
     private async Task AddHoliday()
     {
+        Holiday.month = int.TryParse(month, out var m) ? m : null;
+
         using var context = DbFactory.CreateDbContext();
+        Holiday.holiday_id = context.Holidays.Any()
+            ? context.Holidays.Max(h => h.holiday_id) + 1
+            : 1;
         context.Holidays.Add(Holiday);
         await context.SaveChangesAsync();
         NavigationManager.NavigateTo("/holidays");

@@ -1,10 +1,11 @@
 @page "/salarys"
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
-@implements IAsyncDisposable
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
+@inherits RowMenuPage<Salary>
 
 <PageTitle>Зарплаты</PageTitle>
 
@@ -13,25 +14,47 @@
     <a class="btn btn-primary" href="salarys/create">Создать</a>
 </div>
 
-<QuickGrid Class="table" Items="context.Salary">
-    <PropertyColumn Property="salary => salary.teacher" Title="Преподаватель" />
-    <PropertyColumn Property="salary => salary.accrued" Title="Начислено" />
-    <PropertyColumn Property="salary => salary.received" Title="Выплачено" />
-
-    <TemplateColumn Context="salary">
-        <a href="@($"salarys/edit?payment_id={salary.payment_id}")">Изменить</a> |
-        <a href="@($"salarys/details?payment_id={salary.payment_id}")">Подробно</a> |
-        <a href="@($"salarys/delete?payment_id={salary.payment_id}")">Удалить</a>
+<QuickGrid Class="table context-table" Items="query" ItemKey="salary => salary.payment_id">
+    <PropertyColumn Property="salary => salary.payment_id" Title="№ платежа" Sortable="true" />
+    <TemplateColumn Title="Преподаватель" Sortable="true" SortBy="GridSort<Salary>.ByAscending(s => TeacherName(s.teacher))" Context="salary">
+        <div class="row-key @RowClass(salary)" data-item-key="@GetKey(salary)">
+            @TeacherName(salary.teacher)
+        </div>
+    </TemplateColumn>
+    <PropertyColumn Property="salary => salary.accrued" Title="Начислено" Sortable="true" />
+    <TemplateColumn Title="Выплачено" Sortable="true" SortBy="GridSort<Salary>.ByAscending(s => s.received)" Context="salary">
+        @(salary.received ? "да" : "нет")
     </TemplateColumn>
 </QuickGrid>
 
-@code {
-    private AcademyAgainContext context = default!;
+<RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
 
-    protected override void OnInitialized()
+@code {
+    private IQueryable<Salary> query = new List<Salary>().AsQueryable();
+    private Dictionary<int, string> teacherNames = new();
+
+    protected override async Task OnInitializedAsync()
     {
-        context = DbFactory.CreateDbContext();
+        await using var context = DbFactory.CreateDbContext();
+        teacherNames = await context.Teachers.ToDictionaryAsync(
+            t => t.teacher_id,
+            t => $"{t.last_name} {t.first_name} {t.middle_name}".Trim());
+        query = (await context.Salary.ToListAsync()).AsQueryable();
     }
 
-    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+    private string TeacherName(int id)
+        => teacherNames.TryGetValue(id, out var name) ? name : $"№{id}";
+
+    protected override string GetKey(Salary s) => s.payment_id.ToString();
+
+    protected override List<RowMenuItem> BuildMenu(string key)
+    {
+        if (!long.TryParse(key, out var id)) return new List<RowMenuItem>();
+        return new List<RowMenuItem>
+        {
+            new("Профиль", $"salarys/details?payment_id={id}"),
+            new("Изменить", $"salarys/edit?payment_id={id}"),
+            new("Удалить", $"salarys/delete?payment_id={id}", Danger: true),
+        };
+    }
 }

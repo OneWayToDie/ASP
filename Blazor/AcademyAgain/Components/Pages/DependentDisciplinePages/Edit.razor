@@ -4,15 +4,14 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Edit</PageTitle>
+<PageTitle>Редактирование зависимой дисциплины</PageTitle>
 
-<h1>Edit</h1>
+<h1>Редактирование зависимой дисциплины</h1>
 
-<h2>DependentDiscipline</h2>
 <hr />
 @if (DependentDiscipline is null)
 {
-    <p><em>Loading...</em></p>
+    <p><em>Загрузка...</em></p>
 }
 else
 {
@@ -23,14 +22,38 @@ else
                 <ValidationSummary role="alert"/>
                 <input type="hidden" name="DependentDiscipline.discipline" value="@DependentDiscipline.discipline" />
                 <input type="hidden" name="DependentDiscipline.dependent_discipline" value="@DependentDiscipline.dependent_discipline" />
-                <button type="submit" class="btn btn-primary">Save</button>
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="discipline" class="form-label">Дисциплина:</label>
+                    <select id="discipline" name="disciplineId" class="form-select" aria-required="true">
+                        <option value="">— выберите дисциплину —</option>
+                        @foreach (var discipline in disciplines.OrderBy(d => d.discipline_name))
+                        {
+                            <option value="@discipline.discipline_id" selected="@(SelectedDiscipline == discipline.discipline_id)">@discipline.discipline_name</option>
+                        }
+                    </select>
+                    <ValidationMessage For="() => DependentDiscipline.discipline" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="dependent_discipline" class="form-label">Зависимая дисциплина:</label>
+                    <select id="dependent_discipline" name="dependentDisciplineId" class="form-select" aria-required="true">
+                        <option value="">— выберите дисциплину —</option>
+                        @foreach (var discipline in disciplines.OrderBy(d => d.discipline_name))
+                        {
+                            <option value="@discipline.discipline_id" selected="@(SelectedDependentDiscipline == discipline.discipline_id)">@discipline.discipline_name</option>
+                        }
+                    </select>
+                    <ValidationMessage For="() => DependentDiscipline.dependent_discipline" class="text-danger" />
+                </div>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
             </EditForm>
         </div>
     </div>
 }
 
 <div>
-    <a href="/dependentdisciplines">Back to List</a>
+    <a href="/dependentdisciplines">Назад к списку</a>
 </div>
 
 @code {
@@ -43,10 +66,25 @@ else
     [SupplyParameterFromForm]
     private DependentDiscipline? DependentDiscipline { get; set; }
 
+    [SupplyParameterFromForm]
+    private string? disciplineId { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? dependentDisciplineId { get; set; }
+
+    private List<Discipline> disciplines = new();
+
+    private int? SelectedDiscipline
+        => int.TryParse(disciplineId, out var value) ? value : DependentDiscipline?.discipline;
+
+    private int? SelectedDependentDiscipline
+        => int.TryParse(dependentDisciplineId, out var value) ? value : DependentDiscipline?.dependent_discipline;
+
     protected override async Task OnInitializedAsync()
     {
         using var context = DbFactory.CreateDbContext();
         DependentDiscipline ??= await context.DependentDisciplines.FirstOrDefaultAsync(m => m.discipline == discipline && m.dependent_discipline == dependent_discipline);
+        disciplines = await context.Disciplines.OrderBy(d => d.discipline_name).ToListAsync();
 
         if (DependentDiscipline is null)
         {
@@ -58,22 +96,52 @@ else
     // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
     private async Task UpdateDependentDiscipline()
     {
-        using var context = DbFactory.CreateDbContext();
-        context.Attach(DependentDiscipline!).State = EntityState.Modified;
-
-        try
+        if (!int.TryParse(disciplineId, out var disciplineValue))
         {
+            return;
+        }
+        if (!int.TryParse(dependentDisciplineId, out var dependentDisciplineValue))
+        {
+            return;
+        }
+
+        var originalDiscipline = DependentDiscipline!.discipline;
+        var originalDependent = DependentDiscipline.dependent_discipline;
+        var keysChanged = originalDiscipline != disciplineValue || originalDependent != dependentDisciplineValue;
+
+        using var context = DbFactory.CreateDbContext();
+
+        if (keysChanged)
+        {
+            var original = await context.DependentDisciplines.FirstOrDefaultAsync(d => d.discipline == originalDiscipline && d.dependent_discipline == originalDependent);
+            if (original is not null)
+            {
+                context.DependentDisciplines.Remove(original);
+                await context.SaveChangesAsync();
+            }
+
+            DependentDiscipline.discipline = disciplineValue;
+            DependentDiscipline.dependent_discipline = dependentDisciplineValue;
+            context.DependentDisciplines.Add(DependentDiscipline);
             await context.SaveChangesAsync();
         }
-        catch (DbUpdateConcurrencyException)
+        else
         {
-            if (!DependentDisciplineExists(DependentDiscipline!.discipline, DependentDiscipline.dependent_discipline))
+            context.Attach(DependentDiscipline).State = EntityState.Modified;
+            try
             {
-                NavigationManager.NavigateTo("notfound");
+                await context.SaveChangesAsync();
             }
-            else
+            catch (DbUpdateConcurrencyException)
             {
-                throw;
+                if (!DependentDisciplineExists(DependentDiscipline.discipline, DependentDiscipline.dependent_discipline))
+                {
+                    NavigationManager.NavigateTo("notfound");
+                }
+                else
+                {
+                    throw;
+                }
             }
         }
 

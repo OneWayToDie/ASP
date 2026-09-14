@@ -4,37 +4,37 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Details</PageTitle>
+<PageTitle>Экзамен</PageTitle>
 
-<h1>Details</h1>
+<h1>Экзамен</h1>
 
-<div>
-    <h2>Exam</h2>
-    <hr />
-    @if (exam is null)
-    {
-        <p><em>Loading...</em></p>
-    }
-    else {
-        <dl class="row">
-            <dt class="col-sm-2">student</dt>
-            <dd class="col-sm-10">@exam.student</dd>
-            <dt class="col-sm-2">discipline</dt>
-            <dd class="col-sm-10">@exam.discipline</dd>
-            <dt class="col-sm-2">date</dt>
-            <dd class="col-sm-10">@exam.date</dd>
-            <dt class="col-sm-2">grade</dt>
-            <dd class="col-sm-10">@exam.grade</dd>
-        </dl>
-        <div>
-            <a href="@($"/exams/edit?student={exam.student}&discipline={exam.discipline}")">Edit</a> |
-            <a href="@($"/exams")">Back to List</a>
-        </div>
-    }
-</div>
+<hr />
+@if (exam is null)
+{
+    <p><em>Загрузка...</em></p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-2">Студент</dt>
+        <dd class="col-sm-10">@StudentName</dd>
+        <dt class="col-sm-2">Дисциплина</dt>
+        <dd class="col-sm-10">@DisciplineName</dd>
+        <dt class="col-sm-2">Дата</dt>
+        <dd class="col-sm-10">@(exam.date?.ToString("dd.MM.yyyy") ?? "—")</dd>
+        <dt class="col-sm-2">Оценка</dt>
+        <dd class="col-sm-10">@(exam.grade?.ToString() ?? "—")</dd>
+    </dl>
+    <div>
+        <a href="@($"/exams/edit?student={exam.student}&discipline={exam.discipline}")">Изменить</a> |
+        <a href="@($"/exams")">Назад к списку</a>
+    </div>
+}
 
 @code {
     private Exam? exam;
+    private string? StudentName = "—";
+    private string? DisciplineName = "—";
 
     [SupplyParameterFromQuery]
     private int student { get; set; }
@@ -50,6 +50,20 @@
         if (exam is null)
         {
             NavigationManager.NavigateTo("notfound");
+        }
+        else
+        {
+            var stud = await context.Students.FirstOrDefaultAsync(s => s.stud_id == exam.student);
+            if (stud is not null)
+            {
+                StudentName = !string.IsNullOrWhiteSpace(stud.middle_name)
+                    ? $"{stud.last_name} {stud.first_name} {stud.middle_name}"
+                    : $"{stud.last_name} {stud.first_name}";
+            }
+            DisciplineName = await context.Disciplines
+                .Where(d => d.discipline_id == exam.discipline)
+                .Select(d => d.discipline_name)
+                .FirstOrDefaultAsync() ?? "—";
         }
     }
 }

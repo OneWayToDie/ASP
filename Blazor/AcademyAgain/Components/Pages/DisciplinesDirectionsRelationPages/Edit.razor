@@ -4,15 +4,14 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Edit</PageTitle>
+<PageTitle>Редактирование дисциплины направления</PageTitle>
 
-<h1>Edit</h1>
+<h1>Редактирование дисциплины направления</h1>
 
-<h2>DisciplinesDirectionsRelation</h2>
 <hr />
 @if (DisciplinesDirectionsRelation is null)
 {
-    <p><em>Loading...</em></p>
+    <p><em>Загрузка...</em></p>
 }
 else
 {
@@ -23,14 +22,38 @@ else
                 <ValidationSummary role="alert"/>
                 <input type="hidden" name="DisciplinesDirectionsRelation.direction" value="@DisciplinesDirectionsRelation.direction" />
                 <input type="hidden" name="DisciplinesDirectionsRelation.discipline" value="@DisciplinesDirectionsRelation.discipline" />
-                <button type="submit" class="btn btn-primary">Save</button>
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="direction" class="form-label">Направление:</label>
+                    <select id="direction" name="directionId" class="form-select" aria-required="true">
+                        <option value="">— выберите направление —</option>
+                        @foreach (var direction in directions.OrderBy(d => d.direction_name))
+                        {
+                            <option value="@direction.direction_id" selected="@(SelectedDirection == direction.direction_id)">@direction.direction_name</option>
+                        }
+                    </select>
+                    <ValidationMessage For="() => DisciplinesDirectionsRelation.direction" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="discipline" class="form-label">Дисциплина:</label>
+                    <select id="discipline" name="disciplineId" class="form-select" aria-required="true">
+                        <option value="">— выберите дисциплину —</option>
+                        @foreach (var discipline in disciplines.OrderBy(d => d.discipline_name))
+                        {
+                            <option value="@discipline.discipline_id" selected="@(SelectedDiscipline == discipline.discipline_id)">@discipline.discipline_name</option>
+                        }
+                    </select>
+                    <ValidationMessage For="() => DisciplinesDirectionsRelation.discipline" class="text-danger" />
+                </div>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
             </EditForm>
         </div>
     </div>
 }
 
 <div>
-    <a href="/disciplinesdirectionsrelations">Back to List</a>
+    <a href="/disciplinesdirectionsrelations">Назад к списку</a>
 </div>
 
 @code {
@@ -43,10 +66,27 @@ else
     [SupplyParameterFromForm]
     private DisciplinesDirectionsRelation? DisciplinesDirectionsRelation { get; set; }
 
+    [SupplyParameterFromForm]
+    private string? directionId { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? disciplineId { get; set; }
+
+    private List<Direction> directions = new();
+    private List<Discipline> disciplines = new();
+
+    private int? SelectedDirection
+        => int.TryParse(directionId, out var value) ? value : DisciplinesDirectionsRelation?.direction;
+
+    private int? SelectedDiscipline
+        => int.TryParse(disciplineId, out var value) ? value : DisciplinesDirectionsRelation?.discipline;
+
     protected override async Task OnInitializedAsync()
     {
         using var context = DbFactory.CreateDbContext();
         DisciplinesDirectionsRelation ??= await context.DisciplinesDirectionsRelation.FirstOrDefaultAsync(m => m.direction == direction && m.discipline == discipline);
+        directions = await context.Directions.OrderBy(d => d.direction_name).ToListAsync();
+        disciplines = await context.Disciplines.OrderBy(d => d.discipline_name).ToListAsync();
 
         if (DisciplinesDirectionsRelation is null)
         {
@@ -58,22 +98,52 @@ else
     // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
     private async Task UpdateDisciplinesDirectionsRelation()
     {
-        using var context = DbFactory.CreateDbContext();
-        context.Attach(DisciplinesDirectionsRelation!).State = EntityState.Modified;
-
-        try
+        if (!int.TryParse(directionId, out var directionValue))
         {
+            return;
+        }
+        if (!int.TryParse(disciplineId, out var disciplineValue))
+        {
+            return;
+        }
+
+        var originalDirection = DisciplinesDirectionsRelation!.direction;
+        var originalDiscipline = DisciplinesDirectionsRelation.discipline;
+        var keysChanged = originalDirection != directionValue || originalDiscipline != disciplineValue;
+
+        using var context = DbFactory.CreateDbContext();
+
+        if (keysChanged)
+        {
+            var original = await context.DisciplinesDirectionsRelation.FirstOrDefaultAsync(r => r.direction == originalDirection && r.discipline == originalDiscipline);
+            if (original is not null)
+            {
+                context.DisciplinesDirectionsRelation.Remove(original);
+                await context.SaveChangesAsync();
+            }
+
+            DisciplinesDirectionsRelation.direction = directionValue;
+            DisciplinesDirectionsRelation.discipline = disciplineValue;
+            context.DisciplinesDirectionsRelation.Add(DisciplinesDirectionsRelation);
             await context.SaveChangesAsync();
         }
-        catch (DbUpdateConcurrencyException)
+        else
         {
-            if (!DisciplinesDirectionsRelationExists(DisciplinesDirectionsRelation!.direction, DisciplinesDirectionsRelation.discipline))
+            context.Attach(DisciplinesDirectionsRelation).State = EntityState.Modified;
+            try
             {
-                NavigationManager.NavigateTo("notfound");
+                await context.SaveChangesAsync();
             }
-            else
+            catch (DbUpdateConcurrencyException)
             {
-                throw;
+                if (!DisciplinesDirectionsRelationExists(DisciplinesDirectionsRelation.direction, DisciplinesDirectionsRelation.discipline))
+                {
+                    NavigationManager.NavigateTo("notfound");
+                }
+                else
+                {
+                    throw;
+                }
             }
         }
 

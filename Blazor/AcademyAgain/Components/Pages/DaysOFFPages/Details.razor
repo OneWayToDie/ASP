@@ -4,34 +4,35 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Details</PageTitle>
+<PageTitle>Выходной день: @(daysoff?.date.ToString("dd.MM.yyyy"))</PageTitle>
 
-<h1>Details</h1>
+<h1>Выходной день: @(daysoff?.date.ToString("dd.MM.yyyy"))</h1>
 
-<div>
-    <h2>DaysOFF</h2>
-    <hr />
-    @if (daysoff is null)
-    {
-        <p><em>Loading...</em></p>
-    }
-    else {
-        <dl class="row">
-            <dt class="col-sm-2">holiday</dt>
-            <dd class="col-sm-10">@daysoff.holiday</dd>
-        </dl>
-        <div>
-            <a href="@($"/daysoffs/edit?date={daysoff.date}")">Edit</a> |
-            <a href="@($"/daysoffs")">Back to List</a>
-        </div>
-    }
-</div>
+<hr />
+@if (daysoff is null)
+{
+    <p><em>Загрузка...</em></p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-2">Дата</dt>
+        <dd class="col-sm-10">@daysoff.date.ToString("dd.MM.yyyy")</dd>
+        <dt class="col-sm-2">Праздник</dt>
+        <dd class="col-sm-10">@HolidayName</dd>
+    </dl>
+    <div>
+        <a href="@($"/daysoffs/edit?date={daysoff.date:yyyy-MM-dd}")">Изменить</a> |
+        <a href="@($"/daysoffs")">Назад к списку</a>
+    </div>
+}
 
 @code {
     private DaysOFF? daysoff;
+    private string? HolidayName = "—";
 
     [SupplyParameterFromQuery]
-    private System.DateTime date { get; set; }
+    private DateTime date { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
@@ -41,6 +42,13 @@
         if (daysoff is null)
         {
             NavigationManager.NavigateTo("notfound");
+        }
+        else
+        {
+            HolidayName = await context.Holidays
+                .Where(h => h.holiday_id == daysoff.holiday)
+                .Select(h => h.holiday_name)
+                .FirstOrDefaultAsync() ?? "—";
         }
     }
 }
