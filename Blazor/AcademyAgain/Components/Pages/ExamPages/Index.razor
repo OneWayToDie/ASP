@@ -14,7 +14,7 @@
     <h1>Экзамены</h1>
     <div class="list-actions">
         <input class="form-control search-input" type="search" placeholder="Поиск…" value="@SearchText" @oninput="OnSearchInput" />
-        <button type="button" class="btn btn-outline-secondary" @onclick="ExportCsv">Экспорт CSV</button>
+        <ExportMenu RowBuilder="BuildRows" FileName="exams" />
         <a class="btn btn-primary" href="exams/create">Создать</a>
     </div>
 </div>
@@ -34,7 +34,7 @@
 
 <div class="paginator">
     <span class="badge bg-secondary total-badge">Всего: @TotalCount</span>
-    <AppPaginator State="Pagination" />
+    <AppPaginator State="Pagination" OnPageSizeChanged="HandlePageSizeChanged" />
 </div>
 
 <RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
@@ -62,7 +62,7 @@
         TotalCount = ApplySearch(allItems).Count();
     }
 
-    private async Task ExportCsv()
+    private List<string?[]> BuildRows()
     {
         var rows = new List<string?[]>
         {
@@ -72,7 +72,7 @@
         {
             rows.Add(new[] { StudentName(e.student), DisciplineName(e.discipline), e.date?.ToString("dd.MM.yyyy"), e.grade?.ToString() });
         }
-        await ExportCsvAsync("exams.csv", CsvExport.Build(rows));
+        return rows;
     }
 
     private async Task OnSearchInput(ChangeEventArgs e)

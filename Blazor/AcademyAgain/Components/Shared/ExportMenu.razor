@@ -1,0 +1,44 @@
+@using AcademyAgain.Helpers
+@inject IJSRuntime Js
+
+<div class="btn-group export-menu" @onfocusout="CloseMenu">
+    <button type="button" class="btn btn-outline-secondary dropdown-toggle" @onclick="Toggle">
+        Экспорт
+    </button>
+    <ul class="dropdown-menu @(open ? "show" : "")" @onclick:stopPropagation>
+        <li><button type="button" class="dropdown-item" @onclick="ExportCsv">CSV</button></li>
+        <li><button type="button" class="dropdown-item" @onclick="ExportXlsx">Excel (.xlsx)</button></li>
+    </ul>
+</div>
+
+@code {
+    private bool open;
+
+    [Parameter]
+    public Func<List<string?[]>> RowBuilder { get; set; } = () => new List<string?[]>();
+
+    [Parameter]
+    public string FileName { get; set; } = "export";
+
+    private void Toggle() => open = !open;
+
+    private void CloseMenu()
+    {
+        open = false;
+    }
+
+    private async Task ExportCsv()
+    {
+        open = false;
+        var rows = RowBuilder();
+        await Js.InvokeVoidAsync("downloadTextFile", $"{FileName}.csv", CsvExport.Build(rows));
+    }
+
+    private async Task ExportXlsx()
+    {
+        open = false;
+        var rows = RowBuilder();
+        var bytes = XlsxExport.Build(rows);
+        await Js.InvokeVoidAsync("downloadBase64File", $"{FileName}.xlsx", Convert.ToBase64String(bytes));
+    }
+}

@@ -1,0 +1,84 @@
+@page "/login"
+@attribute [AllowAnonymous]
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.Cookies
+@using System.Security.Claims
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@using AcademyAgain.Helpers
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager Navigation
+
+<PageTitle>Вход</PageTitle>
+
+@if (Error is not null)
+{
+    <div class="alert alert-danger">@Error</div>
+}
+
+<div class="d-flex justify-content-center">
+    <div class="auth-card" style="width: 100%; max-width: 380px">
+        <h1 class="mb-4">Вход</h1>
+
+        <EditForm Model="Model" OnValidSubmit="SubmitAsync" FormName="LoginForm">
+            <DataAnnotationsValidator />
+            <div class="mb-3">
+                <label class="form-label" for="login_username">Логин:</label>
+                <InputText id="login_username" @bind-Value="Model.Username" class="form-control" autocomplete="username" />
+                <ValidationMessage For="() => Model.Username" class="text-danger" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="login_password">Пароль:</label>
+                <InputText id="login_password" type="password" @bind-Value="Model.Password" class="form-control" autocomplete="current-password" />
+                <ValidationMessage For="() => Model.Password" class="text-danger" />
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Войти</button>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private sealed class LoginModel
+    {
+        [Required(ErrorMessage = "Введите логин")]
+        public string Username { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Введите пароль")]
+        public string Password { get; set; } = string.Empty;
+    }
+
+    [SupplyParameterFromForm]
+    private LoginModel Model { get; set; } = new();
+    private string? Error;
+
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private async Task SubmitAsync()
+    {
+        Error = null;
+        await using var context = await DbFactory.CreateDbContextAsync();
+        var user = await context.Users.AsNoTracking()
+            .FirstOrDefaultAsync(u => u.username == Model.Username);
+        if (user is null || !AuthStore.VerifyPassword(Model.Password, user.password_hash))
+        {
+            return;
+        }
+        var role = await context.Roles.AsNoTracking()
+            .FirstOrDefaultAsync(r => r.role_id == user.role_id);
+        role ??= new Role { role_id = user.role_id, role_name = user.role_id.ToString() };
+
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.Name, user.username),
+            new Claim(ClaimTypes.Role, role.role_name)
+        };
+        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+
+        await HttpContext!.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
+        Navigation.NavigateTo("/", forceLoad: true);
+    }
+}

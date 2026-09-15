@@ -14,10 +14,16 @@
     <h1>Оценки</h1>
     <div class="list-actions">
         <input class="form-control search-input" type="search" placeholder="Поиск…" value="@SearchText" @oninput="OnSearchInput" />
-        <button type="button" class="btn btn-outline-secondary" @onclick="ExportCsv">Экспорт CSV</button>
+        <button type="button" class="btn btn-outline-secondary" onclick="window.print()">Печать</button>
+        <ExportMenu RowBuilder="BuildRows" FileName="grades" />
         <a class="btn btn-primary" href="grades/create">Создать</a>
     </div>
 </div>
+
+@if (!string.IsNullOrEmpty(SaveError))
+{
+    <div class="alert alert-danger" role="alert">@SaveError</div>
+}
 
 <QuickGrid Class="table context-table" Items="query" ItemKey="grade => grade.student.ToString() + '_' + grade.lesson.ToString()" Pagination="Pagination">
     <TemplateColumn Title="Студент" Sortable="true" SortBy="GridSort<Grade>.ByAscending(g => StudentName(g.student))" Context="grade">
@@ -28,13 +34,31 @@
     <TemplateColumn Title="Занятие" Sortable="true" SortBy="GridSort<Grade>.ByAscending(g => LessonName(g.lesson))" Context="grade">
         <a class="table-link" href="@($"/schedules/details?lesson_id={grade.lesson}")">@(LessonName(grade.lesson))</a>
     </TemplateColumn>
-    <PropertyColumn Property="grade => grade.grade_1" Title="Оценка 1" Sortable="true" />
-    <PropertyColumn Property="grade => grade.grade_2" Title="Оценка 2" Sortable="true" />
+    <TemplateColumn Title="Оценка 1" Sortable="true" SortBy="GridSort<Grade>.ByAscending(g => g.grade_1)" Context="grade">
+        <select class="form-select grade-select" value="@grade.grade_1?.ToString()"
+                @onchange="e => OnGradeChanged(grade, 1, (ChangeEventArgs)e)" aria-label="Оценка 1">
+            <option value="">—</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+        </select>
+    </TemplateColumn>
+    <TemplateColumn Title="Оценка 2" Sortable="true" SortBy="GridSort<Grade>.ByAscending(g => g.grade_2)" Context="grade">
+        <select class="form-select grade-select" value="@grade.grade_2?.ToString()"
+                @onchange="e => OnGradeChanged(grade, 2, (ChangeEventArgs)e)" aria-label="Оценка 2">
+            <option value="">—</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+        </select>
+    </TemplateColumn>
 </QuickGrid>
 
 <div class="paginator">
     <span class="badge bg-secondary total-badge">Всего: @TotalCount</span>
-    <AppPaginator State="Pagination" />
+    <AppPaginator State="Pagination" OnPageSizeChanged="HandlePageSizeChanged" />
 </div>
 
 <RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
@@ -44,6 +68,52 @@
     private IQueryable<Grade> query = new List<Grade>().AsQueryable();
     private Dictionary<int, string> students = new();
     private Dictionary<long, string> lessonNames = new();
+    private string? SaveError;
+
+    private async Task OnGradeChanged(Grade grade, int column, ChangeEventArgs e)
+    {
+        var text = e.Value?.ToString();
+        var parsed = string.IsNullOrEmpty(text) ? null : (int?)int.Parse(text);
+        if (parsed.HasValue && (parsed < 2 || parsed > 5))
+        {
+            SaveError = $"Недопустимая оценка: {parsed}. Допустимо 2..5 или пусто.";
+            StateHasChanged();
+            return;
+        }
+
+        var current = column == 1 ? grade.grade_1 : grade.grade_2;
+        if (current == parsed) return;
+
+        if (column == 1) grade.grade_1 = parsed; else grade.grade_2 = parsed;
+
+        try
+        {
+            await using var context = DbFactory.CreateDbContext();
+            var row = await context.Grades
+                .FirstOrDefaultAsync(g => g.student == grade.student && g.lesson == grade.lesson);
+            if (row is null)
+            {
+                SaveError = $"Запись об оценке не найдена (студент {grade.student}, занятие {grade.lesson}).";
+                StateHasChanged();
+                return;
+            }
+            if (column == 1) row.grade_1 = parsed; else row.grade_2 = parsed;
+            await context.SaveChangesAsync();
+            SaveError = null;
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            SaveError = $"Не удалось сохранить оценку: запись изменена другим пользователем. {ex.Message}";
+            if (column == 1) grade.grade_1 = current; else grade.grade_2 = current;
+        }
+        catch (Exception ex)
+        {
+            SaveError = $"Не удалось сохранить оценку: {ex.Message}";
+            if (column == 1) grade.grade_1 = current; else grade.grade_2 = current;
+        }
+
+        StateHasChanged();
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -64,7 +134,7 @@
         TotalCount = ApplySearch(allItems).Count();
     }
 
-    private async Task ExportCsv()
+    private List<string?[]> BuildRows()
     {
         var rows = new List<string?[]>
         {
@@ -74,7 +144,7 @@
         {
             rows.Add(new[] { StudentName(g.student), LessonName(g.lesson), g.grade_1?.ToString(), g.grade_2?.ToString() });
         }
-        await ExportCsvAsync("grades.csv", CsvExport.Build(rows));
+        return rows;
     }
 
     private async Task OnSearchInput(ChangeEventArgs e)

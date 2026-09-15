@@ -1,4 +1,5 @@
 @page "/grades/create"
+@rendermode InteractiveServer
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
@@ -11,17 +12,31 @@
 <hr />
 <div class="row">
     <div class="col-md-4">
-        <EditForm method="post" Model="Grade" OnValidSubmit="AddGrade" FormName="create" Enhance>
+        <EditForm Model="Grade" OnValidSubmit="AddGrade">
             <DataAnnotationsValidator />
-            <ValidationSummary class="text-danger" role="alert"/>
+            <ValidationSummary class="text-danger" role="alert" />
+            @if (!string.IsNullOrEmpty(SaveError))
+            {
+                <div class="alert alert-danger" role="alert">@SaveError</div>
+            }
+            <div class="mb-3">
+                <label for="group" class="form-label">Группа:</label>
+                <select id="group" class="form-select" @bind="selectedGroupId" @bind:after="OnGroupChanged">
+                    <option value="0">— выберите группу —</option>
+                    @foreach (var group in groups)
+                    {
+                        <option value="@group.group_id">@(string.IsNullOrWhiteSpace(group.group_name) ? $"№{group.group_id}" : group.group_name)</option>
+                    }
+                </select>
+            </div>
             <div class="mb-3">
                 <span class="text-danger">*</span>
                 <label for="student" class="form-label">Студент:</label>
-                <select id="student" name="student" class="form-select" aria-required="true">
-                    <option value="">— выберите студента —</option>
+                <select id="student" class="form-select" @bind="Grade.student">
+                    <option value="0">— выберите студента —</option>
                     @foreach (var student in students)
                     {
-                        <option value="@student.Key" selected="@(Grade.student == student.Key)">@student.Value</option>
+                        <option value="@student.Key">@student.Value</option>
                     }
                 </select>
                 <ValidationMessage For="() => Grade.student" class="text-danger" />
@@ -29,23 +44,37 @@
             <div class="mb-3">
                 <span class="text-danger">*</span>
                 <label for="lesson" class="form-label">Занятие:</label>
-                <select id="lesson" name="lesson" class="form-select" aria-required="true">
-                    <option value="">— выберите занятие —</option>
-                    @foreach (var lesson in lessonNames)
+                <select id="lesson" class="form-select" @bind="Grade.lesson">
+                    <option value="0">— выберите занятие —</option>
+                    @foreach (var lesson in lessons)
                     {
-                        <option value="@lesson.Key" selected="@(Grade.lesson == lesson.Key)">@lesson.Value</option>
+                        <option value="@lesson.Key">@lesson.Value</option>
                     }
                 </select>
                 <ValidationMessage For="() => Grade.lesson" class="text-danger" />
             </div>
             <div class="mb-3">
                 <label for="grade_1" class="form-label">Оценка 1:</label>
-                <InputNumber id="grade_1" @bind-Value="Grade.grade_1" class="form-control" />
+                <select id="grade_1" class="form-select" @bind="grade1Selection">
+                    <option value="">—</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="absent">Отсутствовал</option>
+                </select>
                 <ValidationMessage For="() => Grade.grade_1" class="text-danger" />
             </div>
             <div class="mb-3">
                 <label for="grade_2" class="form-label">Оценка 2:</label>
-                <InputNumber id="grade_2" @bind-Value="Grade.grade_2" class="form-control" />
+                <select id="grade_2" class="form-select" @bind="grade2Selection">
+                    <option value="">—</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="absent">Отсутствовал</option>
+                </select>
                 <ValidationMessage For="() => Grade.grade_2" class="text-danger" />
             </div>
             <button type="submit" class="btn btn-primary">Создать</button>
@@ -58,61 +87,129 @@
 </div>
 
 @code {
-    [SupplyParameterFromForm]
-    private Grade Grade { get; set; } = default!;
+    private Grade Grade { get; set; } = new();
 
-    [SupplyParameterFromForm]
-    private string? student { get; set; }
-
-    [SupplyParameterFromForm]
-    private string? lesson { get; set; }
-
+    private List<Group> groups = new();
     private List<KeyValuePair<int, string>> students = new();
-    private List<KeyValuePair<long, string>> lessonNames = new();
+    private List<KeyValuePair<long, string>> lessons = new();
+
+    private int selectedGroupId;
+    private string? SaveError;
+    private string grade1Selection = "";
+    private string grade2Selection = "";
 
     protected override async Task OnInitializedAsync()
     {
-        Grade ??= new();
         await using var context = DbFactory.CreateDbContext();
-        students = (await context.Students.OrderBy(s => s.last_name).ToListAsync())
+        groups = await context.Groups.OrderBy(g => g.group_name).ToListAsync();
+    }
+
+    private async Task OnGroupChanged()
+    {
+        Grade.student = 0;
+        Grade.lesson = 0;
+        await using var context = DbFactory.CreateDbContext();
+        await LoadStudentsAsync(context);
+        await LoadLessonsAsync(context);
+    }
+
+    private async Task LoadStudentsAsync(AcademyAgainContext context)
+    {
+        students = new();
+        if (selectedGroupId == 0)
+        {
+            return;
+        }
+
+        students = (await context.Students
+                .Where(s => s.group == selectedGroupId)
+                .OrderBy(s => s.last_name)
+                .ToListAsync())
             .Select(s => new KeyValuePair<int, string>(s.stud_id,
                 !string.IsNullOrWhiteSpace(s.middle_name)
                     ? $"{s.last_name} {s.first_name} {s.middle_name}"
                     : $"{s.last_name} {s.first_name}"))
             .ToList();
-        lessonNames = await BuildLessonNamesAsync(context);
     }
 
-    private static async Task<List<KeyValuePair<long, string>>> BuildLessonNamesAsync(AcademyAgainContext context)
+    private async Task LoadLessonsAsync(AcademyAgainContext context)
     {
-        var result = new List<KeyValuePair<long, string>>();
-        var groupNames = (await context.Groups.ToListAsync())
-            .ToDictionary(g => g.group_id, g => g.group_name ?? "");
-        var schedule = await context.Schedule.OrderBy(s => s.lesson_id).ToListAsync();
-        foreach (var s in schedule)
-        {
-            var groupName = groupNames.TryGetValue(s.group, out var name) ? name : $"№{s.group}";
-            result.Add(new KeyValuePair<long, string>(s.lesson_id, s.date.HasValue
-                ? $"{s.lesson_id} · {groupName} · {s.date:d}"
-                : $"{s.lesson_id} · {groupName}"));
-        }
-        return result;
-    }
-
-    // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
-    private async Task AddGrade()
-    {
-        if (!int.TryParse(student, out var studentId) || !long.TryParse(lesson, out var lessonId))
+        lessons = new();
+        if (selectedGroupId == 0)
         {
             return;
         }
 
-        Grade.student = studentId;
-        Grade.lesson = lessonId;
+        var groupName = groups.FirstOrDefault(g => g.group_id == selectedGroupId)?.group_name ?? $"№{selectedGroupId}";
+        var schedule = await context.Schedule
+            .Where(s => s.group == selectedGroupId)
+            .OrderBy(s => s.lesson_id)
+            .ToListAsync();
+        foreach (var s in schedule)
+        {
+            lessons.Add(new KeyValuePair<long, string>(s.lesson_id, s.date.HasValue
+                ? $"{s.lesson_id} · {groupName} · {s.date:d}"
+                : $"{s.lesson_id} · {groupName}"));
+        }
+    }
+
+    private async Task AddGrade()
+    {
+        SaveError = null;
+
+        bool absent1 = grade1Selection == "absent";
+        bool absent2 = grade2Selection == "absent";
+        bool fullyAbsent = absent1 && absent2;
+
+        if (absent1)
+        {
+            Grade.grade_1 = null;
+        }
+        else if (grade1Selection != "")
+        {
+            Grade.grade_1 = int.Parse(grade1Selection);
+        }
+
+        if (absent2)
+        {
+            Grade.grade_2 = null;
+        }
+        else if (grade2Selection != "")
+        {
+            Grade.grade_2 = int.Parse(grade2Selection);
+        }
 
         using var context = DbFactory.CreateDbContext();
-        context.Grades.Add(Grade);
-        await context.SaveChangesAsync();
+
+        var attendance = await context.Attendance.FindAsync(Grade.student, Grade.lesson);
+        if (attendance == null)
+        {
+            context.Attendance.Add(new Attendance
+            {
+                student = Grade.student,
+                lesson = Grade.lesson,
+                present = !fullyAbsent
+            });
+        }
+        else
+        {
+            attendance.present = !fullyAbsent;
+        }
+
+        if (!fullyAbsent)
+        {
+            context.Grades.Add(Grade);
+        }
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch
+        {
+            SaveError = "Не удалось сохранить: такая запись уже существует.";
+            return;
+        }
         NavigationManager.NavigateTo("/grades");
     }
 }

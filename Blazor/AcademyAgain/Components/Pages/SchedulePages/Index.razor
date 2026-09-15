@@ -14,9 +14,34 @@
     <h1>Расписание</h1>
     <div class="list-actions">
         <input class="form-control search-input" type="search" placeholder="Поиск…" value="@SearchText" @oninput="OnSearchInput" />
-        <button type="button" class="btn btn-outline-secondary" @onclick="ExportCsv">Экспорт CSV</button>
+        <button type="button" class="btn btn-outline-secondary" onclick="window.print()">Печать</button>
+        <a class="btn btn-outline-secondary" href="schedules/calendar">Календарь</a>
+        <ExportMenu RowBuilder="BuildRows" FileName="schedules" />
         <a class="btn btn-primary" href="schedules/create">Создать</a>
     </div>
+</div>
+
+<div class="filter-bar d-flex flex-wrap align-items-center gap-2 mb-3">
+    <span class="filter-label">Период:</span>
+    <button type="button" class='chip @(periodFilter == "all" ? "chip-active" : "")' @onclick='() => SetPeriod("all")'>Все</button>
+    <button type="button" class='chip @(periodFilter == "today" ? "chip-active" : "")' @onclick='() => SetPeriod("today")'>Сегодня</button>
+    <button type="button" class='chip @(periodFilter == "week" ? "chip-active" : "")' @onclick='() => SetPeriod("week")'>Неделя</button>
+    <button type="button" class='chip @(periodFilter == "notspent" ? "chip-active" : "")' @onclick='() => SetPeriod("notspent")'>Не проведено</button>
+    <span class="filter-divider"></span>
+    <select class="form-select form-select-sm filter-select" @bind="groupFilter" @bind:after="OnFilterChanged">
+        <option value="0">Все группы</option>
+        @foreach (var group in groups)
+        {
+            <option value="@group.Key">@group.Value</option>
+        }
+    </select>
+    <select class="form-select form-select-sm filter-select" @bind="teacherFilter" @bind:after="OnFilterChanged">
+        <option value="0">Все преподаватели</option>
+        @foreach (var teacher in teachers)
+        {
+            <option value="@teacher.Key">@teacher.Value</option>
+        }
+    </select>
 </div>
 
 <QuickGrid Class="table context-table" Items="query" ItemKey="schedule => schedule.lesson_id" Pagination="Pagination">
@@ -40,7 +65,7 @@
 
 <div class="paginator">
     <span class="badge bg-secondary total-badge">Всего: @TotalCount</span>
-    <AppPaginator State="Pagination" />
+    <AppPaginator State="Pagination" OnPageSizeChanged="HandlePageSizeChanged" />
 </div>
 
 <RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
@@ -51,6 +76,10 @@
     private Dictionary<int, string> groups = new();
     private Dictionary<int, string> disciplines = new();
     private Dictionary<int, string> teachers = new();
+
+    private string periodFilter = "all";
+    private int groupFilter;
+    private int teacherFilter;
 
     protected override async Task OnInitializedAsync()
     {
@@ -65,19 +94,45 @@
         ApplyFilter();
     }
 
-    private void ApplyFilter()
+    private IEnumerable<Schedule> Filtered()
     {
-        query = ApplySearch(allItems).AsQueryable();
-        TotalCount = ApplySearch(allItems).Count();
+        IEnumerable<Schedule> list = allItems;
+        switch (periodFilter)
+        {
+            case "today":
+                list = list.Where(s => s.date.HasValue && s.date.Value.Date == DateTime.Today);
+                break;
+            case "week":
+                list = list.Where(s => s.date.HasValue && IsInCurrentWeek(s.date.Value));
+                break;
+            case "notspent":
+                list = list.Where(s => !s.spent);
+                break;
+        }
+        if (groupFilter != 0)
+        {
+            list = list.Where(s => s.group == groupFilter);
+        }
+        if (teacherFilter != 0)
+        {
+            list = list.Where(s => s.teacher == teacherFilter);
+        }
+        return list;
     }
 
-    private async Task ExportCsv()
+    private void ApplyFilter()
+    {
+        query = ApplySearch(Filtered()).AsQueryable();
+        TotalCount = ApplySearch(Filtered()).Count();
+    }
+
+    private List<string?[]> BuildRows()
     {
         var rows = new List<string?[]>
         {
             new[] { "Группа", "Дисциплина", "Преподаватель", "Дата", "Время", "Проведено" }
         };
-        foreach (var s in ApplySearch(allItems))
+        foreach (var s in ApplySearch(Filtered()))
         {
             rows.Add(new[]
             {
@@ -85,7 +140,27 @@
                 s.date?.ToString("dd.MM.yyyy"), s.time?.ToString(), s.spent ? "да" : "нет"
             });
         }
-        await ExportCsvAsync("schedules.csv", CsvExport.Build(rows));
+        return rows;
+    }
+
+    private static bool IsInCurrentWeek(DateTime date)
+    {
+        var today = DateTime.Today;
+        var monday = today.AddDays(-(((int)today.DayOfWeek + 6) % 7));
+        return date.Date >= monday && date.Date < monday.AddDays(7);
+    }
+
+    private async Task SetPeriod(string value)
+    {
+        periodFilter = value;
+        ApplyFilter();
+        await ResetPaginationAsync();
+    }
+
+    private async Task OnFilterChanged()
+    {
+        ApplyFilter();
+        await ResetPaginationAsync();
     }
 
     private async Task OnSearchInput(ChangeEventArgs e)

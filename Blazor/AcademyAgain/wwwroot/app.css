@@ -2,6 +2,8 @@
 /* Определяем «дизайн-токены» приложения: вынесены в :root, чтобы менять тему в одном месте. */
 :root 
 {
+    color-scheme: dark;                          /* нативные контролы (select, checkbox, скроллбар) в тёмном виде */
+
     --app-bg: #12141a;                 /* базовый фон страницы (тёмный) */
     --app-surface: #1c1f27;            /* фон «поверхностей»: карточки, модалки, меню */
     --app-surface-2: #232833;          /* фон поверхностей второго уровня: шапки таблиц, header/footer карточек */
@@ -12,13 +14,149 @@
     --app-text: #e6eaf2;               /* основной цвет текста (светлый на тёмном) */
     --app-text-secondary: #98a2b3;     /* вторичный текст: подписи, дефолтные значения */
     --app-danger: #ff7b7b;             /* опасный/красный: кнопка удаления, пункт «Удалить» */
+
+    /* происходит от хардкод-цветов тёмной темы — нужны и для светлой */
+    --app-link: #7fb0ff;                          /* обычный цвет ссылок */
+    --app-link-hover: #a9c9ff;                    /* ссылка при наведении */
+    --app-table-header: #7ee0a0;                  /* заголовки колонок таблиц (зелёный) */
+    --app-accent-warn: #ffca7a;                   /* фирменный жёлтый: стрелки пагинации, заголовок, активный пункт меню */
+    --app-form-bg: #16181f;                       /* фон полей ввода */
+    --app-text-soft: #c3cdd9;                     /* мягкий текст: подписи полей, номера */
+    --app-placeholder: #6b7484;                   /* плейсхолдеры полей */
+    --app-sort-arrow: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M 2 3.25 L 12 20.75 L 22 3.25 L 12 10 z" fill="%237ee0a0"/></svg>');
+
+    /* каркас: шапка и сайдбар */
+    --app-sidebar-top: #14161b;                   /* фон верхней строки (шапки) */
+    --app-sidebar-bg: linear-gradient(180deg, rgba(8, 10, 13, 0.88) 0%, rgba(8, 10, 13, 0.65) 100%);
+
+    /* навигационное меню */
+    --app-nav-top-row: rgba(0, 0, 0, 0.4);
+    --app-nav-link: #d9dbe3;
+    --app-nav-link-hover: #ffffff;
+    --app-nav-hover-bg: rgba(255, 202, 122, 0.14);
+    --app-nav-group-title: rgba(255, 202, 122, 0.65);
+    --app-nav-active-bg: #ffca7a;
+    --app-nav-active-text: #181a1f;
+    --app-nav-active-bar: #f0a500;
+    --app-nav-scroll: rgba(255, 202, 122, 0.4);
+    --app-nav-scroll-hover: rgba(255, 202, 122, 0.65);
+    --app-nav-toggler-bg: rgba(255, 255, 255, 0.1);
+    --app-nav-toggler-checked: rgba(255, 255, 255, 0.5);
+    --app-nav-toggler-icon: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.55%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
+/* ===== Светлая тема ===== */
+/* Атрибут [data-theme="light"] на <html> переключает все дизайн-токены (селектор специфичнее :root).
+   JS-тумблер ставит атрибут и сохраняет выбор в localStorage. */
+html[data-theme="light"] 
+{
+    color-scheme: light;                          /* нативные контролы в светлом виде */
+
+    --app-bg: #eef1f6;                 /* базовый фон страницы (светлый) */
+    --app-surface: #ffffff;            /* фон поверхностей: карточки, модалки, меню */
+    --app-surface-2: #f0f3f8;          /* поверхности второго уровня: шапки таблиц, header/footer */
+    --app-border: #d8dde6;             /* тонкие границы */
+    --app-border-strong: #b6bfcc;      /* заметные границы */
+    --app-accent: #2563eb;             /* акцентный синий */
+    --app-accent-dim: #1d4ed8;         /* приглушённый акцент */
+    --app-text: #1b2432;               /* основной цвет текста (тёмный на светлом) */
+    --app-text-secondary: #5a6472;     /* вторичный текст */
+    --app-danger: #d92d20;             /* опасный/красный */
+
+    --app-link: #1d4ed8;
+    --app-link-hover: #1e3a8a;
+    --app-table-header: #166534;
+    --app-accent-warn: #92500a;
+    --app-form-bg: #ffffff;
+    --app-text-soft: #374151;
+    --app-placeholder: #9aa3af;
+    --app-sort-arrow: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M 2 3.25 L 12 20.75 L 22 3.25 L 12 10 z" fill="%23166534"/></svg>');
+
+    --app-sidebar-top: #ffffff;
+    --app-sidebar-bg: linear-gradient(180deg, #eef2f7 0%, #dfe5ee 100%);
+
+    --app-nav-top-row: rgba(17, 24, 39, 0.03);
+    --app-nav-link: #23303f;
+    --app-nav-link-hover: #111827;
+    --app-nav-hover-bg: rgba(180, 150, 40, 0.16);
+    --app-nav-group-title: rgba(146, 80, 10, 0.7);
+    --app-nav-active-bg: #ffca7a;
+    --app-nav-active-text: #181a1f;
+    --app-nav-active-bar: #d97706;
+    --app-nav-scroll: rgba(176, 130, 20, 0.35);
+    --app-nav-scroll-hover: rgba(176, 130, 20, 0.6);
+    --app-nav-toggler-bg: rgba(17, 24, 39, 0.08);
+    --app-nav-toggler-checked: rgba(17, 24, 39, 0.14);
+    --app-nav-toggler-icon: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%280, 0, 0, 0.55%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
+/* Фон страницы в светлой теме — фото со светлой «шторкой» вместо тёмной */
+html[data-theme="light"] body 
+{
+    background-color: var(--app-bg);
+    background-image:
+        linear-gradient(rgba(240, 244, 251, 0.55), rgba(240, 244, 251, 0.85)),
+        url("/images/background.jpg");
+}
+
+/* Крестик «закрыть» в модалках/алертах: в тёмной теме он инвертирован в белый, в светлой не нужен */
+html[data-theme="light"] .modal-header .btn-close,
+html[data-theme="light"] .alert .btn-close 
+{
+    filter: none;
+}
+
+/* Бейджи праздников/выходных — приглушённые, чтобы не слепили на светлом фоне */
+html[data-theme="light"] .badge-holiday 
+{
+    background: rgba(37, 99, 235, 0.12);
+    color: #1d4ed8;
+}
+
+html[data-theme="light"] .badge-daysoff 
+{
+    background: rgba(217, 45, 32, 0.1);
+    color: #b91c1c;
+}
+
+/* Тени на светлом фоне — мягче и без глубокого чёрного */
+html[data-theme="light"] .profile 
+{
+    box-shadow: 0 6px 16px rgba(30, 41, 59, 0.08);
+}
+
+html[data-theme="light"] .row-menu 
+{
+    box-shadow: 0 8px 24px rgba(30, 41, 59, 0.15);
+}
+
+html[data-theme="light"] .gs-dropdown 
+{
+    box-shadow: 0 8px 20px rgba(30, 41, 59, 0.12);
+}
+
+html[data-theme="light"] .stat-card:hover 
+{
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.15);
+}
+
+/* Красный пункт «Удалить» в контекстном меню — более тёмный на светлом фоне */
+html[data-theme="light"] .row-menu-item.danger 
+{
+    color: #b91c1c;
+}
+
+html[data-theme="light"] .row-menu-item.danger:hover 
+{
+    background-color: rgba(217, 45, 32, 0.1);
+    color: #b91c1c;
 }
 
 /* ===== База документа ===== */
 html, body 
 {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; /* системный стек шрифтов */
-    background-color: #12141a;                                   /* тёмный запасной фон, пока не прогрузится картинка */
+    background-color: var(--app-bg);                               /* тёмный запасной фон, пока не прогрузится картинка */
     color: var(--app-text);                                      /* основной цвет текста из переменной */
     background-image:                                            /* фон = фото + тёмная шторка поверх него */
         linear-gradient(rgba(18, 20, 26, 0.55), rgba(18, 20, 26, 0.8)), /* полупрозрачный тёмный градиент для читаемости */
@@ -31,12 +169,12 @@ html, body
 /* ===== Ссылки ===== */
 a, .btn-link 
 {
-    color: #7fb0ff;      /* обычный цвет ссылок (светло-синий) */
+    color: var(--app-link);      /* обычный цвет ссылок (светло-синий) */
 }
 
 a:hover, .btn-link:hover 
 {
-    color: #a9c9ff;      /* при наведении ссылка светлеет */
+    color: var(--app-link-hover);      /* при наведении ссылка светлеет */
 }
 
 /* ===== Таблицы (QuickGrid использует класс .table Bootstrap) ===== */
@@ -53,7 +191,7 @@ a:hover, .btn-link:hover
 
 .table thead th 
 {
-    color: #7ee0a0;                          /* ярко-зелёные заголовки колонок — читаются на тёмном фоне */
+    color: var(--app-table-header);                          /* ярко-зелёные заголовки колонок — читаются на тёмном фоне */
     font-weight: 600;                        /* и полужирным */
     border-bottom: 1px solid var(--app-border-strong); /* более заметная линия под шапкой */
 }
@@ -63,7 +201,7 @@ a:hover, .btn-link:hover
 .table thead th .col-title,
 .table thead th .col-title-text 
 {
-    color: #7ee0a0;
+    color: var(--app-table-header);
 }
 
 
@@ -76,19 +214,19 @@ a:hover, .btn-link:hover
 
 .table a 
 {
-    color: #7fb0ff;       /* ссылки-действия внутри таблиц */
+    color: var(--app-link);       /* ссылки-действия внутри таблиц */
 }
 
     .table a:hover 
     {
-        color: #a9c9ff;   /* и их вариант при наведении */
+        color: var(--app-link-hover);   /* и их вариант при наведении */
     }
 
 /* Стрелки сортировки в шапках — яркими, чтобы были видны на тёмном фоне */
 .table .col-sort-asc .sort-indicator,
 .table .col-sort-desc .sort-indicator 
 {
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M 2 3.25 L 12 20.75 L 22 3.25 L 12 10 z" fill="%237ee0a0"/></svg>') !important;
+    background-image: var(--app-sort-arrow) !important;
 }
 
 /* ===== Карточки ===== */
@@ -113,26 +251,26 @@ a:hover, .btn-link:hover
 /* ===== Формы ===== */
 .form-control, .form-select 
 {
-    background-color: #16181f;           /* поля ввода — чуть темнее поверхностей */
+    background-color: var(--app-form-bg);           /* поля ввода — чуть темнее поверхностей */
     border-color: var(--app-border-strong); /* заметная рамка поля */
     color: var(--app-text);              /* текст в поле — светлый */
 }
 
 .form-control:focus, .form-select:focus 
 {
-    background-color: #16181f;           /* при фокусе фон не меняется */
+    background-color: var(--app-form-bg);           /* при фокусе фон не меняется */
     border-color: var(--app-accent);     /* рамка подсвечивается синим акцентом */
     color: var(--app-text);
 }
 
 .form-control::placeholder 
 {
-    color: #6b7484;                      /* плейсхолдер — серый, чтобы не сливался с текстом */
+    color: var(--app-placeholder);                      /* плейсхолдер — серый, чтобы не сливался с текстом */
 }
 
 .form-label, .form-text 
 {
-    color: #c3cdd9;                      /* подписи полей и вспомогательный текст */
+    color: var(--app-text-soft);                      /* подписи полей и вспомогательный текст */
 }
 
 /* ===== Модальные окна ===== */
@@ -162,17 +300,17 @@ a:hover, .btn-link:hover
 .pagination 
 {
     --bs-pagination-bg: var(--app-surface);              /* фон страниц */
-    --bs-pagination-color: #c3cdd9;                      /* цвет цифр */
+    --bs-pagination-color: var(--app-text-soft);                      /* цвет цифр */
     --bs-pagination-border-color: var(--app-border);     /* рамки кнопок */
     --bs-pagination-hover-bg: var(--app-surface-2);      /* фон при наведении */
-    --bs-pagination-hover-color: #ffffff;                /* текст при наведении — белый */
+    --bs-pagination-hover-color: var(--app-text);                /* текст при наведении — белый */
     --bs-pagination-focus-bg: var(--app-surface-2);      /* фон при фокусе */
-    --bs-pagination-focus-color: #ffffff;                /* текст при фокусе */
+    --bs-pagination-focus-color: var(--app-text);                /* текст при фокусе */
     --bs-pagination-active-bg: var(--app-accent-dim);    /* активная страница — синяя */
     --bs-pagination-active-border-color: var(--app-accent-dim); /* рамка активной страницы */
-    --bs-pagination-disabled-bg: #16181f;                /* неактивные (серые) кнопки */
+    --bs-pagination-disabled-bg: var(--app-form-bg);                /* неактивные (серые) кнопки */
     --bs-pagination-disabled-border-color: var(--app-border);
-    --bs-pagination-disabled-color: #6b7484;
+    --bs-pagination-disabled-color: var(--app-placeholder);
 }
 
 /* ===== Выпадающие меню (Dropdown) ===== */
@@ -185,13 +323,13 @@ a:hover, .btn-link:hover
 
 .dropdown-item 
 {
-    color: #c3cdd9;                       /* пункт меню — чуть светлее основного текста */
+    color: var(--app-text-soft);                       /* пункт меню — чуть светлее основного текста */
 }
 
     .dropdown-item:hover, .dropdown-item:focus 
     {
         background-color: var(--app-surface-2); /* подсветка пункта при наведении */
-        color: #ffffff;                         /* и белый текст */
+        color: var(--app-text);                         /* и белый текст */
     }
 
 /* ===== Текстовые сообщения (алерты Bootstrap) ===== */
@@ -212,9 +350,9 @@ a:hover, .btn-link:hover
 
 .btn-outline-secondary 
 {
-    --bs-btn-color: #c3cdd9;                          /* текст «контурной» кнопки */
+    --bs-btn-color: var(--app-text-soft);                          /* текст «контурной» кнопки */
     --bs-btn-border-color: var(--app-border-strong); /* рамка */
-    --bs-btn-hover-color: #ffffff;                   /* текст при наведении */
+    --bs-btn-hover-color: var(--app-text);                   /* текст при наведении */
     --bs-btn-hover-bg: var(--app-surface-2);         /* фон при наведении */
     --bs-btn-hover-border-color: var(--app-border-strong);
     --bs-btn-active-bg: var(--app-surface-2);        /* фон в нажатом состоянии */
@@ -331,7 +469,7 @@ h1:focus
 .collapse-toggle:hover 
 {
     border-color: var(--app-accent); /* при наведении рамка подсвечивается синим */
-    color: #ffffff;
+    color: var(--app-text);
 }
 
 .collapse-toggle:focus-visible 
@@ -503,6 +641,45 @@ h1:focus
     margin-top: 0.75rem;
 }
 
+.app-page-size 
+{
+    display: inline-flex;      /* селектор размера страницы */
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    color: var(--app-text-secondary);
+    margin-right: auto;       /* прижат к левому краю, навигация — к правому */
+}
+
+.app-page-size label 
+{
+    white-space: nowrap;
+    margin: 0;
+}
+
+.app-page-size select 
+{
+    height: 2rem;
+    padding: 0 0.5rem;
+    border: 1px solid var(--app-border-strong);
+    border-radius: 6px;
+    background: var(--app-surface-2);
+    color: var(--app-text);
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.app-page-size select:hover 
+{
+    border-color: var(--app-accent);
+}
+
+.app-page-size select:focus-visible 
+{
+    outline: 2px solid var(--app-accent);
+    outline-offset: 2px;
+}
+
 .app-page-btn 
 {
     display: inline-flex;                 /* стрелка по центру кнопки */
@@ -514,7 +691,7 @@ h1:focus
     border: 1px solid var(--app-border-strong);
     border-radius: 6px;
     background: var(--app-surface-2);
-    color: #ffca7a;                       /* яркие жёлтые стрелки — видны на тёмном фоне */
+    color: var(--app-accent-warn);                       /* яркие жёлтые стрелки — видны на тёмном фоне */
     cursor: pointer;
     transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
 }
@@ -529,7 +706,7 @@ h1:focus
 {
     border-color: var(--app-accent);      /* при наведении рамка синеет */
     background: var(--app-surface);
-    color: #ffffff;
+    color: var(--app-text);
 }
 
 .app-page-btn:disabled 
@@ -614,6 +791,17 @@ table.context-table tbody > tr > td:first-child::before
 {
     width: auto;     /* не растягиваем селект на всю ширину */
     min-width: 200px; /* но и слишком узким не делаем */
+}
+
+/* ===== Инлайн-селект оценки в таблице Grades ===== */
+.grade-select 
+{
+    display: inline-block; /* компактный селект в ячейке таблицы */
+    width: auto;
+    min-width: 4.5rem;
+    height: auto;
+    padding: 0.15rem 0.4rem;
+    font-size: 0.9rem;
 }
 
 /* ===== Сетка чекбоксов дней недели ===== */
@@ -1069,7 +1257,7 @@ table.context-table tbody > tr > td:first-child::before
 
 .gs-clear:hover 
 {
-    color: #a9c9ff;           /* подсветка при наведении */
+    color: var(--app-link-hover);           /* подсветка при наведении */
     text-decoration: underline;
 }
 
@@ -1211,4 +1399,849 @@ table.context-table tbody > tr > td:first-child::before
 .search-more 
 {
     font-size: 0.9rem; /* пояснение про лимит выборки мельче */
+}
+
+/* ===== Панель фильтров и чипы быстрых фильтров ===== */
+.filter-bar 
+{
+    gap: 0.5rem;
+}
+
+.filter-label 
+{
+    color: var(--app-text-secondary);
+    font-size: 0.9rem;
+}
+
+.filter-divider 
+{
+    width: 1px;
+    height: 1.4rem;
+    background: var(--app-border-strong);
+}
+
+.filter-select 
+{
+    width: auto;
+    min-width: 12rem;
+}
+
+.chip 
+{
+    border: 1px solid var(--app-border-strong);
+    background: var(--app-surface);
+    color: var(--app-text);
+    border-radius: 999px;
+    padding: 0.25rem 0.85rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.chip:hover 
+{
+    border-color: var(--app-accent);
+}
+
+.chip-active 
+{
+    background: var(--app-accent-dim);
+    border-color: var(--app-accent-dim);
+    color: #fff;
+}
+
+.report-total td 
+{
+    font-weight: 700;
+    border-top: 2px solid var(--app-border-strong);
+    background: var(--app-surface-2);
+}
+
+.discipline-list 
+{
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.discipline-list li 
+{
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+    padding: 0.35rem 0.65rem;
+    font-size: 0.9rem;
+}
+
+/* ===== Журнал группы ===== */
+.legend 
+{
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    font-size: 0.8rem;
+    color: var(--app-text-secondary);
+}
+
+.legend span 
+{
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.swatch 
+{
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    display: inline-block;
+    border: 1px solid var(--app-border);
+    opacity: 0.85;
+}
+
+.journal-scroll 
+{
+    overflow: auto;
+    max-height: 72vh;
+    border: 1px solid var(--app-border);
+    border-radius: 12px;
+    background: var(--app-surface-2);
+}
+
+.journal-table 
+{
+    border-collapse: separate;
+    border-spacing: 0;
+    width: max-content;
+    min-width: 100%;
+}
+
+.journal-table th,
+.journal-table td 
+{
+    padding: 6px 9px;
+    border-bottom: 1px solid var(--app-border);
+    border-right: 1px solid var(--app-border);
+    text-align: center;
+    white-space: nowrap;
+    font-size: 0.85rem;
+}
+
+.journal-table td:last-child,
+.journal-table th:last-child 
+{
+    border-right: none;
+}
+
+.journal-th 
+{
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--app-surface);
+    vertical-align: top;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    font-weight: 400;
+    min-width: 108px;
+    max-width: 140px;
+}
+
+.jh-no 
+{
+    font-weight: 700;
+    color: var(--app-accent);
+}
+
+.jh-sub 
+{
+    font-size: 0.76rem;
+    max-width: 132px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.jh-teacher 
+{
+    font-size: 0.72rem;
+    color: var(--app-text-secondary);
+    max-width: 132px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.journal-corner 
+{
+    position: sticky;
+    left: 0;
+    top: 0;
+    z-index: 3;
+    background: var(--app-surface);
+    font-weight: 700;
+    text-align: left;
+    min-width: 180px;
+}
+
+.journal-name 
+{
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--app-surface-2);
+    font-weight: 600;
+    text-align: left;
+    min-width: 180px;
+}
+
+.journal-cell 
+{
+    cursor: pointer;
+    background: var(--app-surface);
+    min-width: 54px;
+    transition: outline-color 0.15s ease;
+}
+
+.journal-cell:hover 
+{
+    outline: 2px solid var(--app-accent);
+    outline-offset: -2px;
+}
+
+.cell-selected 
+{
+    outline: 2px solid var(--app-accent);
+    outline-offset: -2px;
+}
+
+.cell-empty 
+{
+    color: var(--app-text-secondary);
+    opacity: 0.7;
+}
+
+.cell-ok 
+{
+    color: #28a745;
+    font-weight: 700;
+}
+
+.cell-absent 
+{
+    color: #dc3545;
+    font-weight: 700;
+}
+
+.cell-grade-5 
+{
+    background: rgba(40, 167, 69, 0.14);
+    color: #1e7e34;
+    font-weight: 700;
+}
+
+.cell-grade-4 
+{
+    background: rgba(23, 162, 184, 0.14);
+    color: #0e6170;
+    font-weight: 700;
+}
+
+.cell-grade-3 
+{
+    background: rgba(255, 193, 7, 0.16);
+    color: #8a6d0b;
+    font-weight: 700;
+}
+
+.cell-grade-2 
+{
+    background: rgba(220, 53, 69, 0.14);
+    color: #8a2630;
+    font-weight: 700;
+}
+
+html[data-theme="dark"] .cell-ok { color: #69db7c; }
+html[data-theme="dark"] .cell-absent { color: #ff6b6b; }
+html[data-theme="dark"] .cell-grade-5 { background: rgba(40, 167, 69, 0.22); color: #69db7c; }
+html[data-theme="dark"] .cell-grade-4 { background: rgba(23, 162, 184, 0.22); color: #4dd0e1; }
+html[data-theme="dark"] .cell-grade-3 { background: rgba(255, 193, 7, 0.2); color: #ffe082; }
+html[data-theme="dark"] .cell-grade-2 { background: rgba(220, 53, 69, 0.2); color: #ff8a80; }
+
+.journal-detail 
+{
+    margin-top: 1rem;
+    border: 1px solid var(--app-border);
+    border-radius: 12px;
+    background: var(--app-surface-2);
+    padding: 1rem 1.25rem;
+}
+
+.journal-detail h3 
+{
+    margin: 0 0 0.5rem;
+    font-size: 1.05rem;
+    color: var(--app-accent);
+}
+
+.detail-grid 
+{
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.25rem 1.25rem;
+    margin: 0 0 1rem;
+    font-size: 0.92rem;
+}
+
+.detail-grid dt 
+{
+    color: var(--app-text-secondary);
+    font-weight: 400;
+}
+
+.detail-grid dd 
+{
+    margin: 0;
+    font-weight: 600;
+}
+
+/* ===== Графики дашборда ===== */
+.chart-grid 
+{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.chart-card 
+{
+    background: var(--app-surface-2);
+    border: 1px solid var(--app-border);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+}
+
+.chart-title 
+{
+    margin: 0 0 0.6rem;
+    font-size: 1rem;
+    color: var(--app-accent);
+}
+
+.chart-svg 
+{
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.grid-line 
+{
+    stroke: var(--app-border);
+    stroke-width: 1;
+}
+
+.grid-text 
+{
+    fill: var(--app-text-secondary);
+    font-size: 18px;
+}
+
+.axis-text 
+{
+    fill: var(--app-text-secondary);
+    font-size: 18px;
+}
+
+.bar 
+{
+    stroke: var(--app-surface-2);
+    stroke-width: 1;
+}
+
+.bar-lessons 
+{
+    fill: var(--app-accent);
+    opacity: 0.82;
+}
+
+.bar-label 
+{
+    fill: var(--app-text-primary);
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.poly-line 
+{
+    fill: none;
+    stroke: var(--app-accent);
+    stroke-width: 2.2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+.point-marker 
+{
+    fill: var(--app-accent);
+}
+
+.point-label 
+{
+    fill: var(--app-text-secondary);
+    font-size: 18px;
+    font-weight: 700;
+    text-anchor: middle;
+}
+
+.chart-empty 
+{
+    color: var(--app-text-secondary);
+    padding: 3rem 0;
+    text-align: center;
+}
+
+/* ===== Календарь расписания ===== */
+.cal-toolbar 
+{
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+    margin-bottom: 1rem;
+}
+
+.cal-period-title 
+{
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.cal-legend 
+{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1rem;
+    margin-bottom: 1rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--app-surface-2);
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+}
+
+.cal-legend-item 
+{
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+}
+
+.cal-swatch 
+{
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+}
+
+.cal-grid-week 
+{
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.5rem;
+    min-width: 900px;
+}
+
+.cal-grid-month 
+{
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.4rem;
+}
+
+.cal-col, .cal-mw-head, .cal-cell 
+{
+    background: var(--app-surface-2);
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+}
+
+.cal-col 
+{
+    min-height: 420px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.cal-today-col 
+{
+    border-color: var(--app-accent);
+    box-shadow: inset 0 0 0 1px var(--app-accent);
+}
+
+.cal-holiday-col 
+{
+    background: color-mix(in srgb, #d9534f 6%, var(--app-surface-2));
+    border-color: color-mix(in srgb, #d9534f 40%, var(--app-border));
+}
+
+html[data-theme="dark"] .cal-holiday-col 
+{
+    background: color-mix(in srgb, #d9534f 12%, var(--app-surface-2));
+}
+
+.cal-day-head 
+{
+    padding: 0.5rem 0.6rem;
+    border-bottom: 1px solid var(--app-border);
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.cal-weekday 
+{
+    font-size: 0.85rem;
+    color: var(--app-text-secondary);
+}
+
+.cal-today-col .cal-weekday 
+{
+    color: var(--app-accent);
+    font-weight: 700;
+}
+
+.cal-date 
+{
+    font-weight: 700;
+}
+
+.cal-holiday-tag 
+{
+    font-size: 0.72rem;
+    line-height: 1.1;
+    color: #b02a26;
+    margin-top: 0.1rem;
+}
+
+.cal-day-body 
+{
+    padding: 0.5rem 0.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    align-items: stretch;
+}
+
+.cal-empty 
+{
+    color: var(--app-text-secondary);
+    font-size: 0.85rem;
+    text-align: center;
+    padding: 0.25rem 0;
+}
+
+.cal-lesson 
+{
+    display: flex;
+    align-items: flex-start;
+    gap: 0.45rem;
+    color: #fff;
+    font-size: 0.8rem;
+    line-height: 1.25;
+    padding: 0.35rem 0.5rem;
+    border-radius: 6px;
+    text-decoration: none;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+.cal-lesson:hover 
+{
+    filter: brightness(1.12);
+    color: #fff;
+    text-decoration: none;
+}
+
+.cal-lesson-time 
+{
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.cal-lesson-main 
+{
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.cal-lesson-disc 
+{
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cal-lesson-sub 
+{
+    font-size: 0.72rem;
+    opacity: 0.85;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cal-spent 
+{
+    opacity: 0.45;
+    text-decoration: line-through;
+}
+
+.cal-mw-head 
+{
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 0.4rem 0;
+    color: var(--app-text-secondary);
+}
+
+.cal-cell 
+{
+    min-height: 104px;
+    padding: 0.4rem;
+    position: relative;
+}
+
+.cal-cell-empty 
+{
+    background: var(--app-surface);
+    border-style: dashed;
+    min-height: 104px;
+}
+
+.cal-day-num 
+{
+    border: none;
+    background: none;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--app-text-primary);
+    padding: 0;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.cal-day-num:hover 
+{
+    color: var(--app-accent);
+}
+
+.cal-holiday-dot 
+{
+    position: absolute;
+    top: 0.4rem;
+    right: 0.4rem;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #d9534f;
+}
+
+.cal-cell-lessons 
+{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-top: 0.3rem;
+}
+
+.cal-chip 
+{
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #fff;
+    font-size: 0.72rem;
+    line-height: 1;
+    padding: 0.25rem 0.45rem;
+    border-radius: 10px;
+    text-decoration: none;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+.cal-chip:hover 
+{
+    filter: brightness(1.12);
+    color: #fff;
+    text-decoration: none;
+}
+
+.cal-more 
+{
+    border: 1px dashed var(--app-border-strong);
+    background: none;
+    color: var(--app-text-secondary);
+    font-size: 0.72rem;
+    border-radius: 10px;
+    padding: 0.25rem 0.45rem;
+    cursor: pointer;
+}
+
+.cal-more:hover 
+{
+    color: var(--app-accent);
+    border-color: var(--app-accent);
+}
+
+.disc-1 { background: #3b6ea5; }
+.disc-2 { background: #b5453f; }
+.disc-3 { background: #6f9043; }
+.disc-4 { background: #6b5b95; }
+.disc-5 { background: #c77d2f; }
+.disc-6 { background: #2f8fa5; }
+.disc-7 { background: #8a4b2e; }
+.disc-8 { background: #5f6b7a; }
+.disc-9 { background: #4a7e9b; }
+.disc-10 { background: #9c5aa8; }
+
+.cal-swatch.disc-1 { background: #3b6ea5; }
+.cal-swatch.disc-2 { background: #b5453f; }
+.cal-swatch.disc-3 { background: #6f9043; }
+.cal-swatch.disc-4 { background: #6b5b95; }
+.cal-swatch.disc-5 { background: #c77d2f; }
+.cal-swatch.disc-6 { background: #2f8fa5; }
+.cal-swatch.disc-7 { background: #8a4b2e; }
+.cal-swatch.disc-8 { background: #5f6b7a; }
+.cal-swatch.disc-9 { background: #4a7e9b; }
+.cal-swatch.disc-10 { background: #9c5aa8; }
+
+/* ===== Печать ===== */
+@media print
+{
+    /* принудительно светлая палитра в печати — читаемо на белом фоне */
+    :root, html[data-theme="light"], html[data-theme="dark"]
+    {
+        color-scheme: light;
+        --app-bg: #ffffff;
+        --app-surface: #ffffff;
+        --app-surface-2: #f5f5f5;
+        --app-border: #cccccc;
+        --app-border-strong: #aaaaaa;
+        --app-text: #000000;
+        --app-text-secondary: #444444;
+        --app-text-soft: #333333;
+        --app-link: #000000;
+        --app-link-hover: #000000;
+        --app-table-header: #000000;
+        --app-accent: #000000;
+        --app-accent-dim: #000000;
+        --app-accent-warn: #000000;
+        --app-danger: #000000;
+        --app-form-bg: #ffffff;
+        --app-placeholder: #666666;
+    }
+
+    body
+    {
+        background: #ffffff !important;
+        background-image: none !important;
+    }
+
+    .sidebar,
+    .top-row,
+    .list-actions,
+    .list-header form,
+    .paginator,
+    .row-menu,
+    .row-menu-backdrop,
+    .export-menu,
+    .theme-toggle,
+    .global-search,
+    .filter-bar,
+    #blazor-error-ui,
+    .mt-3,
+    button
+    {
+        display: none !important;
+    }
+
+    .page, main
+    {
+        display: block !important;
+    }
+
+    .sidebar
+    {
+        width: 0 !important;
+        min-width: 0 !important;
+    }
+
+    main > .content,
+    article
+    {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    h1
+    {
+        margin-top: 0 !important;
+        page-break-after: avoid;
+    }
+
+    table, .context-table
+    {
+        width: 100% !important;
+        font-size: 10pt;
+        border-collapse: collapse;
+        page-break-inside: auto;
+    }
+
+    .context-table th,
+    .context-table td
+    {
+        border: 1px solid #999 !important;
+        background: #fff !important;
+        color: #000 !important;
+        padding: 0.25rem 0.4rem !important;
+    }
+
+    .context-table thead th
+    {
+        background: #eee !important;
+        font-weight: 700;
+    }
+
+    .context-table tr
+    {
+        page-break-inside: avoid;
+    }
+
+    .table-link
+    {
+        color: #000 !important;
+        text-decoration: none !important;
+    }
+
+    .badge, .badge-holiday, .badge-daysoff
+    {
+        border: 1px solid #999;
+    }
+
+    .row-selected > *
+    {
+        background: transparent !important;
+    }
 }

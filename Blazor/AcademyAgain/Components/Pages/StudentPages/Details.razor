@@ -54,8 +54,12 @@ else
                     <div class="stat-label">Средний балл</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">@AttendedCount/@AttendanceTotal</div>
-                    <div class="stat-label">Посещено занятий</div>
+                    <div class="stat-value">@AttendedPercent</div>
+                    <div class="stat-label">Посещаемость</div>
+                    @if (AttendanceTotal != "0")
+                    {
+                        <div class="stat-label">посещено @AttendedCount из @AttendanceTotal</div>
+                    }
                 </div>
                 <div class="stat-card">
                     <div class="stat-value">@ExamsTaken</div>
@@ -157,6 +161,38 @@ else
                         </table>
                     }
                 </div>
+                <div class="profile-section">
+                    <h3>Пройденные дисциплины</h3>
+                    @if (CompletedDisciplines.Count == 0)
+                    {
+                        <div class="section-empty">Пройденных нет</div>
+                    }
+                    else
+                    {
+                        <ul class="discipline-list">
+                            @foreach (var d in CompletedDisciplines)
+                            {
+                                <li>@d</li>
+                            }
+                        </ul>
+                    }
+                </div>
+                <div class="profile-section">
+                    <h3>Долги по дисциплинам</h3>
+                    @if (DebtsDisciplines.Count == 0)
+                    {
+                        <div class="section-empty">Долгов нет</div>
+                    }
+                    else
+                    {
+                        <ul class="discipline-list">
+                            @foreach (var d in DebtsDisciplines)
+                            {
+                                <li>@d</li>
+                            }
+                        </ul>
+                    }
+                </div>
             </div>
 
             <div class="profile-actions">
@@ -186,11 +222,14 @@ else
     private string AverageGrade = "—";
     private string AttendedCount = "0";
     private string AttendanceTotal = "0";
+    private string AttendedPercent = "—";
     private int ExamsTaken;
 
     private List<GradeRow> Grades = new();
     private List<AttendanceRow> Attendance = new();
     private List<ExamRow> Exams = new();
+    private List<string> CompletedDisciplines = new();
+    private List<string> DebtsDisciplines = new();
 
     [SupplyParameterFromQuery]
     private int stud_id { get; set; }
@@ -260,8 +299,11 @@ else
                 ? new AttendanceRow(LessonLabel(s), a.present)
                 : new AttendanceRow($"№{a.lesson}", a.present))
             .ToList();
-        AttendedCount = attendanceList.Count(a => a.present).ToString();
-        AttendanceTotal = attendanceList.Count.ToString();
+        var presentCount = attendanceList.Count(a => a.present);
+        var totalCount = attendanceList.Count;
+        AttendedCount = presentCount.ToString();
+        AttendanceTotal = totalCount.ToString();
+        AttendedPercent = totalCount == 0 ? "—" : $"{presentCount * 100.0 / totalCount:0.#}%";
 
         var examList = await context.Exams
             .Where(e => e.student == student.stud_id)
@@ -274,5 +316,45 @@ else
                 e.grade))
             .ToList();
         ExamsTaken = examList.Count(e => e.grade.HasValue);
+
+        if (student.group.HasValue)
+        {
+            var completedSet = (await context.CompleteDisciplines
+                    .Where(c => c.group == student.group.Value)
+                    .Select(c => c.discipline)
+                    .ToListAsync())
+                .ToHashSet();
+
+            CompletedDisciplines = completedSet
+                .Select(DisciplineName)
+                .OrderBy(x => x)
+                .ToList();
+
+            var programIds = new List<int>();
+            if (group?.direction.HasValue == true)
+            {
+                programIds = await context.DisciplinesDirectionsRelation
+                    .Where(r => r.direction == group.direction)
+                    .Select(r => r.discipline)
+                    .ToListAsync();
+            }
+            if (programIds.Count == 0)
+            {
+                programIds = await context.Schedule
+                    .Where(s => s.group == student.group.Value)
+                    .Select(s => s.discipline)
+                    .Distinct()
+                    .ToListAsync();
+            }
+
+            DebtsDisciplines = programIds
+                .Where(id => !completedSet.Contains(id))
+                .Select(DisciplineName)
+                .OrderBy(x => x)
+                .ToList();
+        }
+
+        string DisciplineName(int id)
+            => disciplines.TryGetValue(id, out var disc) ? disc.discipline_name ?? $"№{id}" : $"№{id}";
     }
 }

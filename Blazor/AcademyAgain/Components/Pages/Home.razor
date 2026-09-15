@@ -1,5 +1,6 @@
 ﻿@page "/"
 @rendermode InteractiveServer
+@using System.Globalization
 @using Microsoft.EntityFrameworkCore
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 
@@ -26,6 +27,111 @@
     <div class="stat-card">
         <div class="stat-value">@AccruedTotal</div>
         <div class="stat-label">Начислено зарплат</div>
+    </div>
+</div>
+
+<div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+    <span class="filter-label">Период графиков:</span>
+    <button type="button" class='chip @(periodMonths == 6 ? "chip-active" : "")' @onclick='() => SetPeriod(6)'>6 мес</button>
+    <button type="button" class='chip @(periodMonths == 12 ? "chip-active" : "")' @onclick='() => SetPeriod(12)'>12 мес</button>
+</div>
+
+<div class="chart-grid">
+    <div class="chart-card">
+        <h3 class="chart-title">Проведено занятий по месяцам</h3>
+        @if (months.Any(m => m.Lessons > 0))
+        {
+            <svg class="chart-svg" viewBox="0 0 720 240" role="img" aria-label="Гистограмма занятий по месяцам">
+                @foreach (var (label, y) in LessonGridLines())
+                {
+                    <line class="grid-line" x1="40" y1="@y" x2="704" y2="@y" />
+                    @SvgText("grid-text", 34, y + 4, "end", label)
+                }
+                @foreach (var bar in LessonBars())
+                {
+                    <rect class="bar bar-lessons" x="@N(bar.X)" y="@N(bar.Y)" width="@N(bar.W)" height="@N(bar.H)" rx="3">
+                        <title>@bar.Title</title>
+                    </rect>
+                    @if (bar.Value.Length > 0)
+                    {
+                        @SvgText("bar-label", bar.X + bar.W / 2, bar.Y - 5, "middle", bar.Value)
+                    }
+                }
+                @foreach (var month in months.Select((m, i) => (m, i)))
+                {
+                    var x = ChartX0 + (ChartX1 - ChartX0) * (month.i + 0.5) / months.Count;
+                    @SvgText("axis-text", x, 226, "middle", MonthLabel(month.m.Month))
+                }
+            </svg>
+        }
+        else
+        {
+            <div class="chart-empty">Нет данных</div>
+        }
+    </div>
+
+    <div class="chart-card">
+        <h3 class="chart-title">Распределение оценок</h3>
+        @if (gradeDist.Count > 0)
+        {
+            <svg class="chart-svg" viewBox="0 0 720 240" role="img" aria-label="Гистограмма распределения оценок">
+                @foreach (var (label, y) in GradeGridLines())
+                {
+                    <line class="grid-line" x1="40" y1="@y" x2="704" y2="@y" />
+                    @SvgText("grid-text", 34, y + 4, "end", label)
+                }
+                @foreach (var bar in GradeBars())
+                {
+                    <rect class="bar" x="@N(bar.X)" y="@N(bar.Y)" width="@N(bar.W)" height="@N(bar.H)" rx="3" fill="@GradeFill(bar.Label)">
+                        <title>@bar.Title</title>
+                    </rect>
+                    @SvgText("bar-label", bar.X + bar.W / 2, bar.Y - 5, "middle", bar.Value)
+                }
+                @foreach (var grade in new[] { "2", "3", "4", "5" }.Select((g, i) => (g, i)))
+                {
+                    var x = ChartX0 + (ChartX1 - ChartX0) * (grade.i + 0.5) / 4;
+                    @SvgText("axis-text", x, 226, "middle", grade.g)
+                }
+            </svg>
+        }
+        else
+        {
+            <div class="chart-empty">Нет данных</div>
+        }
+    </div>
+
+    <div class="chart-card">
+        <h3 class="chart-title">Посещаемость по месяцам</h3>
+        @if (months.Any(m => m.Total > 0))
+        {
+            <svg class="chart-svg" viewBox="0 0 720 240" role="img" aria-label="Линейный график посещаемости">
+                @foreach (var (label, y) in AttendanceGridLines())
+                {
+                    <line class="grid-line" x1="40" y1="@y" x2="704" y2="@y" />
+                    @SvgText("grid-text", 34, y + 4, "end", label + "%")
+                }
+                @foreach (var poly in AttendancePolylines())
+                {
+                    <polyline class="poly-line" points="@poly" />
+                }
+                @foreach (var point in AttendanceMarkers())
+                {
+                    <circle class="point-marker" cx="@N(point.X)" cy="@N(point.Y)" r="4">
+                        <title>@point.Title</title>
+                    </circle>
+                    @SvgText("point-label", point.X, point.Y - 10, "middle", point.Label + "%")
+                }
+                @foreach (var month in months.Select((m, i) => (m, i)))
+                {
+                    var x = ChartX0 + (ChartX1 - ChartX0) * (month.i + 0.5) / months.Count;
+                    @SvgText("axis-text", x, 226, "middle", MonthLabel(month.m.Month))
+                }
+            </svg>
+        }
+        else
+        {
+            <div class="chart-empty">Нет данных</div>
+        }
     </div>
 </div>
 
@@ -99,6 +205,215 @@
 }
 
 @code {
+    private sealed record MonthPoint(DateTime Month, int Lessons, int Present, int Total)
+    {
+        public double Rate => Total == 0 ? 0 : 100.0 * Present / Total;
+    }
+    private sealed record GradeCount(int Grade, int Count);
+    private sealed record Bar(double X, double Y, double W, double H, string Label, string Value, string Title);
+    private sealed record Point(double X, double Y, string Label, string Title);
+
+    private const double ChartX0 = 40;
+    private const double ChartX1 = 704;
+    private const double ChartY0 = 18;
+    private const double ChartY1 = 206;
+
+    private List<MonthPoint> months = new();
+    private List<GradeCount> gradeDist = new();
+    private int periodMonths = 12;
+
+    private static readonly CultureInfo Ru = CultureInfo.GetCultureInfo("ru-RU");
+
+    private static string N(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
+
+    private static MarkupString SvgText(string cls, double x, double y, string anchor, string content)
+        => new($"<text class=\"{cls}\" x=\"{N(x)}\" y=\"{N(y)}\" text-anchor=\"{anchor}\">{System.Net.WebUtility.HtmlEncode(content)}</text>");
+
+    private static string MonthLabel(DateTime month) => Ru.DateTimeFormat.GetAbbreviatedMonthName(month.Month);
+
+    private async Task SetPeriod(int monthsCount)
+    {
+        if (periodMonths == monthsCount) return;
+        periodMonths = monthsCount;
+        await LoadChartsAsync();
+    }
+
+    private async Task LoadChartsAsync()
+    {
+        await using var context = DbFactory.CreateDbContext();
+        var schedule = await context.Schedule.ToListAsync();
+
+        var since = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1).AddMonths(-(periodMonths - 1));
+        var monthKeys = Enumerable.Range(0, periodMonths).Select(i => since.AddMonths(i)).ToList();
+
+        var lessonsByMonth = schedule
+            .Where(s => s.date.HasValue && s.date.Value >= since && s.spent)
+            .GroupBy(s => s.date!.Value.Year * 12 + s.date.Value.Month - 1)
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        var attendanceByMonth = (await (
+            from a in context.Attendance
+            join s in context.Schedule on a.lesson equals s.lesson_id
+            where s.date.HasValue && s.date.Value >= since
+            select new { a.present, Key = s.date!.Value.Year * 12 + s.date.Value.Month - 1 })
+            .ToListAsync())
+            .GroupBy(x => x.Key)
+            .ToDictionary(g => g.Key, g => (Present: g.Count(x => x.present), Total: g.Count()));
+
+        months = monthKeys.Select(mk =>
+        {
+            var key = mk.Year * 12 + mk.Month - 1;
+            var att = attendanceByMonth.TryGetValue(key, out var a) ? a : (Present: 0, Total: 0);
+            return new MonthPoint(
+                mk,
+                lessonsByMonth.TryGetValue(key, out var l) ? l : 0,
+                att.Present,
+                att.Total);
+        }).ToList();
+
+        var gradeValues = (await context.Grades.Select(g => new { g.grade_1, g.grade_2 }).ToListAsync())
+            .SelectMany(g => new[] { g.grade_1, g.grade_2 })
+            .Where(v => v.HasValue)
+            .Select(v => v!.Value)
+            .ToList();
+        gradeDist = gradeValues
+            .GroupBy(v => v)
+            .OrderBy(g => g.Key)
+            .Select(g => new GradeCount(g.Key, g.Count()))
+            .ToList();
+    }
+
+private static double IntAxisMax(double maxVal)
+        => maxVal <= 0 ? 4 : Math.Ceiling(maxVal / 4d) * 4;
+
+    private double LessonAxisMax => IntAxisMax(months.Any(m => m.Lessons > 0) ? months.Max(m => m.Lessons) : 0);
+
+    private double GradeAxisMax => IntAxisMax(gradeDist.Count > 0 ? gradeDist.Max(g => g.Count) : 0);
+
+    private IEnumerable<(string Label, double Y)> LessonGridLines()
+    {
+        var max = LessonAxisMax;
+        for (var i = 1; i < 4; i++)
+        {
+            var v = max * i / 4;
+            yield return (v.ToString("0.#", CultureInfo.InvariantCulture), ChartY1 - v / max * (ChartY1 - ChartY0));
+        }
+    }
+
+    private IEnumerable<(string Label, double Y)> GradeGridLines()
+    {
+        var max = GradeAxisMax;
+        for (var i = 1; i < 4; i++)
+        {
+            var v = max * i / 4;
+            yield return (v.ToString("0.#", CultureInfo.InvariantCulture), ChartY1 - v / max * (ChartY1 - ChartY0));
+        }
+    }
+
+    private IEnumerable<(string Label, double Y)> AttendanceGridLines()
+    {
+        foreach (var v in new[] { 25.0, 50, 75 })
+        {
+            yield return (v.ToString("0"), ChartY1 - v / 100.0 * (ChartY1 - ChartY0));
+        }
+    }
+
+    private IEnumerable<Bar> LessonBars()
+    {
+        var n = months.Count;
+        if (n == 0) yield break;
+        var slot = (ChartX1 - ChartX0) / n;
+        var w = slot * 0.58;
+        var max = LessonAxisMax;
+        for (var i = 0; i < n; i++)
+        {
+            var m = months[i];
+            var h = m.Lessons > 0 ? m.Lessons / max * (ChartY1 - ChartY0) : 0;
+            var x = ChartX0 + i * slot + (slot - w) / 2;
+            yield return new Bar(
+                x, ChartY1 - h, w, Math.Max(h, 1),
+                MonthLabel(m.Month),
+                m.Lessons > 0 ? m.Lessons.ToString() : "",
+                $"{MonthLabel(m.Month)}: {m.Lessons} занятий");
+        }
+    }
+
+    private string GradeFill(string grade) => grade switch
+    {
+        "5" => "rgba(40,167,69,.85)",
+        "4" => "rgba(23,162,184,.85)",
+        "3" => "rgba(255,193,7,.9)",
+        _ => "rgba(220,53,69,.85)"
+    };
+
+    private IEnumerable<Bar> GradeBars()
+    {
+        var values = Enumerable.Range(2, 4)
+            .Select(g => new GradeCount(g, gradeDist.FirstOrDefault(x => x.Grade == g)?.Count ?? 0))
+            .ToList();
+        var total = values.Sum(v => v.Count);
+        var max = GradeAxisMax;
+        var slot = (ChartX1 - ChartX0) / values.Count;
+        var w = slot * 0.5;
+        for (var i = 0; i < values.Count; i++)
+        {
+            var v = values[i];
+            var h = v.Count > 0 ? v.Count / max * (ChartY1 - ChartY0) : 0;
+            var x = ChartX0 + i * slot + (slot - w) / 2;
+            var percent = total > 0 ? 100.0 * v.Count / total : 0;
+            yield return new Bar(
+                x, ChartY1 - h, w, Math.Max(h, v.Count > 0 ? 1 : 0),
+                v.Grade.ToString(),
+                v.Count.ToString(),
+                $"Оценка {v.Grade}: {v.Count} шт. ({percent.ToString("0.#", CultureInfo.InvariantCulture)}%)");
+        }
+    }
+
+    private Point?[] AttendancePointArr()
+    {
+        var n = months.Count;
+        if (n == 0) return Array.Empty<Point?>();
+        var slot = (ChartX1 - ChartX0) / n;
+        var arr = new Point?[n];
+        for (var i = 0; i < n; i++)
+        {
+            var m = months[i];
+            if (m.Total == 0) continue;
+            var x = ChartX0 + i * slot + slot / 2;
+            var y = ChartY1 - m.Rate / 100.0 * (ChartY1 - ChartY0);
+            arr[i] = new Point(
+                x, y,
+                m.Rate.ToString("0", CultureInfo.InvariantCulture),
+                $"{MonthLabel(m.Month)}: {m.Rate.ToString("0.0", CultureInfo.InvariantCulture)}% ({m.Present}/{m.Total})");
+        }
+        return arr;
+    }
+
+    private IEnumerable<Point> AttendanceMarkers()
+        => AttendancePointArr().Where(p => p is not null).Cast<Point>();
+
+    private IEnumerable<string> AttendancePolylines()
+    {
+        var arr = AttendancePointArr();
+        var sb = new System.Text.StringBuilder();
+        var open = false;
+        foreach (var p in arr)
+        {
+            if (p is Point point)
+            {
+                if (open) sb.Append(' ');
+                else open = true;
+                sb.Append(N(point.X)).Append(',').Append(N(point.Y));
+            }
+            else if (open)
+            {
+                yield return sb.ToString();
+                sb.Clear();
+                open = false;
+            }
+        }
+        if (open) yield return sb.ToString();
+    }
     private sealed record LessonRow(DateTime Date, string Time, string Group, string Discipline, string Teacher, bool Spent, long LessonId);
     private sealed record EventItem(DateTime Date, string Name, bool IsHoliday);
 
@@ -117,6 +432,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadChartsAsync();
+
         await using var context = DbFactory.CreateDbContext();
 
         var today = DateTime.Today;

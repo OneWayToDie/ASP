@@ -1,4 +1,5 @@
 @page "/exams/create"
+@rendermode InteractiveServer
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
@@ -11,17 +12,31 @@
 <hr />
 <div class="row">
     <div class="col-md-4">
-        <EditForm method="post" Model="Exam" OnValidSubmit="AddExam" FormName="create" Enhance>
+        <EditForm Model="Exam" OnValidSubmit="AddExam">
             <DataAnnotationsValidator />
-            <ValidationSummary class="text-danger" role="alert"/>
+            <ValidationSummary class="text-danger" role="alert" />
+            @if (!string.IsNullOrEmpty(SaveError))
+            {
+                <div class="alert alert-danger" role="alert">@SaveError</div>
+            }
+            <div class="mb-3">
+                <label for="group" class="form-label">Группа:</label>
+                <select id="group" class="form-select" @bind="selectedGroupId" @bind:after="OnGroupChanged">
+                    <option value="0">— выберите группу —</option>
+                    @foreach (var group in groups)
+                    {
+                        <option value="@group.group_id">@(string.IsNullOrWhiteSpace(group.group_name) ? $"№{group.group_id}" : group.group_name)</option>
+                    }
+                </select>
+            </div>
             <div class="mb-3">
                 <span class="text-danger">*</span>
                 <label for="student" class="form-label">Студент:</label>
-                <select id="student" name="student" class="form-select" aria-required="true">
-                    <option value="">— выберите студента —</option>
+                <select id="student" class="form-select" @bind="Exam.student">
+                    <option value="0">— выберите студента —</option>
                     @foreach (var student in students)
                     {
-                        <option value="@student.Key" selected="@(Exam.student == student.Key)">@student.Value</option>
+                        <option value="@student.Key">@student.Value</option>
                     }
                 </select>
                 <ValidationMessage For="() => Exam.student" class="text-danger" />
@@ -29,11 +44,11 @@
             <div class="mb-3">
                 <span class="text-danger">*</span>
                 <label for="discipline" class="form-label">Дисциплина:</label>
-                <select id="discipline" name="discipline" class="form-select" aria-required="true">
-                    <option value="">— выберите дисциплину —</option>
+                <select id="discipline" class="form-select" @bind="Exam.discipline">
+                    <option value="0">— выберите дисциплину —</option>
                     @foreach (var discipline in disciplines)
                     {
-                        <option value="@discipline.Key" selected="@(Exam.discipline == discipline.Key)">@discipline.Value</option>
+                        <option value="@discipline.Key">@discipline.Value</option>
                     }
                 </select>
                 <ValidationMessage For="() => Exam.discipline" class="text-danger" />
@@ -45,7 +60,13 @@
             </div>
             <div class="mb-3">
                 <label for="grade" class="form-label">Оценка:</label>
-                <InputNumber id="grade" @bind-Value="Exam.grade" class="form-control" />
+                <select id="grade" class="form-select" @bind="Exam.grade">
+                    <option value="">—</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                </select>
                 <ValidationMessage For="() => Exam.grade" class="text-danger" />
             </div>
             <button type="submit" class="btn btn-primary">Создать</button>
@@ -58,47 +79,97 @@
 </div>
 
 @code {
-    [SupplyParameterFromForm]
-    private Exam Exam { get; set; } = default!;
+    private Exam Exam { get; set; } = new();
 
-    [SupplyParameterFromForm]
-    private string? student { get; set; }
-
-    [SupplyParameterFromForm]
-    private string? discipline { get; set; }
-
+    private List<Group> groups = new();
     private List<KeyValuePair<int, string>> students = new();
     private List<KeyValuePair<int, string>> disciplines = new();
 
+    private int selectedGroupId;
+    private string? SaveError;
+
     protected override async Task OnInitializedAsync()
     {
-        Exam ??= new();
         await using var context = DbFactory.CreateDbContext();
-        students = (await context.Students.OrderBy(s => s.last_name).ToListAsync())
+        groups = await context.Groups.OrderBy(g => g.group_name).ToListAsync();
+    }
+
+    private async Task OnGroupChanged()
+    {
+        Exam.student = 0;
+        Exam.discipline = 0;
+        await using var context = DbFactory.CreateDbContext();
+        await LoadStudentsAsync(context);
+        await LoadDisciplinesAsync(context);
+    }
+
+    private async Task LoadStudentsAsync(AcademyAgainContext context)
+    {
+        students = new();
+        if (selectedGroupId == 0)
+        {
+            return;
+        }
+
+        students = (await context.Students
+                .Where(s => s.group == selectedGroupId)
+                .OrderBy(s => s.last_name)
+                .ToListAsync())
             .Select(s => new KeyValuePair<int, string>(s.stud_id,
                 !string.IsNullOrWhiteSpace(s.middle_name)
                     ? $"{s.last_name} {s.first_name} {s.middle_name}"
                     : $"{s.last_name} {s.first_name}"))
             .ToList();
-        disciplines = (await context.Disciplines.OrderBy(d => d.discipline_name).ToListAsync())
-            .Select(d => new KeyValuePair<int, string>(d.discipline_id, d.discipline_name ?? ""))
-            .ToList();
     }
 
-    // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
-    private async Task AddExam()
+    private async Task LoadDisciplinesAsync(AcademyAgainContext context)
     {
-        if (!int.TryParse(student, out var studentId) || !int.TryParse(discipline, out var disciplineId))
+        disciplines = new();
+        if (selectedGroupId == 0)
         {
             return;
         }
 
-        Exam.student = studentId;
-        Exam.discipline = disciplineId;
+        var group = await context.Groups.FindAsync(selectedGroupId);
+        var disciplineIds = group?.direction.HasValue == true
+            ? await context.DisciplinesDirectionsRelation
+                .Where(r => r.direction == group.direction)
+                .Select(r => r.discipline)
+                .ToListAsync()
+            : new List<int>();
 
+        IEnumerable<Discipline> query;
+        if (disciplineIds.Count > 0)
+        {
+            query = await context.Disciplines
+                .Where(d => disciplineIds.Contains(d.discipline_id))
+                .OrderBy(d => d.discipline_name)
+                .ToListAsync();
+        }
+        else
+        {
+            query = await context.Disciplines.OrderBy(d => d.discipline_name).ToListAsync();
+        }
+
+        disciplines = query
+            .Select(d => new KeyValuePair<int, string>(d.discipline_id, d.discipline_name ?? ""))
+            .ToList();
+    }
+
+    private async Task AddExam()
+    {
+        SaveError = null;
         using var context = DbFactory.CreateDbContext();
         context.Exams.Add(Exam);
-        await context.SaveChangesAsync();
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch
+        {
+            SaveError = "Не удалось сохранить: такая запись уже существует.";
+            return;
+        }
         NavigationManager.NavigateTo("/exams");
     }
 }

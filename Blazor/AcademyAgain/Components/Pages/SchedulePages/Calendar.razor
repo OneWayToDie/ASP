@@ -1,0 +1,406 @@
+@page "/schedules/calendar"
+@rendermode InteractiveServer
+@using System.Globalization
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+
+<PageTitle>Календарь расписания</PageTitle>
+
+<div class="list-header">
+    <h1>Календарь расписания</h1>
+    <div class="list-actions">
+        <a class="btn btn-outline-secondary" href="schedules">Список</a>
+    </div>
+</div>
+
+<div class="cal-toolbar">
+    <span class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="PrevPeriod" title="Назад">◀</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="GoToday">Сегодня</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="NextPeriod" title="Вперёд">▶</button>
+        <span class="cal-period-title">@PeriodTitle()</span>
+        <span class="filter-divider"></span>
+        <button type="button" class='chip @(view == "week" ? "chip-active" : "")' @onclick='() => SetView("week")'>Неделя</button>
+        <button type="button" class='chip @(view == "month" ? "chip-active" : "")' @onclick='() => SetView("month")'>Месяц</button>
+    </span>
+    <span class="d-flex align-items-center gap-2">
+        <select class="form-select form-select-sm filter-select" @bind="groupFilter" @bind:after="ReloadAsync">
+            <option value="0">Все группы</option>
+            @foreach (var g in groups)
+            {
+                <option value="@g.Key">@g.Value</option>
+            }
+        </select>
+        <select class="form-select form-select-sm filter-select" @bind="teacherFilter" @bind:after="ReloadAsync">
+            <option value="0">Все преподаватели</option>
+            @foreach (var t in teachers)
+            {
+                <option value="@t.Key">@t.Value</option>
+            }
+        </select>
+    </span>
+</div>
+
+@if (legend.Count > 0)
+{
+    <div class="cal-legend">
+        @foreach (var item in legend)
+        {
+            <span class="cal-legend-item">
+                <span class="cal-swatch @item.ColorClass"></span>
+                <span>@item.Name</span>
+            </span>
+        }
+    </div>
+}
+
+@if (loaded)
+{
+    @if (view == "week")
+    {
+        <div class="cal-grid-week">
+            @foreach (var day in weekDays)
+            {
+                var hname = IsMarked(day);
+                var colCss = "cal-col"
+                    + (day.Date == DateTime.Today ? " cal-today-col" : "")
+                    + (hname != null ? " cal-holiday-col" : "");
+                var dayLessons = GetDayLessons(day);
+
+                <div class="@colCss">
+                    <div class="cal-day-head">
+                        <span class="cal-weekday">@Cap(day.ToString("ddd", ru))</span>
+                        <span class="cal-date">@day.ToString("dd.MM")</span>
+                        @if (hname != null)
+                        {
+                            <span class="cal-holiday-tag" title="@hname">@hname</span>
+                        }
+                    </div>
+                    <div class="cal-day-body">
+                        @if (dayLessons.Count == 0)
+                        {
+                            <span class="cal-empty">—</span>
+                        }
+                        else
+                        {
+                            @foreach (var s in dayLessons)
+                            {
+                                <a class="cal-lesson @DiscClass(s.discipline) @(s.spent ? "cal-spent" : "")"
+                                   href="@($"/schedules/details?lesson_id={s.lesson_id}")" title="@LessonTooltip(s)">
+                                    <span class="cal-lesson-time">@(s.time?.ToString(@"hh\:mm"))</span>
+                                    <span class="cal-lesson-main">
+                                        <span class="cal-lesson-disc">@DisciplineName(s.discipline)</span>
+                                        <span class="cal-lesson-sub">@GroupName(s.group) · @TeacherName(s.teacher)</span>
+                                    </span>
+                                </a>
+                            }
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="cal-grid-month">
+            @foreach (var head in new[] { "Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс" })
+            {
+                <div class="cal-mw-head">@head</div>
+            }
+            @foreach (var week in monthWeeks)
+            {
+                @foreach (var day in week)
+                {
+                    @if (day is DateTime d)
+                    {
+                        var hname = IsMarked(d);
+                        var cellCss = "cal-cell"
+                            + (d.Date == DateTime.Today ? " cal-today-col" : "")
+                            + (hname != null ? " cal-holiday-col" : "");
+                        var cellLessons = GetDayLessons(d);
+                        var shown = cellLessons.Count <= 3 ? cellLessons : cellLessons.Take(3).ToList();
+
+                        <div class="@cellCss">
+                            <button type="button" class="cal-day-num" @onclick="() => GoToDay(d)" title="Показать неделю">@d.Day</button>
+                            @if (hname != null)
+                            {
+                                <span class="cal-holiday-dot" title="@hname"></span>
+                            }
+                            <div class="cal-cell-lessons">
+                                @foreach (var s in shown)
+                                {
+                                    <a class="cal-chip @DiscClass(s.discipline) @(s.spent ? "cal-spent" : "")"
+                                       href="@($"/schedules/details?lesson_id={s.lesson_id}")" title="@LessonTooltip(s)">
+                                        @ChipText(s)
+                                    </a>
+                                }
+                                @if (cellLessons.Count > 3)
+                                {
+                                    <button type="button" class="cal-more" @onclick="() => GoToDay(d)">+@(cellLessons.Count - 3) ещё</button>
+                                }
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="cal-cell cal-cell-empty"></div>
+                    }
+                }
+            }
+        </div>
+    }
+}
+
+@code {
+    private static readonly CultureInfo ru = CultureInfo.GetCultureInfo("ru-RU");
+
+    private DateTime anchor = DateTime.Today;
+    private string view = "week";
+    private bool loaded;
+    private int groupFilter;
+    private int teacherFilter;
+
+    private Dictionary<int, string> groups = new();
+    private Dictionary<int, string> disciplines = new();
+    private Dictionary<int, string> teachers = new();
+    private List<Holiday> holidays = new();
+    private List<DaysOFF> daysOff = new();
+    private Dictionary<int, string> holidayNames = new();
+    private Dictionary<DateTime, List<Schedule>> byDay = new();
+    private Dictionary<DateTime, string> marked = new();
+    private List<DateTime> weekDays = new();
+    private List<List<DateTime?>> monthWeeks = new();
+    private List<LegendItem> legend = new();
+
+    private sealed record LegendItem(string Name, string ColorClass);
+
+    protected override async Task OnInitializedAsync()
+    {
+        anchor = DateTime.Today;
+        await using var context = DbFactory.CreateDbContext();
+        groups = (await context.Groups.OrderBy(g => g.group_name).ToListAsync())
+            .ToDictionary(g => g.group_id, g => g.group_name ?? "");
+        disciplines = (await context.Disciplines.OrderBy(d => d.discipline_name).ToListAsync())
+            .ToDictionary(d => d.discipline_id, d => d.discipline_name ?? "");
+        teachers = (await context.Teachers.OrderBy(t => t.last_name).ToListAsync())
+            .ToDictionary(t => t.teacher_id, t => TeacherName(t));
+        holidays = await context.Holidays.ToListAsync();
+        holidayNames = holidays.ToDictionary(h => h.holiday_id, h => h.holiday_name);
+        await ReloadAsync();
+        loaded = true;
+    }
+
+    private List<Schedule> GetDayLessons(DateTime day)
+        => byDay.TryGetValue(day.Date, out var list) ? list : new List<Schedule>();
+
+    private string? IsMarked(DateTime day)
+        => marked.TryGetValue(day.Date, out var name) ? name : null;
+
+    private void BuildWeekDays()
+    {
+        var monday = Monday(anchor);
+        weekDays = Enumerable.Range(0, 7).Select(i => monday.AddDays(i)).ToList();
+    }
+
+    private void BuildMonthWeeks()
+    {
+        monthWeeks = new List<List<DateTime?>>();
+        var first = new DateTime(anchor.Year, anchor.Month, 1);
+        int offset = ((int)first.DayOfWeek + 6) % 7;
+        var row = new List<DateTime?>();
+        for (int i = 0; i < offset; i++)
+        {
+            row.Add(null);
+        }
+        for (int d = 1; d <= DateTime.DaysInMonth(anchor.Year, anchor.Month); d++)
+        {
+            row.Add(first.AddDays(d - 1));
+            if (row.Count == 7)
+            {
+                monthWeeks.Add(row);
+                row = new List<DateTime?>();
+            }
+        }
+        if (row.Count > 0)
+        {
+            while (row.Count < 7)
+            {
+                row.Add(null);
+            }
+            monthWeeks.Add(row);
+        }
+    }
+
+    private static DateTime Monday(DateTime date)
+        => date.AddDays(-(((int)date.DayOfWeek + 6) % 7)).Date;
+
+    private async Task ReloadAsync()
+    {
+        DateTime from, to;
+        if (view == "week")
+        {
+            from = Monday(anchor);
+            to = from.AddDays(6);
+        }
+        else
+        {
+            from = new DateTime(anchor.Year, anchor.Month, 1);
+            to = from.AddMonths(1).AddDays(-1);
+        }
+
+        await using var context = DbFactory.CreateDbContext();
+
+        IEnumerable<Schedule> range = await context.Schedule
+            .Where(s => s.date != null && s.date.Value.Date >= from && s.date.Value.Date <= to)
+            .ToListAsync();
+
+        if (groupFilter != 0)
+        {
+            range = range.Where(s => s.group == groupFilter);
+        }
+        if (teacherFilter != 0)
+        {
+            range = range.Where(s => s.teacher == teacherFilter);
+        }
+
+        byDay = range
+            .OrderBy(s => s.time)
+            .GroupBy(s => s.date!.Value.Date)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        daysOff = await context.DaysOFF.Where(o => o.date >= from && o.date <= to).ToListAsync();
+        marked = BuildMarked(from, to);
+
+        if (view == "week")
+        {
+            BuildWeekDays();
+        }
+        else
+        {
+            BuildMonthWeeks();
+        }
+
+        BuildLegend();
+        loaded = true;
+        StateHasChanged();
+    }
+
+    private Dictionary<DateTime, string> BuildMarked(DateTime from, DateTime to)
+    {
+        var result = new Dictionary<DateTime, string>();
+        foreach (var h in holidays)
+        {
+            if (!h.month.HasValue || h.month.Value < 1 || h.month.Value > 12)
+            {
+                continue;
+            }
+            int m = h.month.Value;
+            int daysInMonth = DateTime.DaysInMonth(2026, m);
+            int startDay = h.day.HasValue && h.day.Value >= 1 && h.day.Value <= daysInMonth ? h.day.Value : 1;
+            int duration = Math.Max(1, h.duration);
+            for (int year = from.Year; year <= to.Year; year++)
+            {
+                var start = new DateTime(year, m, startDay);
+                for (int i = 0; i < duration; i++)
+                {
+                    var d = start.AddDays(i);
+                    if (d >= from && d <= to && !result.ContainsKey(d.Date))
+                    {
+                        result[d.Date] = h.holiday_name;
+                    }
+                }
+            }
+        }
+        foreach (var o in daysOff)
+        {
+            string name = holidayNames.TryGetValue(o.holiday, out var n) ? n : "Выходной";
+            result[o.date.Date] = name;
+        }
+        return result;
+    }
+
+    private void BuildLegend()
+    {
+        legend = byDay.Values
+            .SelectMany(list => list)
+            .Select(s => s.discipline)
+            .Distinct()
+            .Select(id => new LegendItem(DisciplineName(id), DiscClass(id)))
+            .OrderBy(i => i.Name)
+            .ToList();
+    }
+
+    private string PeriodTitle()
+    {
+        if (view == "week")
+        {
+            var monday = Monday(anchor);
+            var sunday = monday.AddDays(6);
+            if (monday.Month == sunday.Month)
+            {
+                return $"{monday:dd}–{sunday:dd} {Cap(monday.ToString("MMMM", ru))} {monday:yyyy}";
+            }
+            return $"{monday:dd.MM}–{sunday:dd.MM} {sunday:yyyy}";
+        }
+        return $"{Cap(new DateTime(anchor.Year, anchor.Month, 1).ToString("MMMM yyyy", ru))}";
+    }
+
+    private static string Cap(string value)
+        => value.Length > 0 ? char.ToUpperInvariant(value[0]) + value.Substring(1) : value;
+
+    private static string DiscClass(int disciplineId)
+        => "disc-" + ((disciplineId % 10) + 1);
+
+    private string ChipText(Schedule s)
+        => $"{TimeText(s)} {DisciplineName(s.discipline)}".Trim();
+
+    private string LessonTooltip(Schedule s)
+        => $"{TimeText(s)} · {DisciplineName(s.discipline)} · {GroupName(s.group)} · {TeacherName(s.teacher)} · {(s.spent ? "Проведено" : "Не проведено")}";
+
+    private static string TimeText(Schedule s)
+        => s.time.HasValue ? s.time.Value.ToString(@"hh\:mm") : "";
+
+    private string GroupName(int id)
+        => groups.TryGetValue(id, out var name) ? $"{name}".Trim() : $"№{id}";
+
+    private string DisciplineName(int id)
+        => disciplines.TryGetValue(id, out var name) ? $"{name}".Trim() : $"№{id}";
+
+    private string TeacherName(int id)
+        => teachers.TryGetValue(id, out var name) ? name : $"№{id}";
+
+    private static string TeacherName(Teacher t)
+        => string.Join(" ", new[] { t.last_name, t.first_name, t.middle_name }.Where(p => !string.IsNullOrWhiteSpace(p)));
+
+    private async Task PrevPeriod()
+    {
+        anchor = view == "week" ? anchor.AddDays(-7) : new DateTime(anchor.AddMonths(-1).Year, anchor.AddMonths(-1).Month, 1);
+        await ReloadAsync();
+    }
+
+    private async Task NextPeriod()
+    {
+        anchor = view == "week" ? anchor.AddDays(7) : new DateTime(anchor.AddMonths(1).Year, anchor.AddMonths(1).Month, 1);
+        await ReloadAsync();
+    }
+
+    private async Task GoToday()
+    {
+        anchor = DateTime.Today;
+        await ReloadAsync();
+    }
+
+    private async Task SetView(string value)
+    {
+        view = value;
+        await ReloadAsync();
+    }
+
+    private async Task GoToDay(DateTime day)
+    {
+        anchor = day;
+        view = "week";
+        await ReloadAsync();
+    }
+}

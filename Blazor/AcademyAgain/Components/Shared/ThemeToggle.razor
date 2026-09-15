@@ -1,0 +1,39 @@
+@rendermode InteractiveServer
+@inject IJSRuntime JS
+
+<button type="button" class="theme-toggle" @onclick="ToggleTheme"
+        title="@(IsLight ? "Переключить на тёмную тему" : "Переключить на светлую тему")"
+        aria-label="Переключить тему">
+    @if (IsLight)
+    {
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+        </svg>
+    }
+    else
+    {
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+        </svg>
+    }
+</button>
+
+@code {
+    private bool IsLight;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            IsLight = await JS.InvokeAsync<bool>("AcademyTheme.isLight");
+            StateHasChanged();
+        }
+    }
+
+    private async Task ToggleTheme()
+    {
+        IsLight = await JS.InvokeAsync<bool>("AcademyTheme.toggle");
+        StateHasChanged();
+    }
+}

@@ -43,8 +43,42 @@
         },
     };
 
+    window.AcademyTheme = {
+        key: 'academyTheme',
+        current() {
+            return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';  
+        },
+        isLight() {
+            return this.current() === 'light';
+        },
+        set(mode) {
+            const value = mode === 'light' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', value);
+            try {
+                localStorage.setItem(this.key, value);
+            } catch { /* хранилище недоступно — игнорируем */ }
+            return value === 'light';
+        },
+        toggle() {
+            return this.set(this.isLight() ? 'dark' : 'light');
+        },
+    };
+
     window.downloadTextFile = function (filename, text) {
         const blob = new Blob([text], { type: 'text/csv;charset=utf-8' });
+        downloadBlob(filename, blob);
+    };
+
+    window.downloadBase64File = function (filename, base64) {
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        downloadBlob(filename, new Blob([bytes]));
+    };
+
+    function downloadBlob(filename, blob) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -53,7 +87,7 @@
         a.click();
         document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 1000);
-    };
+    }
 
     document.addEventListener('contextmenu', (event) => {
         if (!rowMenu.ref) return;

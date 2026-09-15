@@ -14,7 +14,7 @@
     <h1>Преподаватели и дисциплины</h1>
     <div class="list-actions">
         <input class="form-control search-input" type="search" placeholder="Поиск…" value="@SearchText" @oninput="OnSearchInput" />
-        <button type="button" class="btn btn-outline-secondary" @onclick="ExportCsv">Экспорт CSV</button>
+        <ExportMenu RowBuilder="BuildRows" FileName="teachersdisciplinesrelations" />
         <a class="btn btn-primary" href="teachersdisciplinesrelations/create">Создать</a>
     </div>
 </div>
@@ -32,7 +32,7 @@
 
 <div class="paginator">
     <span class="badge bg-secondary total-badge">Всего: @TotalCount</span>
-    <AppPaginator State="Pagination" />
+    <AppPaginator State="Pagination" OnPageSizeChanged="HandlePageSizeChanged" />
 </div>
 
 <RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
@@ -58,7 +58,7 @@
         TotalCount = ApplySearch(allItems).Count();
     }
 
-    private async Task ExportCsv()
+    private List<string[]> BuildRows()
     {
         var rows = new List<string[]>
         {
@@ -68,7 +68,7 @@
         {
             rows.Add(new[] { TeacherName(r.teacher), DisciplineName(r.discipline) });
         }
-        await ExportCsvAsync("teachersdisciplinesrelations.csv", CsvExport.Build(rows));
+        return rows;
     }
 
     private async Task OnSearchInput(ChangeEventArgs e)

@@ -15,6 +15,10 @@
         <EditForm method="post" Model="Schedule" OnValidSubmit="AddSchedule" FormName="create" Enhance>
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" role="alert"/>
+            @if (!string.IsNullOrEmpty(SaveError))
+            {
+                <div class="alert alert-danger" role="alert">@SaveError</div>
+            }
             <div class="mb-3">
                 <span class="text-danger">*</span>
                 <label for="group" class="form-label">Группа:</label>
@@ -94,6 +98,7 @@
     private List<KeyValuePair<int, string>> groups = new();
     private List<KeyValuePair<int, string>> disciplines = new();
     private List<KeyValuePair<int, string>> teachers = new();
+    private string? SaveError;
 
     protected override async Task OnInitializedAsync()
     {
@@ -126,6 +131,17 @@
         Schedule.time = ParseTime(time);
 
         using var context = DbFactory.CreateDbContext();
+
+        var conflict = await context.Schedule.AnyAsync(s =>
+            s.date == Schedule.date &&
+            s.time == Schedule.time &&
+            (s.group == groupId || s.teacher == teacherId));
+        if (conflict)
+        {
+            SaveError = "В это время уже есть занятие для этой группы или преподавателя.";
+            return;
+        }
+
         context.Schedule.Add(Schedule);
         await context.SaveChangesAsync();
         NavigationManager.NavigateTo("/schedules");

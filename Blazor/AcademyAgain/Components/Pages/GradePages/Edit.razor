@@ -48,12 +48,32 @@ else
                 </div>
                 <div class="mb-3">
                     <label for="grade_1" class="form-label">Оценка 1:</label>
-                    <InputNumber id="grade_1" @bind-Value="Grade.grade_1" class="form-control" />
+                    <select id="grade_1" name="Grade.grade_1" class="form-select">
+                        <option value="">—</option>
+                        @if (Grade.grade_1.HasValue && (Grade.grade_1 < 2 || Grade.grade_1 > 5))
+                        {
+                            <option value="@Grade.grade_1" selected>@Grade.grade_1</option>
+                        }
+                        <option value="2" selected="@(Grade.grade_1 == 2)">2</option>
+                        <option value="3" selected="@(Grade.grade_1 == 3)">3</option>
+                        <option value="4" selected="@(Grade.grade_1 == 4)">4</option>
+                        <option value="5" selected="@(Grade.grade_1 == 5)">5</option>
+                    </select>
                     <ValidationMessage For="() => Grade.grade_1" class="text-danger" />
                 </div>
                 <div class="mb-3">
                     <label for="grade_2" class="form-label">Оценка 2:</label>
-                    <InputNumber id="grade_2" @bind-Value="Grade.grade_2" class="form-control" />
+                    <select id="grade_2" name="Grade.grade_2" class="form-select">
+                        <option value="">—</option>
+                        @if (Grade.grade_2.HasValue && (Grade.grade_2 < 2 || Grade.grade_2 > 5))
+                        {
+                            <option value="@Grade.grade_2" selected>@Grade.grade_2</option>
+                        }
+                        <option value="2" selected="@(Grade.grade_2 == 2)">2</option>
+                        <option value="3" selected="@(Grade.grade_2 == 3)">3</option>
+                        <option value="4" selected="@(Grade.grade_2 == 4)">4</option>
+                        <option value="5" selected="@(Grade.grade_2 == 5)">5</option>
+                    </select>
                     <ValidationMessage For="() => Grade.grade_2" class="text-danger" />
                 </div>
                 <button type="submit" class="btn btn-primary">Сохранить</button>

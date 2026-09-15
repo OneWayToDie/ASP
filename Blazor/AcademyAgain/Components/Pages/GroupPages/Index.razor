@@ -14,7 +14,7 @@
     <h1>Группы</h1>
     <div class="list-actions">
         <input class="form-control search-input" type="search" placeholder="Поиск…" value="@SearchText" @oninput="OnSearchInput" />
-        <button type="button" class="btn btn-outline-secondary" @onclick="ExportCsv">Экспорт CSV</button>
+        <ExportMenu RowBuilder="BuildRows" FileName="groups" />
         <a class="btn btn-primary" href="groups/create">Создать</a>
     </div>
 </div>
@@ -48,7 +48,7 @@
 
 <div class="paginator">
     <span class="badge bg-secondary total-badge">Всего: @TotalCount</span>
-    <AppPaginator State="Pagination" />
+    <AppPaginator State="Pagination" OnPageSizeChanged="HandlePageSizeChanged" />
 </div>
 
 <RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
@@ -90,7 +90,7 @@
         TotalCount = filteredGroups.Count();
     }
 
-    private async Task ExportCsv()
+    private List<string?[]> BuildRows()
     {
         var rows = new List<string?[]>
         {
@@ -100,7 +100,7 @@
         {
             rows.Add(new[] { GroupName(g), DirectionName(g.direction), Weekdays.ToDisplay(g.weekdays), g.start_time?.ToString(), g.start_date?.ToString("dd.MM.yyyy") });
         }
-        await ExportCsvAsync("groups.csv", CsvExport.Build(rows));
+        return rows;
     }
 
     protected override bool MatchesSearch(Group g)

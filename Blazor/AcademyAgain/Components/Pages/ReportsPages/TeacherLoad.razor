@@ -1,0 +1,192 @@
+@page "/reports/teacher-load"
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Нагрузка преподавателя</PageTitle>
+
+<h1>Нагрузка преподавателя</h1>
+
+<div class="filter-bar d-flex flex-wrap align-items-center gap-2 mb-3">
+    <span class="filter-label">Период:</span>
+    <InputDate @bind-Value="fromDate" class="form-control filter-select" />
+    <span class="filter-label">—</span>
+    <InputDate @bind-Value="toDate" class="form-control filter-select" />
+    <select class="form-select filter-select" @bind="teacherFilter">
+        <option value="0">Все преподаватели</option>
+        @foreach (var teacher in teachers)
+        {
+            <option value="@teacher.Key">@teacher.Value</option>
+        }
+    </select>
+    <button type="button" class="btn btn-sm btn-primary" @onclick="Apply">Применить</button>
+    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="Reset">Сбросить</button>
+</div>
+
+<div class="list-actions mb-2">
+    <button type="button" class="btn btn-outline-secondary" onclick="window.print()">Печать</button>
+    <ExportMenu RowBuilder="BuildRows" FileName="teacher-load" />
+</div>
+
+@if (rows.Count > 0)
+{
+    <table class="table context-table">
+        <thead>
+            <tr>
+                <th>Преподаватель</th>
+                <th>Занятий</th>
+                <th>Часов</th>
+                <th>Проведено</th>
+                <th>% проведено</th>
+                <th>Начислено</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in rows)
+            {
+                <tr>
+                    <td><a class="table-link" href="@($"/teachers/details?teacher_id={row.TeacherId}")">@row.Name</a></td>
+                    <td>@row.Lessons</td>
+                    <td>@row.Hours.ToString("0.##")</td>
+                    <td>@row.Spent</td>
+                    <td>@row.Percent</td>
+                    <td>@row.Accrued.ToString("N2")</td>
+                </tr>
+            }
+        </tbody>
+        @if (rows.Count > 1)
+        {
+            <tfoot>
+                <tr class="report-total">
+                    <td>Итого</td>
+                    <td>@TotalLessons</td>
+                    <td>@TotalHours.ToString("0.##")</td>
+                    <td>@TotalSpent</td>
+                    <td>@TotalPercent</td>
+                    <td>@TotalAccrued.ToString("N2")</td>
+                </tr>
+            </tfoot>
+        }
+    </table>
+}
+else
+{
+    <p>Нет данных за выбранный период.</p>
+}
+
+<div class="mt-3">
+    <a href="/salarys">Назад к зарплатам</a>
+</div>
+
+@code {
+    private DateTime fromDate = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private DateTime toDate = DateTime.Today;
+    private int teacherFilter;
+
+    private Dictionary<int, string> teachers = new();
+    private List<TeacherLoadRow> rows = new();
+
+    private int TotalLessons;
+    private int TotalSpent;
+    private decimal TotalHours;
+    private decimal TotalAccrued;
+    private string TotalPercent => TotalLessons > 0 ? $"{TotalSpent * 100.0d / TotalLessons:0.#}" : "—";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var context = DbFactory.CreateDbContext();
+        teachers = (await context.Teachers.OrderBy(t => t.last_name).ToListAsync())
+            .ToDictionary(t => t.teacher_id, t => TeacherName(t.teacher_id));
+        await Apply();
+    }
+
+    private async Task Apply()
+    {
+        await using var context = DbFactory.CreateDbContext();
+
+        var from = fromDate.Date;
+        var to = toDate.Date;
+        var schedule = await context.Schedule
+            .Where(s => (teacherFilter == 0 || s.teacher == teacherFilter)
+                && s.date.HasValue
+                && s.date.Value.Date >= from
+                && s.date.Value.Date <= to)
+            .ToListAsync();
+
+        var accrued = await context.Salary
+            .Where(s => teacherFilter == 0 || s.teacher == teacherFilter)
+            .GroupBy(s => s.teacher)
+            .Select(g => new { TeacherId = g.Key, Total = g.Sum(x => x.accrued) })
+            .ToDictionaryAsync(x => x.TeacherId, x => x.Total);
+
+        var teacherIds = teacherFilter == 0 ? teachers.Keys.ToList() : new List<int> { teacherFilter };
+
+        rows = new List<TeacherLoadRow>();
+        foreach (var id in teacherIds)
+        {
+            rows.Add(new TeacherLoadRow
+            {
+                TeacherId = id,
+                Name = TeacherName(id),
+                Lessons = schedule.Count(s => s.teacher == id),
+                Spent = schedule.Count(s => s.teacher == id && s.spent),
+                Accrued = accrued.TryGetValue(id, out var total) ? total : 0
+            });
+        }
+
+        rows.RemoveAll(r => r.Lessons == 0 && r.Accrued == 0);
+
+        TotalLessons = rows.Sum(r => r.Lessons);
+        TotalSpent = rows.Sum(r => r.Spent);
+        TotalHours = rows.Sum(r => r.Hours);
+        TotalAccrued = rows.Sum(r => r.Accrued);
+    }
+
+    private async Task Reset()
+    {
+        teacherFilter = 0;
+        fromDate = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+        toDate = DateTime.Today;
+        await Apply();
+    }
+
+    private List<string?[]> BuildRows()
+    {
+        var result = new List<string?[]>
+        {
+            new[] { "Преподаватель", "Занятий", "Часов", "Проведено", "% проведено", "Начислено" }
+        };
+        foreach (var row in rows)
+        {
+            result.Add(new[]
+            {
+                row.Name,
+                row.Lessons.ToString(),
+                row.Hours.ToString("0.##"),
+                row.Spent.ToString(),
+                row.Percent,
+                row.Accrued.ToString("N2")
+            });
+        }
+        return result;
+    }
+
+    private string TeacherName(int id)
+        => teachers.TryGetValue(id, out var name) ? name : $"№{id}";
+
+    private static string TeacherName(Teacher t)
+        => string.Join(" ", new[] { t.last_name, t.first_name, t.middle_name }.Where(p => !string.IsNullOrWhiteSpace(p)));
+
+    private sealed class TeacherLoadRow
+    {
+        public int TeacherId { get; set; }
+        public string Name { get; set; } = "";
+        public int Lessons { get; set; }
+        public int Spent { get; set; }
+        public decimal Hours => Lessons * 1.5m;
+        public decimal Accrued { get; set; }
+        public string Percent => Lessons > 0 ? $"{Spent * 100.0d / Lessons:0.#}" : "—";
+    }
+}

@@ -1,0 +1,309 @@
+@page "/journal"
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+
+<PageTitle>Журнал группы</PageTitle>
+
+<h1>Журнал группы</h1>
+
+<hr />
+<div class="col-md-4 mb-3">
+    <label for="group" class="form-label">Группа:</label>
+    <select id="group" class="form-select" @bind="selectedGroupId" @bind:after="OnGroupChanged">
+        <option value="0">— выберите группу —</option>
+        @foreach (var group in groups)
+        {
+            <option value="@group.group_id">@GroupLabel(group)</option>
+        }
+    </select>
+</div>
+
+@if (selectedGroupId != 0)
+{
+    <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+        <span class="filter-label">Занятия:</span>
+        <button type="button" class='chip @(lessonStatus == "all" ? "chip-active" : "")' @onclick='() => SetStatus("all")'>Все</button>
+        <button type="button" class='chip @(lessonStatus == "spent" ? "chip-active" : "")' @onclick='() => SetStatus("spent")'>Проведено</button>
+        <button type="button" class='chip @(lessonStatus == "notspent" ? "chip-active" : "")' @onclick='() => SetStatus("notspent")'>Не проведено</button>
+
+        <span class="legend ms-2">
+            <span><span class="swatch" style="background:#dc3545"></span>отсутствовал</span>
+            <span><span class="swatch swatch-grade" style="background:#28a745"></span>оценка 5</span>
+            <span><span class="swatch swatch-grade" style="background:#17a2b8"></span>оценка 4</span>
+            <span><span class="swatch swatch-grade" style="background:#ffc107"></span>оценка 3</span>
+            <span><span class="swatch swatch-grade" style="background:#dc3545"></span>оценка 2</span>
+            <span><span class="swatch" style="border-style:dashed"></span>нет данных</span>
+        </span>
+    </div>
+
+    @if (students.Count == 0)
+    {
+        <p>В этой группе нет студентов.</p>
+    }
+    else if (VisibleLessons.Count == 0)
+    {
+        <p>Занятий с выбранным статусом нет.</p>
+    }
+    else
+    {
+        <div class="journal-scroll">
+            <table class="journal-table">
+                <thead>
+                    <tr>
+                        <th class="journal-corner">Студент</th>
+                        @foreach (var lesson in VisibleLessons)
+                        {
+                            <th class="journal-th" title="@lesson.Discipline — @lesson.Teacher">
+                                <span class="jh-no">№@lesson.lesson_id</span>
+                                <span class="jh-sub">@DateText(lesson.date) @TimeText(lesson.time)</span>
+                                <span class="jh-sub">@lesson.Discipline</span>
+                                <span class="jh-teacher">@lesson.Teacher</span>
+                            </th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var student in students)
+                    {
+                        <tr>
+                            <td class="journal-name">@StudentName(student)</td>
+                            @foreach (var lesson in VisibleLessons)
+                            {
+                                var cellKey = (student.stud_id, lesson.lesson_id);
+                                <td class="@CellClass(cellKey)" title="@CellTooltip(cellKey)" @onclick="() => OnCellClick(cellKey)">@CellText(cellKey)</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (selectedStudent != null && selectedLesson != null)
+        {
+            <div class="journal-detail">
+                <h3>Детали</h3>
+                <dl class="detail-grid">
+                    <dt>Студент</dt>
+                    <dd>@StudentName(selectedStudent) (@GroupLabel(CurrentGroup))</dd>
+                    <dt>Занятие</dt>
+                    <dd>№@selectedLesson.lesson_id · @selectedLesson.Discipline</dd>
+                    <dt>Дата и время</dt>
+                    <dd>@DateText(selectedLesson.date) @TimeText(selectedLesson.time)</dd>
+                    <dt>Преподаватель</dt>
+                    <dd>@selectedLesson.Teacher</dd>
+                    <dt>Статус</dt>
+                    <dd>@(selectedLesson.spent ? "Проведено" : "Предстоит")</dd>
+                    <dt>Посещаемость</dt>
+                    <dd>@DetailAttendText</dd>
+                    <dt>Оценка 1</dt>
+                    <dd>@DetailGradeText(1)</dd>
+                    <dt>Оценка 2</dt>
+                    <dd>@DetailGradeText(2)</dd>
+                </dl>
+                <div class="d-flex gap-2 flex-wrap">
+                    <a class="btn btn-sm btn-outline-primary" href="/grades/edit?student=@selectedStudent.stud_id&lesson=@selectedLesson.lesson_id">Редактировать оценку</a>
+                    <a class="btn btn-sm btn-outline-primary" href="/attendances/edit?student=@selectedStudent.stud_id&lesson=@selectedLesson.lesson_id">Редактировать посещаемость</a>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CloseDetail">Закрыть</button>
+                </div>
+            </div>
+        }
+    }
+}
+else
+{
+    <p>Выберите группу, чтобы открыть журнал.</p>
+}
+
+<div class="mt-3">
+    <a href="">Назад</a>
+</div>
+
+@code {
+    private sealed record LessonCol(long lesson_id, DateTime? date, TimeSpan? time, string Discipline, string Teacher, bool spent);
+
+    private List<Group> groups = new();
+    private List<Student> students = new();
+    private List<LessonCol> allLessons = new();
+    private Dictionary<(int, long), bool> attendance = new();
+    private Dictionary<(int, long), Grade> grades = new();
+
+    private int selectedGroupId;
+    private string lessonStatus = "all";
+    private (int student, long lesson)? selectedCell;
+    private Student? selectedStudent;
+    private LessonCol? selectedLesson;
+
+    private List<LessonCol> VisibleLessons => lessonStatus switch
+    {
+        "spent" => allLessons.Where(l => l.spent).ToList(),
+        "notspent" => allLessons.Where(l => !l.spent).ToList(),
+        _ => allLessons
+    };
+
+    private Group? CurrentGroup => groups.FirstOrDefault(g => g.group_id == selectedGroupId);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var context = DbFactory.CreateDbContext();
+        groups = await context.Groups.OrderBy(g => g.group_name).ToListAsync();
+    }
+
+    private async Task OnGroupChanged()
+    {
+        selectedCell = null;
+        selectedStudent = null;
+        selectedLesson = null;
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        await using var context = DbFactory.CreateDbContext();
+
+        students = await context.Students
+            .Where(s => s.group == selectedGroupId)
+            .OrderBy(s => s.last_name)
+            .ToListAsync();
+
+        var schedule = await context.Schedule
+            .Where(s => s.group == selectedGroupId)
+            .OrderBy(s => s.date)
+            .ThenBy(s => s.time)
+            .ToListAsync();
+
+        var disciplines = await context.Disciplines
+            .ToDictionaryAsync(d => d.discipline_id, d => d.discipline_name ?? $"Дисциплина №{d.discipline_id}");
+        var teachers = (await context.Teachers.ToListAsync())
+            .ToDictionary(t => t.teacher_id, TeacherName);
+
+        allLessons = schedule
+            .Select(s => new LessonCol(
+                s.lesson_id,
+                s.date,
+                s.time,
+                disciplines.TryGetValue(s.discipline, out var dn) ? dn : $"№{s.discipline}",
+                teachers.TryGetValue(s.teacher, out var tn) ? tn : $"№{s.teacher}",
+                s.spent))
+            .ToList();
+
+        var ids = allLessons.Select(l => l.lesson_id).ToList();
+        attendance = ids.Count > 0
+            ? await context.Attendance
+                .Where(a => ids.Contains(a.lesson))
+                .ToDictionaryAsync(a => (a.student, a.lesson), a => a.present)
+            : new Dictionary<(int, long), bool>();
+        grades = ids.Count > 0
+            ? await context.Grades
+                .Where(g => ids.Contains(g.lesson))
+                .ToDictionaryAsync(g => (g.student, g.lesson))
+            : new Dictionary<(int, long), Grade>();
+    }
+
+    private void SetStatus(string status)
+    {
+        lessonStatus = status;
+        selectedCell = null;
+        selectedStudent = null;
+        selectedLesson = null;
+    }
+
+    private void OnCellClick((int student, long lesson) key)
+    {
+        selectedCell = key;
+        selectedStudent = students.FirstOrDefault(s => s.stud_id == key.student);
+        selectedLesson = allLessons.FirstOrDefault(l => l.lesson_id == key.lesson);
+    }
+
+    private void CloseDetail()
+    {
+        selectedCell = null;
+        selectedStudent = null;
+        selectedLesson = null;
+    }
+
+    private string CellClass((int, long) key)
+    {
+        var cls = "journal-cell";
+        if (selectedCell == key) cls += " cell-selected";
+        if (attendance.TryGetValue(key, out var present))
+        {
+            if (!present)
+            {
+                return cls + " cell-absent";
+            }
+            if (GradeMax(key) is { } max && max > 0)
+            {
+                return cls + max switch
+                {
+                    5 => " cell-grade-5",
+                    4 => " cell-grade-4",
+                    3 => " cell-grade-3",
+                    2 => " cell-grade-2",
+                    _ => " cell-ok"
+                };
+            }
+            return cls + " cell-ok";
+        }
+        return cls + " cell-empty";
+    }
+
+    private int? GradeMax((int, long) key)
+        => grades.TryGetValue(key, out var g)
+            ? new[] { g.grade_1, g.grade_2 }.Where(v => v.HasValue).Select(v => v.GetValueOrDefault()).DefaultIfEmpty(0).Max()
+            : null;
+
+    private string CellText((int, long) key)
+    {
+        if (attendance.TryGetValue(key, out var present) && !present)
+        {
+            return "отс.";
+        }
+        if (grades.TryGetValue(key, out var g))
+        {
+            var text = string.Join("/", new[] { g.grade_1, g.grade_2 }.Where(v => v.HasValue).Select(v => v!.Value.ToString()));
+            if (text.Length > 0) return text;
+        }
+        return attrPresent(key) ? "✓" : "—";
+    }
+
+    private bool attrPresent((int, long) key)
+        => attendance.TryGetValue(key, out var present) && present;
+
+    private string CellTooltip((int, long) key)
+    {
+        if (selectedCell == key) return "";
+        var lesson = allLessons.FirstOrDefault(l => l.lesson_id == key.Item2);
+        var student = students.FirstOrDefault(s => s.stud_id == key.Item1);
+        return student != null && lesson != null
+            ? $"{StudentName(student)} · №{lesson.lesson_id} · {DateText(lesson.date)} {TimeText(lesson.time)} · {lesson.Discipline}"
+            : "";
+    }
+
+    private string DetailAttendText
+        => selectedCell is { } key && attendance.TryGetValue(key, out var present)
+            ? (present ? "Присутствовал" : "Отсутствовал")
+            : "Не отмечено";
+
+    private string DetailGradeText(int part)
+    {
+        if (selectedCell is not { } key || !grades.TryGetValue(key, out var g)) return "—";
+        var value = part == 1 ? g.grade_1 : g.grade_2;
+        return value?.ToString() ?? "—";
+    }
+
+    private static string StudentName(Student student)
+        => !string.IsNullOrWhiteSpace(student.middle_name)
+            ? $"{student.last_name} {student.first_name} {student.middle_name}"
+            : $"{student.last_name} {student.first_name}";
+
+    private static string TeacherName(Teacher teacher)
+        => string.Join(" ", new[] { teacher.last_name, teacher.first_name, teacher.middle_name }.Where(p => !string.IsNullOrWhiteSpace(p)));
+
+    private static string GroupLabel(Group? group)
+        => group is null ? "—" : string.IsNullOrWhiteSpace(group.group_name) ? $"№{group.group_id}" : group.group_name;
+
+    private static string DateText(DateTime? date) => date?.ToString("dd.MM.yy") ?? "";
+    private static string TimeText(TimeSpan? time) => time?.ToString(@"hh\:mm") ?? "";
+}

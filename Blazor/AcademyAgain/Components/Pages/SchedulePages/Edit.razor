@@ -21,6 +21,10 @@ else
             <EditForm method="post" Model="Schedule" OnValidSubmit="UpdateSchedule" FormName="edit" Enhance>
                 <DataAnnotationsValidator />
                 <ValidationSummary role="alert"/>
+                @if (!string.IsNullOrEmpty(SaveError))
+                {
+                    <div class="alert alert-danger" role="alert">@SaveError</div>
+                }
                 <input type="hidden" name="Schedule.lesson_id" value="@Schedule.lesson_id" />
                 <div class="mb-3">
                     <span class="text-danger">*</span>
@@ -105,6 +109,7 @@ else
     private List<KeyValuePair<int, string>> groups = new();
     private List<KeyValuePair<int, string>> disciplines = new();
     private List<KeyValuePair<int, string>> teachers = new();
+    private string? SaveError;
 
     private int SelectedGroup
         => int.TryParse(group, out var value) ? value : Schedule?.group ?? 0;
@@ -153,6 +158,18 @@ else
         Schedule!.time = ParseTime(time);
 
         using var context = DbFactory.CreateDbContext();
+
+        var conflict = await context.Schedule.AnyAsync(s =>
+            s.lesson_id != Schedule.lesson_id &&
+            s.date == Schedule.date &&
+            s.time == Schedule.time &&
+            (s.group == Schedule.group || s.teacher == Schedule.teacher));
+        if (conflict)
+        {
+            SaveError = "В это время уже есть занятие для этой группы или преподавателя.";
+            return;
+        }
+
         context.Attach(Schedule).State = EntityState.Modified;
 
         try

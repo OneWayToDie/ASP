@@ -36,6 +36,10 @@ public class AcademyAgainContext(DbContextOptions<AcademyAgainContext> options) 
     { get; set; } = default!;
     public DbSet<AcademyAgain.Models.DaysOFF> DaysOFF
     { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.User> Users
+    { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.Role> Roles
+    { get; set; } = default!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

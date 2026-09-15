@@ -1,0 +1,239 @@
+@page "/attendances/bulk"
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Массовая посещаемость</PageTitle>
+
+<h1>Массовая посещаемость</h1>
+
+<hr />
+<div class="col-md-4">
+    <div class="mb-3">
+        <label for="group" class="form-label">Группа:</label>
+        <select id="group" class="form-select" @bind="selectedGroupId" @bind:after="OnGroupChanged">
+            <option value="0">— выберите группу —</option>
+            @foreach (var group in groups)
+            {
+                <option value="@group.group_id">@(string.IsNullOrWhiteSpace(group.group_name) ? $"№{group.group_id}" : group.group_name)</option>
+            }
+        </select>
+    </div>
+    <div class="mb-3">
+        <label for="lessonStatus" class="form-label">Статус занятий:</label>
+        <select id="lessonStatus" class="form-select" @bind="lessonStatus" @bind:after="OnStatusChanged">
+            <option value="future">Предстоит</option>
+            <option value="past">Прошло</option>
+        </select>
+    </div>
+    <div class="mb-3">
+        <label for="lesson" class="form-label">Занятие:</label>
+        <select id="lesson" class="form-select" @bind="selectedLessonId" @bind:after="OnLessonChanged">
+            <option value="0">— выберите занятие —</option>
+            @foreach (var lesson in lessons)
+            {
+                <option value="@lesson.Key">@lesson.Value</option>
+            }
+        </select>
+    </div>
+</div>
+
+@if (selectedGroupId != 0 && selectedLessonId != 0 && students.Count > 0)
+{
+    @if (!string.IsNullOrEmpty(SaveError))
+    {
+        <div class="alert alert-danger" role="alert">@SaveError</div>
+    }
+    <div class="mb-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="CheckAll">Отметить всех</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="UncheckAll">Снять всех</button>
+    </div>
+    <table class="table context-table">
+        <thead>
+            <tr>
+                <th>Студент</th>
+                <th>Присутствовал</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var student in students)
+            {
+                <tr>
+                    <td>@StudentName(student)</td>
+                    <td>
+                        <input type="checkbox" class="form-check-input" @bind="presentByStudent[student.stud_id]" />
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <button type="button" class="btn btn-primary" @onclick="SaveAttendance">Сохранить</button>
+}
+else if (selectedGroupId != 0 && selectedLessonId != 0 && students.Count == 0)
+{
+    <p>В этой группе нет студентов.</p>
+}
+
+<div class="mt-3">
+    <a href="/attendances">Назад к списку</a>
+</div>
+
+@code {
+    private List<Group> groups = new();
+    private List<KeyValuePair<long, string>> lessons = new();
+    private List<Student> students = new();
+    private Dictionary<int, bool> presentByStudent = new();
+
+    private int selectedGroupId;
+    private long selectedLessonId;
+    private string lessonStatus = "future";
+    private string? SaveError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var context = DbFactory.CreateDbContext();
+        groups = await context.Groups.OrderBy(g => g.group_name).ToListAsync();
+    }
+
+    private async Task OnGroupChanged()
+    {
+        selectedLessonId = 0;
+        students = new();
+        presentByStudent = new();
+        await using var context = DbFactory.CreateDbContext();
+        await LoadStudentsAsync(context);
+        await LoadLessonsAsync(context);
+    }
+
+    private async Task OnStatusChanged()
+    {
+        selectedLessonId = 0;
+        presentByStudent = new Dictionary<int, bool>();
+        await using var context = DbFactory.CreateDbContext();
+        await LoadLessonsAsync(context);
+    }
+
+    private async Task LoadStudentsAsync(AcademyAgainContext context)
+    {
+        students = new();
+        if (selectedGroupId == 0)
+        {
+            return;
+        }
+
+        students = await context.Students
+            .Where(s => s.group == selectedGroupId)
+            .OrderBy(s => s.last_name)
+            .ToListAsync();
+
+        presentByStudent = new Dictionary<int, bool>();
+        foreach (var student in students)
+        {
+            presentByStudent[student.stud_id] = true;
+        }
+    }
+
+    private async Task LoadLessonsAsync(AcademyAgainContext context)
+    {
+        lessons = new();
+        if (selectedGroupId == 0)
+        {
+            return;
+        }
+
+        var spent = lessonStatus == "past";
+        var groupName = groups.FirstOrDefault(g => g.group_id == selectedGroupId)?.group_name ?? $"№{selectedGroupId}";
+        var schedule = await context.Schedule
+            .Where(s => s.group == selectedGroupId && s.spent == spent)
+            .OrderBy(s => s.lesson_id)
+            .ToListAsync();
+        foreach (var s in schedule)
+        {
+            lessons.Add(new KeyValuePair<long, string>(s.lesson_id, s.date.HasValue
+                ? $"{s.lesson_id} · {groupName} · {s.date:d}"
+                : $"{s.lesson_id} · {groupName}"));
+        }
+    }
+
+    private async Task OnLessonChanged()
+    {
+        if (selectedLessonId == 0)
+        {
+            presentByStudent = new Dictionary<int, bool>();
+            return;
+        }
+
+        await using var context = DbFactory.CreateDbContext();
+        await LoadStudentsAsync(context);
+
+        var existing = await context.Attendance
+            .Where(a => a.lesson == selectedLessonId && students.Select(s => s.stud_id).Contains(a.student))
+            .ToDictionaryAsync(a => a.student, a => a.present);
+
+        foreach (var student in students)
+        {
+            if (existing.TryGetValue(student.stud_id, out var present))
+            {
+                presentByStudent[student.stud_id] = present;
+            }
+        }
+    }
+
+    private void CheckAll()
+    {
+        foreach (var key in presentByStudent.Keys.ToList())
+        {
+            presentByStudent[key] = true;
+        }
+    }
+
+    private void UncheckAll()
+    {
+        foreach (var key in presentByStudent.Keys.ToList())
+        {
+            presentByStudent[key] = false;
+        }
+    }
+
+    private async Task SaveAttendance()
+    {
+        SaveError = null;
+        using var context = DbFactory.CreateDbContext();
+        foreach (var student in students)
+        {
+            var present = presentByStudent.TryGetValue(student.stud_id, out var p) && p;
+            var attendance = await context.Attendance.FindAsync(student.stud_id, selectedLessonId);
+            if (attendance == null)
+            {
+                context.Attendance.Add(new Attendance
+                {
+                    student = student.stud_id,
+                    lesson = selectedLessonId,
+                    present = present
+                });
+            }
+            else
+            {
+                attendance.present = present;
+            }
+        }
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch
+        {
+            SaveError = "Не удалось сохранить.";
+            return;
+        }
+        NavigationManager.NavigateTo("/attendances");
+    }
+
+    private static string StudentName(Student student)
+        => !string.IsNullOrWhiteSpace(student.middle_name)
+            ? $"{student.last_name} {student.first_name} {student.middle_name}"
+            : $"{student.last_name} {student.first_name}";
+}

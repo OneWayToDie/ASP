@@ -14,7 +14,7 @@
     <h1>Направления</h1>
     <div class="list-actions">
         <input class="form-control search-input" type="search" placeholder="Поиск…" value="@SearchText" @oninput="OnSearchInput" />
-        <button type="button" class="btn btn-outline-secondary" @onclick="ExportCsv">Экспорт CSV</button>
+        <ExportMenu RowBuilder="BuildRows" FileName="directions" />
         <a class="btn btn-primary" href="directions/create">Создать</a>
     </div>
 </div>
@@ -29,7 +29,7 @@
 
 <div class="paginator">
     <span class="badge bg-secondary total-badge">Всего: @TotalCount</span>
-    <AppPaginator State="Pagination" />
+    <AppPaginator State="Pagination" OnPageSizeChanged="HandlePageSizeChanged" />
 </div>
 
 <RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
@@ -51,11 +51,11 @@
         TotalCount = ApplySearch(allItems).Count();
     }
 
-    private async Task ExportCsv()
+    private List<string[]> BuildRows()
     {
         var rows = new List<string[]> { new[] { "Название" } };
         rows.AddRange(ApplySearch(allItems).Select(d => new[] { DirectionName(d) }));
-        await ExportCsvAsync("directions.csv", CsvExport.Build(rows));
+        return rows;
     }
 
     private async Task OnSearchInput(ChangeEventArgs e)

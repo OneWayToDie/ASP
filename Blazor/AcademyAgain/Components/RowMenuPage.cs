@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.QuickGrid;
 using Microsoft.JSInterop;
 
@@ -9,9 +10,12 @@ namespace AcademyAgain.Components
         [Inject]
         private IJSRuntime Js { get; set; } = default!;
 
+        [Inject]
+        private AuthenticationStateProvider Auth { get; set; } = default!;
+
         private DotNetObjectReference<RowMenuPage<T>>? _ref;
 
-        public PaginationState Pagination { get; } = new() { ItemsPerPage = 10 };
+        public PaginationState Pagination { get; } = new() { ItemsPerPage = 25 };
 
         public int TotalCount { get; protected set; }
 
@@ -23,6 +27,9 @@ namespace AcademyAgain.Components
         protected double MenuY { get; private set; }
         protected bool MenuOpen => MenuItems is { Count: > 0 };
 
+        protected bool CanWrite { get; private set; } = true;
+        protected bool CanAdmin { get; private set; }
+
         protected abstract string GetKey(T item);
 
         protected abstract List<RowMenuItem> BuildMenu(string key);
@@ -33,9 +40,18 @@ namespace AcademyAgain.Components
         {
             if (firstRender)
             {
+                var authTask = RefreshAuthAsync();
                 _ref = DotNetObjectReference.Create(this);
                 await Js.InvokeVoidAsync("AcademyRowMenu.register", _ref);
+                await authTask;
             }
+        }
+
+        private async Task RefreshAuthAsync()
+        {
+            var user = (await Auth.GetAuthenticationStateAsync()).User;
+            CanWrite = user.IsInRole("admin") || user.IsInRole("teacher");
+            CanAdmin = user.IsInRole("admin");
         }
 
         [JSInvokable]
@@ -50,10 +66,23 @@ namespace AcademyAgain.Components
         public void RowContextMenu(string key, double x, double y)
         {
             SelectedKey = key;
-            MenuItems = BuildMenu(key);
+            MenuItems = BuildMenu(key).Where(AllowedItem).ToList();
             MenuX = x;
             MenuY = y;
             StateHasChanged();
+        }
+
+        private bool AllowedItem(RowMenuItem item)
+        {
+            if (item.Url.Contains("/create") || item.Url.Contains("/edit") || item.Url.Contains("/delete"))
+            {
+                return CanWrite;
+            }
+            if (item.Url.StartsWith("database/") || item.Url.StartsWith("admin/"))
+            {
+                return CanAdmin;
+            }
+            return true;
         }
 
         protected void CloseMenu()
@@ -76,6 +105,13 @@ namespace AcademyAgain.Components
             => string.IsNullOrWhiteSpace(SearchText) ? source : source.Where(MatchesSearch);
 
         protected async Task ResetPaginationAsync() => await Pagination.SetCurrentPageIndexAsync(0);
+
+        protected async Task HandlePageSizeChanged(int newSize)
+        {
+            Pagination.ItemsPerPage = newSize;
+            await Pagination.SetCurrentPageIndexAsync(0);
+            StateHasChanged();
+        }
 
         protected async Task ExportCsvAsync(string fileName, string content)
         {

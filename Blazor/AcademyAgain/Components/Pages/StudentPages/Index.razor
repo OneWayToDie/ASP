@@ -14,7 +14,7 @@
     <h1>Студенты</h1>
     <div class="list-actions">
         <input class="form-control search-input" type="search" placeholder="Поиск…" value="@SearchText" @oninput="OnSearchInput" />
-        <button type="button" class="btn btn-outline-secondary" @onclick="ExportCsv">Экспорт CSV</button>
+        <ExportMenu RowBuilder="BuildRows" FileName="students" />
         <a class="btn btn-primary" href="students/create">Создать</a>
     </div>
 </div>
@@ -65,7 +65,7 @@
 
 <div class="paginator">
     <span class="badge bg-secondary total-badge">Всего: @TotalCount</span>
-    <AppPaginator State="Pagination" />
+    <AppPaginator State="Pagination" OnPageSizeChanged="HandlePageSizeChanged" />
 </div>
 
 <RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
@@ -134,7 +134,7 @@
         TotalCount = filteredStudents.Count();
     }
 
-    private async Task ExportCsv()
+    private List<string?[]> BuildRows()
     {
         var rows = new List<string?[]>
         {
@@ -144,7 +144,7 @@
         {
             rows.Add(new[] { s.last_name, s.first_name, s.middle_name, GroupName(s.group), GroupDirectionName(s.group), s.birth_date.ToString("dd.MM.yyyy") });
         }
-        await ExportCsvAsync("students.csv", CsvExport.Build(rows));
+        return rows;
     }
 
     protected override bool MatchesSearch(Student s)
