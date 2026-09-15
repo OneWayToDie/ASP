@@ -3,6 +3,7 @@
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
+@using AcademyAgain.Helpers
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 @inherits RowMenuPage<DisciplinesDirectionsRelation>
@@ -11,23 +12,33 @@
 
 <div class="list-header">
     <h1>Дисциплины направлений</h1>
-    <a class="btn btn-primary" href="disciplinesdirectionsrelations/create">Создать</a>
+    <div class="list-actions">
+        <input class="form-control search-input" type="search" placeholder="Поиск…" value="@SearchText" @oninput="OnSearchInput" />
+        <button type="button" class="btn btn-outline-secondary" @onclick="ExportCsv">Экспорт CSV</button>
+        <a class="btn btn-primary" href="disciplinesdirectionsrelations/create">Создать</a>
+    </div>
 </div>
 
-<QuickGrid Class="table context-table" Items="query" ItemKey="relation => relation.direction.ToString() + '_' + relation.discipline.ToString()">
+<QuickGrid Class="table context-table" Items="query" ItemKey="relation => relation.direction.ToString() + '_' + relation.discipline.ToString()" Pagination="Pagination">
     <TemplateColumn Title="Направление" Sortable="true" SortBy="GridSort<DisciplinesDirectionsRelation>.ByAscending(r => DirectionName(r.direction))" Context="relation">
         <div class="row-key @RowClass(relation)" data-item-key="@GetKey(relation)">
-            @DirectionName(relation.direction)
+            <a class="table-link" href="@($"/directions/details?direction_id={relation.direction}")">@DirectionName(relation.direction)</a>
         </div>
     </TemplateColumn>
     <TemplateColumn Title="Дисциплина" Sortable="true" SortBy="GridSort<DisciplinesDirectionsRelation>.ByAscending(r => DisciplineName(r.discipline))" Context="relation">
-        @DisciplineName(relation.discipline)
+        <a class="table-link" href="@($"/disciplines/details?discipline_id={relation.discipline}")">@DisciplineName(relation.discipline)</a>
     </TemplateColumn>
 </QuickGrid>
+
+<div class="paginator">
+    <span class="badge bg-secondary total-badge">Всего: @TotalCount</span>
+    <AppPaginator State="Pagination" />
+</div>
 
 <RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
 
 @code {
+    private List<DisciplinesDirectionsRelation> allItems = new();
     private IQueryable<DisciplinesDirectionsRelation> query = new List<DisciplinesDirectionsRelation>().AsQueryable();
     private Dictionary<int, string> directionNames = new();
     private Dictionary<int, string> disciplineNames = new();
@@ -37,8 +48,38 @@
         await using var context = DbFactory.CreateDbContext();
         directionNames = await context.Directions.ToDictionaryAsync(d => d.direction_id, d => d.direction_name ?? $"№{d.direction_id}");
         disciplineNames = await context.Disciplines.ToDictionaryAsync(d => d.discipline_id, d => d.discipline_name ?? $"№{d.discipline_id}");
-        query = (await context.DisciplinesDirectionsRelation.ToListAsync()).AsQueryable();
+        allItems = await context.DisciplinesDirectionsRelation.ToListAsync();
+        ApplyFilter();
     }
+
+    private void ApplyFilter()
+    {
+        query = ApplySearch(allItems).AsQueryable();
+        TotalCount = ApplySearch(allItems).Count();
+    }
+
+    private async Task ExportCsv()
+    {
+        var rows = new List<string[]>
+        {
+            new[] { "Направление", "Дисциплина" }
+        };
+        foreach (var r in ApplySearch(allItems))
+        {
+            rows.Add(new[] { DirectionName(r.direction), DisciplineName(r.discipline) });
+        }
+        await ExportCsvAsync("disciplinesdirectionsrelations.csv", CsvExport.Build(rows));
+    }
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        SearchText = e.Value?.ToString();
+        ApplyFilter();
+        await ResetPaginationAsync();
+    }
+
+    protected override bool MatchesSearch(DisciplinesDirectionsRelation relation)
+        => TextContains(DirectionName(relation.direction), DisciplineName(relation.discipline));
 
     private string DirectionName(int id)
         => directionNames.TryGetValue(id, out var name) ? name : $"№{id}";

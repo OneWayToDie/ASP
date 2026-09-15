@@ -53,9 +53,17 @@ a:hover, .btn-link:hover
 
 .table thead th 
 {
-    color: var(--app-text-secondary);   /* заголовки колонок — приглушённым цветом */
-    font-weight: 600;                   /* и полужирным */
+    color: #7ee0a0;                          /* ярко-зелёные заголовки колонок — читаются на тёмном фоне */
+    font-weight: 600;                        /* и полужирным */
     border-bottom: 1px solid var(--app-border-strong); /* более заметная линия под шапкой */
+}
+
+/* QuickGrid рендерит заголовок сортируемой колонки как <button class="col-title">,
+   у кнопки цвет текста от UA-стилей браузера и не наследуется от th — красим текст отдельно */
+.table thead th .col-title,
+.table thead th .col-title-text 
+{
+    color: #7ee0a0;
 }
 
 
@@ -75,6 +83,13 @@ a:hover, .btn-link:hover
     {
         color: #a9c9ff;   /* и их вариант при наведении */
     }
+
+/* Стрелки сортировки в шапках — яркими, чтобы были видны на тёмном фоне */
+.table .col-sort-asc .sort-indicator,
+.table .col-sort-desc .sort-indicator 
+{
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M 2 3.25 L 12 20.75 L 22 3.25 L 12 10 z" fill="%237ee0a0"/></svg>') !important;
+}
 
 /* ===== Карточки ===== */
 .card 
@@ -288,6 +303,41 @@ h1:focus
     font-weight: 600;                 /* полужирный */
     letter-spacing: 0.04em;           /* лёгкая разрядка букв */
     text-transform: uppercase;        /* и всё в верхнем регистре — стиль «метки» */
+    display: flex;                    /* чтобы рядом с заголовком встала кнопка-тумблер */
+    align-items: center;
+    gap: 0.5rem;
+    white-space: nowrap;              /* заголовок и кнопка всегда в одну строку */
+}
+
+/* ===== Кнопка-тумблер (свернуть/развернуть блок на дашборде) ===== */
+.collapse-toggle 
+{
+    display: inline-flex;        /* стрелка по центру кнопки */
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;               /* маленькая круглая кнопка */
+    height: 1.5rem;
+    padding: 0;
+    border: 1px solid var(--app-border-strong);
+    border-radius: 50%;
+    background: var(--app-surface-2);
+    color: var(--app-accent);
+    font-size: 0.7rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+
+.collapse-toggle:hover 
+{
+    border-color: var(--app-accent); /* при наведении рамка подсвечивается синим */
+    color: #ffffff;
+}
+
+.collapse-toggle:focus-visible 
+{
+    outline: 2px solid var(--app-accent); /* видимый фокус для клавиатурной навигации */
+    outline-offset: 2px;
 }
 
 /* ===== Сетка карточек на главной ===== */
@@ -335,6 +385,79 @@ h1:focus
     font-size: 0.9rem;                /* мельче цифры */
 }
 
+/* ===== Основные показатели панели управления ===== */
+.dashboard-stats 
+{
+    display: flex;      /* карточки показателей в ряд */
+    flex-wrap: wrap;    /* при нехватке места переносятся */
+    gap: 1rem;          /* зазор между карточками */
+    margin-bottom: 1.5rem;
+}
+
+.dashboard-stats .stat-card 
+{
+    min-width: 160px; /* карточки показателей не слишком узкие */
+}
+
+.dashboard-stats .stat-value 
+{
+    white-space: nowrap; /* числа не переносятся */
+}
+
+/* ===== Ближайшие праздники и выходные ===== */
+.upcoming-list 
+{
+    display: flex;           /* события в столбик */
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.upcoming-item 
+{
+    display: flex;           /* дата, название и бейдж в строку */
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+    padding: 0.55rem 0.9rem;
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    border-radius: 0.5rem;
+}
+
+.upcoming-date 
+{
+    color: var(--app-accent);        /* дата акцентным синим */
+    font-variant-numeric: tabular-nums; /* цифры одной ширины */
+}
+
+.upcoming-name 
+{
+    font-weight: 600; /* название события полужирным */
+}
+
+.badge-holiday 
+{
+    background: rgba(110, 168, 254, 0.18);   /* праздник — синий */
+    color: #bcd7ff;
+}
+
+.badge-daysoff 
+{
+    background: rgba(255, 123, 123, 0.15);   /* выходной — красноватый */
+    color: #ffb3b3;
+}
+
+.table-link 
+{
+    text-decoration: none; /* ссылки в таблице без подчёркивания */
+}
+
+.table-link:hover 
+{
+    text-decoration: underline; /* подчёркивание появляется при наведении */
+}
+
 /* ===== Шапка списка (заголовок + кнопка «Создать») ===== */
 .list-header 
 {
@@ -349,6 +472,121 @@ h1:focus
 .list-header h1 
 {
     margin: 0; /* убираем дефолтный отступ h1, чтобы выровнялся с кнопкой */
+}
+
+.list-actions 
+{
+    display: flex;        /* поиск и кнопки в одну строку */
+    flex-wrap: wrap;      /* при нехватке места переносятся */
+    align-items: center;  /* по вертикали — по центру */
+    gap: 0.75rem;         /* зазор между элементами */
+}
+
+.search-input 
+{
+    width: 240px;            /* фиксированная удобная ширина поля поиска */
+    color: var(--app-text);  /* обычный цвет текста */
+}
+
+.search-input:not(:placeholder-shown) 
+{
+    border-color: var(--app-accent-dim); /* подсветка границы при введённом тексте */
+}
+
+/* ===== Постраничная навигация (собственный пагинатор) ===== */
+.app-paginator 
+{
+    display: flex;             /* кнопки и текст в строку */
+    align-items: center;
+    justify-content: flex-end; /* прижаты к правому краю под таблицей */
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.app-page-btn 
+{
+    display: inline-flex;                 /* стрелка по центру кнопки */
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: 1px solid var(--app-border-strong);
+    border-radius: 6px;
+    background: var(--app-surface-2);
+    color: #ffca7a;                       /* яркие жёлтые стрелки — видны на тёмном фоне */
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+
+.app-page-btn svg 
+{
+    width: 1rem;
+    height: 1rem;
+}
+
+.app-page-btn:hover:not(:disabled) 
+{
+    border-color: var(--app-accent);      /* при наведении рамка синеет */
+    background: var(--app-surface);
+    color: #ffffff;
+}
+
+.app-page-btn:disabled 
+{
+    opacity: 0.35;                         /* недоступные переходы приглушены */
+    cursor: default;
+}
+
+.app-page-btn:focus-visible 
+{
+    outline: 2px solid var(--app-accent); /* видимый фокус для клавиатуры */
+    outline-offset: 2px;
+}
+
+.app-pagination-text 
+{
+    color: var(--app-text-secondary);      /* «Страница X из Y» — вторичным цветом */
+    margin: 0 0.25rem;
+    white-space: nowrap;
+}
+
+.app-pagination-text strong 
+{
+    color: var(--app-text);                /* номера страниц — светлым */
+    font-weight: 700;
+}
+
+/* ===== Счётчик строк (№ в рамках страницы) ===== */
+table.context-table tbody 
+{
+    counter-reset: row-counter;
+}
+
+table.context-table tbody > tr > td:first-child::before 
+{
+    counter-increment: row-counter;
+    content: counter(row-counter) ".";
+    font-weight: 600;
+    color: #6c757d;
+    margin-right: 0.5rem;
+    white-space: nowrap;
+}
+
+/* ===== Нижняя строка: бейдж «Всего: N» + пагинатор ===== */
+.paginator 
+{
+    display: flex;                   /* бейдж слева, пагинатор справа */
+    align-items: center;             /* по вертикали — по центру */
+    justify-content: space-between;  /* слева счётчик, справа навигация */
+    gap: 1rem;                       /* зазор между ними */
+    flex-wrap: wrap;                 /* при нехватке места переносятся */
+}
+
+.paginator .total-badge 
+{
+    font-size: 0.875rem; /* компактный бейдж под колонкой № */
+    padding: 0.4em 0.7em;
 }
 
 /* ===== Улучшения таблиц ===== */
@@ -767,4 +1005,210 @@ h1:focus
     0%, 92%, 100% { transform: scaleY(1); }      /* глаз открыт почти всё время */
     96%           { transform: scaleY(0.06); }   /* резкое закрытие */
     98%           { transform: scaleY(1); }      /* быстрое открытие */
+}
+
+/* ===== Глобальный поиск в шапке ===== */
+.global-search 
+{
+    margin-left: auto; /* прижимаем поле к правому краю шапки */
+    display: flex;
+    align-items: center;
+}
+
+.global-search-input 
+{
+    width: 260px; /* удобная ширина поля */
+    margin-bottom: 0; /* у формы нет отступа снизу */
+}
+
+.global-search-wrap 
+{
+    position: relative; /* опорная точка для выпадающей панели */
+}
+
+/* ===== Выпадающая панель быстрого поиска ===== */
+.gs-dropdown 
+{
+    position: absolute;
+    top: calc(100% + 6px); /* сразу под полем ввода */
+    right: 0;              /* выравниваем по правому краю поля */
+    width: 320px;
+    max-height: 420px;
+    overflow-y: auto;      /* если результатов много — список прокручивается */
+    padding: 0.5rem;
+    background: var(--app-surface-2);
+    border: 1px solid var(--app-border-strong);
+    border-radius: 0.5rem;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5); /* тень, чтобы оторвать панель от шапки */
+    z-index: 1060;         /* поверх всего контента */
+}
+
+.gs-head 
+{
+    display: flex;              /* «Недавние запросы» слева, «Очистить» справа */
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0 0.35rem 0.35rem 0.35rem;
+}
+
+.gs-head-title 
+{
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--app-text-secondary);
+}
+
+.gs-clear 
+{
+    padding: 0;               /* компактная ссылка-кнопка */
+    color: var(--app-accent);
+    text-decoration: none;
+    font-size: 0.85rem;
+}
+
+.gs-clear:hover 
+{
+    color: #a9c9ff;           /* подсветка при наведении */
+    text-decoration: underline;
+}
+
+.gs-group + .gs-group, .gs-group + .gs-footer 
+{
+    margin-top: 0.5rem; /* зазор между категориями */
+}
+
+.gs-group-title 
+{
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--app-text-secondary);
+    margin: 0 0 0.25rem 0.35rem;
+}
+
+.gs-item 
+{
+    display: block;
+    padding: 0.4rem 0.6rem;
+    border-radius: 0.35rem;
+    color: var(--app-text);
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;  /* длинные названия обрезаются многоточием */
+}
+
+.gs-item + .gs-item 
+{
+    margin-top: 2px;
+}
+
+.gs-item:hover 
+{
+    background: var(--app-surface); /* подсветка строки при наведении */
+    color: var(--app-text);
+}
+
+.gs-hint 
+{
+    padding: 0.5rem 0.6rem;
+    color: var(--app-text-secondary);
+    font-size: 0.9rem;
+}
+
+.gs-footer 
+{
+    border-top: 1px solid var(--app-border);
+    margin-top: 0.5rem;
+    padding: 0.5rem 0.35rem 0.1rem 0.35rem;
+}
+
+.gs-footer a 
+{
+    color: var(--app-accent);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.gs-footer a:hover 
+{
+    text-decoration: underline;
+}
+
+/* ===== Хлебные крошки ===== */
+.breadcrumbs 
+{
+    display: flex;              /* элементы крошек в одну строку */
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;                /* зазор между частями */
+    margin-bottom: 0.75rem;     /* отступ от заголовка страницы */
+    font-size: 0.9rem;          /* чуть мельче обычного текста */
+    color: var(--app-text-secondary);
+}
+
+.crumb 
+{
+    text-decoration: none; /* без подчёркивания */
+}
+
+.crumb:hover 
+{
+    text-decoration: underline; /* подчёркивание при наведении */
+}
+
+.crumb-sep 
+{
+    color: var(--app-border-strong); /* разделитель «/» заметно слабее ссылок */
+}
+
+.crumb-current 
+{
+    color: var(--app-text-secondary); /* текущая страница — приглушённым цветом */
+}
+
+/* ===== Страница результатов поиска ===== */
+.search-results 
+{
+    display: flex;                 /* результаты раскладываем в столбик */
+    flex-direction: column;
+    gap: 0.5rem;                   /* зазор между карточками */
+    margin-bottom: 1rem;
+}
+
+.search-result 
+{
+    display: flex;                 /* название и подпись в одну строку */
+    flex-wrap: wrap;
+    align-items: baseline;         /* подпись на одной базовой линии с названием */
+    gap: 0.5rem 1rem;              /* зазоры по вертикали и горизонтали */
+    padding: 0.6rem 0.9rem;        /* внутренние отступы карточки */
+    background: var(--app-surface);/* фон как у карточек */
+    border: 1px solid var(--app-border);
+    border-radius: 0.5rem;
+    text-decoration: none;         /* без подчёркивания */
+    color: var(--app-text);        /* обычный цвет текста */
+}
+
+.search-result:hover 
+{
+    border-color: var(--app-accent-dim); /* рамка подсвечивается при наведении */
+    color: var(--app-text);
+}
+
+.search-result-title 
+{
+    font-weight: 600; /* название результата полужирным */
+}
+
+.search-result-sub 
+{
+    color: var(--app-text-secondary); /* подпись — приглушённым цветом */
+    font-size: 0.9rem;
+}
+
+.search-more 
+{
+    font-size: 0.9rem; /* пояснение про лимит выборки мельче */
 }

@@ -12,10 +12,14 @@
 
 <div class="list-header">
     <h1>Преподаватели</h1>
-    <a class="btn btn-primary" href="teachers/create">Создать</a>
+    <div class="list-actions">
+        <input class="form-control search-input" type="search" placeholder="Поиск…" value="@SearchText" @oninput="OnSearchInput" />
+        <button type="button" class="btn btn-outline-secondary" @onclick="ExportCsv">Экспорт CSV</button>
+        <a class="btn btn-primary" href="teachers/create">Создать</a>
+    </div>
 </div>
 
-<QuickGrid Class="table context-table" Items="query" ItemKey="teacher => teacher.teacher_id">
+<QuickGrid Class="table context-table" Items="query" ItemKey="teacher => teacher.teacher_id" Pagination="Pagination">
     <TemplateColumn Title="Фото" Context="teacher">
         <div class="row-key @RowClass(teacher)" data-item-key="@GetKey(teacher)">
             @if (Photo.DataSrc(teacher.photo) is string src)
@@ -38,16 +42,59 @@
     <PropertyColumn Property="teacher => teacher.rate" Title="Ставка" Sortable="true" />
 </QuickGrid>
 
+<div class="paginator">
+    <span class="badge bg-secondary total-badge">Всего: @TotalCount</span>
+    <AppPaginator State="Pagination" />
+</div>
+
 <RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
 
 @code {
+    private List<Teacher> allItems = new();
     private IQueryable<Teacher> query = new List<Teacher>().AsQueryable();
 
     protected override async Task OnInitializedAsync()
     {
         await using var context = DbFactory.CreateDbContext();
-        query = (await context.Teachers.ToListAsync()).AsQueryable();
+        allItems = await context.Teachers.ToListAsync();
+        ApplyFilter();
     }
+
+    private void ApplyFilter()
+    {
+        query = ApplySearch(allItems).AsQueryable();
+        TotalCount = ApplySearch(allItems).Count();
+    }
+
+    private async Task ExportCsv()
+    {
+        var rows = new List<string?[]>
+        {
+            new[] { "Фамилия", "Имя", "Отчество", "Дата рождения", "Email", "Телефон", "Работает с", "Ставка" }
+        };
+        foreach (var t in ApplySearch(allItems))
+        {
+            rows.Add(new[]
+            {
+                t.last_name, t.first_name, t.middle_name,
+                t.birth_date?.ToString("dd.MM.yyyy"), t.email, t.phone,
+                t.work_since?.ToString("dd.MM.yyyy"), t.rate?.ToString()
+            });
+        }
+        await ExportCsvAsync("teachers.csv", CsvExport.Build(rows));
+    }
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        SearchText = e.Value?.ToString();
+        ApplyFilter();
+        await ResetPaginationAsync();
+    }
+
+    protected override bool MatchesSearch(Teacher teacher)
+        => TextContains(
+            teacher.last_name, teacher.first_name, teacher.middle_name,
+            teacher.email, teacher.phone);
 
     protected override string GetKey(Teacher teacher) => teacher.teacher_id.ToString();
 

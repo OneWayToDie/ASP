@@ -4,33 +4,40 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>РџРѕРґСЂРѕР±РЅРѕСЃС‚Рё: РїСЂРµРїРѕРґР°РІР°С‚РµР»СЊ Рё РґРёСЃС†РёРїР»РёРЅР°</PageTitle>
+<PageTitle>Профиль: преподаватель и дисциплина</PageTitle>
 
-<h1>РџРѕРґСЂРѕР±РЅРѕСЃС‚Рё: РїСЂРµРїРѕРґР°РІР°С‚РµР»СЊ Рё РґРёСЃС†РёРїР»РёРЅР°</h1>
+<Breadcrumbs Items="Crumbs" />
+
+<h1>Профиль: преподаватель и дисциплина</h1>
 
 <hr />
 @if (relation is null)
 {
-    <p><em>Р—Р°РіСЂСѓР·РєР°...</em></p>
+    <p><em>Загрузка...</em></p>
 }
 else
 {
     <dl class="row">
-        <dt class="col-sm-2">РџСЂРµРїРѕРґР°РІР°С‚РµР»СЊ</dt>
-        <dd class="col-sm-10">@TeacherName</dd>
-        <dt class="col-sm-2">Р”РёСЃС†РёРїР»РёРЅР°</dt>
-        <dd class="col-sm-10">@DisciplineName</dd>
+        <dt class="col-sm-2">Преподаватель</dt>
+        <dd class="col-sm-10"><a href="@($"/teachers/details?teacher_id={relation.teacher}")">@TeacherName</a></dd>
+        <dt class="col-sm-2">Дисциплина</dt>
+        <dd class="col-sm-10"><a href="@($"/disciplines/details?discipline_id={relation.discipline}")">@DisciplineName</a></dd>
     </dl>
     <div>
-        <a href="@($"/teachersdisciplinesrelations/edit?teacher={relation.teacher}&discipline={relation.discipline}")">РР·РјРµРЅРёС‚СЊ</a> |
-        <a href="@($"/teachersdisciplinesrelations")">РќР°Р·Р°Рґ Рє СЃРїРёСЃРєСѓ</a>
+        <a href="@($"/teachersdisciplinesrelations/edit?teacher={relation.teacher}&discipline={relation.discipline}")">Изменить</a> |
+        <a href="@($"/teachersdisciplinesrelations")">Назад к списку</a>
     </div>
 }
 
 @code {
+    private static readonly Breadcrumbs.Crumb[] Crumbs = new[]
+    {
+        new Breadcrumbs.Crumb("Преподаватели и дисциплины", "/teachersdisciplinesrelations"),
+        new Breadcrumbs.Crumb("Профиль")
+    };
     private TeachersDisciplinesRelation? relation;
-    private string? TeacherName = "вЂ”";
-    private string? DisciplineName = "вЂ”";
+    private string? TeacherName = "—";
+    private string? DisciplineName = "—";
 
     [SupplyParameterFromQuery]
     private int teacher { get; set; }
@@ -50,11 +57,11 @@ else
         else
         {
             var teacherEntity = await context.Teachers.FirstOrDefaultAsync(t => t.teacher_id == relation.teacher);
-            TeacherName = teacherEntity is null ? "вЂ”" : FullName(teacherEntity);
+            TeacherName = teacherEntity is null ? "—" : FullName(teacherEntity);
             DisciplineName = await context.Disciplines
                 .Where(d => d.discipline_id == relation.discipline)
                 .Select(d => d.discipline_name)
-                .FirstOrDefaultAsync() ?? "вЂ”";
+                .FirstOrDefaultAsync() ?? "—";
         }
     }
 

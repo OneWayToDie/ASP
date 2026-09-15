@@ -12,7 +12,11 @@
 
 <div class="list-header">
     <h1>Группы</h1>
-    <a class="btn btn-primary" href="groups/create">Создать</a>
+    <div class="list-actions">
+        <input class="form-control search-input" type="search" placeholder="Поиск…" value="@SearchText" @oninput="OnSearchInput" />
+        <button type="button" class="btn btn-outline-secondary" @onclick="ExportCsv">Экспорт CSV</button>
+        <a class="btn btn-primary" href="groups/create">Создать</a>
+    </div>
 </div>
 
 <div class="filter-bar">
@@ -26,14 +30,14 @@
     </select>
 </div>
 
-<QuickGrid Class="table context-table" Items="filteredGroups" ItemKey="g => g.group_id">
+<QuickGrid Class="table context-table" Items="filteredGroups" ItemKey="g => g.group_id" Pagination="Pagination">
     <TemplateColumn Title="Название" Sortable="true" SortBy="GridSort<Group>.ByAscending(g => GroupName(g))" Context="g">
         <div class="row-key @RowClass(g)" data-item-key="@GetKey(g)">
             @GroupName(g)
         </div>
     </TemplateColumn>
     <TemplateColumn Title="Направление" Sortable="true" SortBy="GridSort<Group>.ByAscending(g => DirectionName(g.direction))" Context="g">
-        @DirectionName(g.direction)
+        <a class="table-link" href="@($"/directions/details?direction_id={g.direction}")">@DirectionName(g.direction)</a>
     </TemplateColumn>
     <TemplateColumn Title="Дни недели" Sortable="true" SortBy="GridSort<Group>.ByAscending(g => Weekdays.ToDisplay(g.weekdays))" Context="g">
         @Weekdays.ToDisplay(g.weekdays)
@@ -41,6 +45,11 @@
     <PropertyColumn Property="g => g.start_time" Title="Время начала" Sortable="true" />
     <PropertyColumn Property="g => g.start_date" Title="Дата начала" Sortable="true" />
 </QuickGrid>
+
+<div class="paginator">
+    <span class="badge bg-secondary total-badge">Всего: @TotalCount</span>
+    <AppPaginator State="Pagination" />
+</div>
 
 <RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
 
@@ -58,19 +67,44 @@
         ApplyFilter();
     }
 
-    private void OnDirectionChanged(ChangeEventArgs e)
+    private async Task OnDirectionChanged(ChangeEventArgs e)
     {
         selectedDirection = int.TryParse(e.Value?.ToString(), out var value) ? value : null;
         ApplyFilter();
+        await ResetPaginationAsync();
+    }
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        SearchText = e.Value?.ToString();
+        ApplyFilter();
+        await ResetPaginationAsync();
     }
 
     private void ApplyFilter()
     {
-        filteredGroups = allGroups
+        filteredGroups = ApplySearch(allGroups)
             .Where(g => selectedDirection is null || g.direction == selectedDirection)
             .OrderBy(g => g.group_id)
             .AsQueryable();
+        TotalCount = filteredGroups.Count();
     }
+
+    private async Task ExportCsv()
+    {
+        var rows = new List<string?[]>
+        {
+            new[] { "Название", "Направление", "Дни недели", "Время начала", "Дата начала" }
+        };
+        foreach (var g in filteredGroups)
+        {
+            rows.Add(new[] { GroupName(g), DirectionName(g.direction), Weekdays.ToDisplay(g.weekdays), g.start_time?.ToString(), g.start_date?.ToString("dd.MM.yyyy") });
+        }
+        await ExportCsvAsync("groups.csv", CsvExport.Build(rows));
+    }
+
+    protected override bool MatchesSearch(Group g)
+        => TextContains(GroupName(g), DirectionName(g.direction), Weekdays.ToDisplay(g.weekdays));
 
     private string GroupName(Group g) => g.group_name ?? $"№{g.group_id}";
 

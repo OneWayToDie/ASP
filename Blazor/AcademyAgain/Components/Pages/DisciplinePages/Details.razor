@@ -6,6 +6,8 @@
 
 <PageTitle>Дисциплина: @(discipline?.discipline_name)</PageTitle>
 
+<Breadcrumbs Items="Crumbs" />
+
 <h1>Дисциплина: @(discipline?.discipline_name)</h1>
 
 <hr />
@@ -28,6 +30,11 @@ else
 }
 
 @code {
+    private static readonly Breadcrumbs.Crumb[] Crumbs = new[]
+    {
+        new Breadcrumbs.Crumb("Дисциплины", "/disciplines"),
+        new Breadcrumbs.Crumb("Профиль")
+    };
     private Discipline? discipline;
 
     [SupplyParameterFromQuery]

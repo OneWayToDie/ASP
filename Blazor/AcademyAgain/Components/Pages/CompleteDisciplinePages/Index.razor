@@ -3,6 +3,7 @@
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
+@using AcademyAgain.Helpers
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 @inherits RowMenuPage<CompleteDiscipline>
@@ -11,23 +12,33 @@
 
 <div class="list-header">
     <h1>Пройденные дисциплины</h1>
-    <a class="btn btn-primary" href="completedisciplines/create">Создать</a>
+    <div class="list-actions">
+        <input class="form-control search-input" type="search" placeholder="Поиск…" value="@SearchText" @oninput="OnSearchInput" />
+        <button type="button" class="btn btn-outline-secondary" @onclick="ExportCsv">Экспорт CSV</button>
+        <a class="btn btn-primary" href="completedisciplines/create">Создать</a>
+    </div>
 </div>
 
-<QuickGrid Class="table context-table" Items="query" ItemKey="complete => complete.group.ToString() + '_' + complete.discipline.ToString()">
+<QuickGrid Class="table context-table" Items="query" ItemKey="complete => complete.group.ToString() + '_' + complete.discipline.ToString()" Pagination="Pagination">
     <TemplateColumn Title="Группа" Sortable="true" SortBy="GridSort<CompleteDiscipline>.ByAscending(c => GroupName(c.group))" Context="complete">
         <div class="row-key @RowClass(complete)" data-item-key="@GetKey(complete)">
-            @GroupName(complete.group)
+            <a class="table-link" href="@($"/groups/details?group_id={complete.group}")">@GroupName(complete.group)</a>
         </div>
     </TemplateColumn>
     <TemplateColumn Title="Дисциплина" Sortable="true" SortBy="GridSort<CompleteDiscipline>.ByAscending(c => DisciplineName(c.discipline))" Context="complete">
-        @DisciplineName(complete.discipline)
+        <a class="table-link" href="@($"/disciplines/details?discipline_id={complete.discipline}")">@DisciplineName(complete.discipline)</a>
     </TemplateColumn>
 </QuickGrid>
+
+<div class="paginator">
+    <span class="badge bg-secondary total-badge">Всего: @TotalCount</span>
+    <AppPaginator State="Pagination" />
+</div>
 
 <RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
 
 @code {
+    private List<CompleteDiscipline> allItems = new();
     private IQueryable<CompleteDiscipline> query = new List<CompleteDiscipline>().AsQueryable();
     private Dictionary<int, string> groupNames = new();
     private Dictionary<int, string> disciplineNames = new();
@@ -37,8 +48,38 @@
         await using var context = DbFactory.CreateDbContext();
         groupNames = await context.Groups.ToDictionaryAsync(g => g.group_id, g => g.group_name?.Trim() ?? $"№{g.group_id}");
         disciplineNames = await context.Disciplines.ToDictionaryAsync(d => d.discipline_id, d => d.discipline_name ?? $"№{d.discipline_id}");
-        query = (await context.CompleteDisciplines.ToListAsync()).AsQueryable();
+        allItems = await context.CompleteDisciplines.ToListAsync();
+        ApplyFilter();
     }
+
+    private void ApplyFilter()
+    {
+        query = ApplySearch(allItems).AsQueryable();
+        TotalCount = ApplySearch(allItems).Count();
+    }
+
+    private async Task ExportCsv()
+    {
+        var rows = new List<string[]>
+        {
+            new[] { "Группа", "Дисциплина" }
+        };
+        foreach (var c in ApplySearch(allItems))
+        {
+            rows.Add(new[] { GroupName(c.group), DisciplineName(c.discipline) });
+        }
+        await ExportCsvAsync("completedisciplines.csv", CsvExport.Build(rows));
+    }
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        SearchText = e.Value?.ToString();
+        ApplyFilter();
+        await ResetPaginationAsync();
+    }
+
+    protected override bool MatchesSearch(CompleteDiscipline complete)
+        => TextContains(GroupName(complete.group), DisciplineName(complete.discipline));
 
     private string GroupName(int id)
         => groupNames.TryGetValue(id, out var name) ? name : $"№{id}";

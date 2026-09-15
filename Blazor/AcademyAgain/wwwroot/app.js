@@ -19,6 +19,42 @@
 
     window.AcademyRowMenu = rowMenu;
 
+    window.AcademySearch = {
+        key: 'academySearchHistory',
+        getHistory() {
+            try {
+                const raw = localStorage.getItem(this.key);
+                const arr = raw ? JSON.parse(raw) : [];
+                return Array.isArray(arr) ? arr.filter((x) => typeof x === 'string' && x.trim()) : [];
+            } catch {
+                return [];
+            }
+        },
+        setHistory(items) {
+            try {
+                const clean = Array.isArray(items) ? items.filter((x) => typeof x === 'string' && x.trim()).slice(0, 10) : [];
+                localStorage.setItem(this.key, JSON.stringify(clean));
+            } catch { /* хранилище недоступно — игнорируем */ }
+        },
+        clearHistory() {
+            try {
+                localStorage.removeItem(this.key);
+            } catch { /* хранилище недоступно — игнорируем */ }
+        },
+    };
+
+    window.downloadTextFile = function (filename, text) {
+        const blob = new Blob([text], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
+
     document.addEventListener('contextmenu', (event) => {
         if (!rowMenu.ref) return;
         const key = rowMenu.rowKey(event.target);

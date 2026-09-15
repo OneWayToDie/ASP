@@ -3,6 +3,7 @@
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
+@using AcademyAgain.Helpers
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 @inherits RowMenuPage<TeachersDisciplinesRelation>
@@ -11,23 +12,33 @@
 
 <div class="list-header">
     <h1>Преподаватели и дисциплины</h1>
-    <a class="btn btn-primary" href="teachersdisciplinesrelations/create">Создать</a>
+    <div class="list-actions">
+        <input class="form-control search-input" type="search" placeholder="Поиск…" value="@SearchText" @oninput="OnSearchInput" />
+        <button type="button" class="btn btn-outline-secondary" @onclick="ExportCsv">Экспорт CSV</button>
+        <a class="btn btn-primary" href="teachersdisciplinesrelations/create">Создать</a>
+    </div>
 </div>
 
-<QuickGrid Class="table context-table" Items="query" ItemKey="relation => relation.teacher.ToString() + '_' + relation.discipline.ToString()">
+<QuickGrid Class="table context-table" Items="query" ItemKey="relation => relation.teacher.ToString() + '_' + relation.discipline.ToString()" Pagination="Pagination">
     <TemplateColumn Title="Преподаватель" Sortable="true" SortBy="GridSort<TeachersDisciplinesRelation>.ByAscending(r => TeacherName(r.teacher))" Context="relation">
         <div class="row-key @RowClass(relation)" data-item-key="@GetKey(relation)">
-            @TeacherName(relation.teacher)
+            <a class="table-link" href="@($"/teachers/details?teacher_id={relation.teacher}")">@TeacherName(relation.teacher)</a>
         </div>
     </TemplateColumn>
     <TemplateColumn Title="Дисциплина" Sortable="true" SortBy="GridSort<TeachersDisciplinesRelation>.ByAscending(r => DisciplineName(r.discipline))" Context="relation">
-        @DisciplineName(relation.discipline)
+        <a class="table-link" href="@($"/disciplines/details?discipline_id={relation.discipline}")">@DisciplineName(relation.discipline)</a>
     </TemplateColumn>
 </QuickGrid>
+
+<div class="paginator">
+    <span class="badge bg-secondary total-badge">Всего: @TotalCount</span>
+    <AppPaginator State="Pagination" />
+</div>
 
 <RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
 
 @code {
+    private List<TeachersDisciplinesRelation> allItems = new();
     private IQueryable<TeachersDisciplinesRelation> query = new List<TeachersDisciplinesRelation>().AsQueryable();
     private Dictionary<int, string> teacherNames = new();
     private Dictionary<int, string> disciplineNames = new();
@@ -37,8 +48,38 @@
         await using var context = DbFactory.CreateDbContext();
         teacherNames = await context.Teachers.ToDictionaryAsync(t => t.teacher_id, t => FullName(t));
         disciplineNames = await context.Disciplines.ToDictionaryAsync(d => d.discipline_id, d => d.discipline_name ?? $"№{d.discipline_id}");
-        query = (await context.TeachersDisciplinesRelation.ToListAsync()).AsQueryable();
+        allItems = await context.TeachersDisciplinesRelation.ToListAsync();
+        ApplyFilter();
     }
+
+    private void ApplyFilter()
+    {
+        query = ApplySearch(allItems).AsQueryable();
+        TotalCount = ApplySearch(allItems).Count();
+    }
+
+    private async Task ExportCsv()
+    {
+        var rows = new List<string[]>
+        {
+            new[] { "Преподаватель", "Дисциплина" }
+        };
+        foreach (var r in ApplySearch(allItems))
+        {
+            rows.Add(new[] { TeacherName(r.teacher), DisciplineName(r.discipline) });
+        }
+        await ExportCsvAsync("teachersdisciplinesrelations.csv", CsvExport.Build(rows));
+    }
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        SearchText = e.Value?.ToString();
+        ApplyFilter();
+        await ResetPaginationAsync();
+    }
+
+    protected override bool MatchesSearch(TeachersDisciplinesRelation relation)
+        => TextContains(TeacherName(relation.teacher), DisciplineName(relation.discipline));
 
     private string TeacherName(int id)
         => teacherNames.TryGetValue(id, out var name) && !string.IsNullOrWhiteSpace(name) ? name : $"№{id}";

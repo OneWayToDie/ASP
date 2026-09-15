@@ -3,6 +3,7 @@
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
+@using AcademyAgain.Helpers
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 @inherits RowMenuPage<Salary>
@@ -11,14 +12,18 @@
 
 <div class="list-header">
     <h1>Зарплаты</h1>
-    <a class="btn btn-primary" href="salarys/create">Создать</a>
+    <div class="list-actions">
+        <input class="form-control search-input" type="search" placeholder="Поиск…" value="@SearchText" @oninput="OnSearchInput" />
+        <button type="button" class="btn btn-outline-secondary" @onclick="ExportCsv">Экспорт CSV</button>
+        <a class="btn btn-primary" href="salarys/create">Создать</a>
+    </div>
 </div>
 
-<QuickGrid Class="table context-table" Items="query" ItemKey="salary => salary.payment_id">
+<QuickGrid Class="table context-table" Items="query" ItemKey="salary => salary.payment_id" Pagination="Pagination">
     <PropertyColumn Property="salary => salary.payment_id" Title="№ платежа" Sortable="true" />
     <TemplateColumn Title="Преподаватель" Sortable="true" SortBy="GridSort<Salary>.ByAscending(s => TeacherName(s.teacher))" Context="salary">
         <div class="row-key @RowClass(salary)" data-item-key="@GetKey(salary)">
-            @TeacherName(salary.teacher)
+            <a class="table-link" href="@($"/teachers/details?teacher_id={salary.teacher}")">@TeacherName(salary.teacher)</a>
         </div>
     </TemplateColumn>
     <PropertyColumn Property="salary => salary.accrued" Title="Начислено" Sortable="true" />
@@ -27,9 +32,15 @@
     </TemplateColumn>
 </QuickGrid>
 
+<div class="paginator">
+    <span class="badge bg-secondary total-badge">Всего: @TotalCount</span>
+    <AppPaginator State="Pagination" />
+</div>
+
 <RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
 
 @code {
+    private List<Salary> allItems = new();
     private IQueryable<Salary> query = new List<Salary>().AsQueryable();
     private Dictionary<int, string> teacherNames = new();
 
@@ -39,8 +50,41 @@
         teacherNames = await context.Teachers.ToDictionaryAsync(
             t => t.teacher_id,
             t => $"{t.last_name} {t.first_name} {t.middle_name}".Trim());
-        query = (await context.Salary.ToListAsync()).AsQueryable();
+        allItems = await context.Salary.ToListAsync();
+        ApplyFilter();
     }
+
+    private void ApplyFilter()
+    {
+        query = ApplySearch(allItems).AsQueryable();
+        TotalCount = ApplySearch(allItems).Count();
+    }
+
+    private async Task ExportCsv()
+    {
+        var rows = new List<string[]>
+        {
+            new[] { "№ платежа", "Преподаватель", "Начислено", "Выплачено" }
+        };
+        foreach (var s in ApplySearch(allItems))
+        {
+            rows.Add(new[] { s.payment_id.ToString(), TeacherName(s.teacher), s.accrued.ToString(), s.received ? "да" : "нет" });
+        }
+        await ExportCsvAsync("salarys.csv", CsvExport.Build(rows));
+    }
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        SearchText = e.Value?.ToString();
+        ApplyFilter();
+        await ResetPaginationAsync();
+    }
+
+    protected override bool MatchesSearch(Salary salary)
+        => TextContains(
+            TeacherName(salary.teacher),
+            salary.payment_id.ToString(),
+            salary.received ? "да" : "нет");
 
     private string TeacherName(int id)
         => teacherNames.TryGetValue(id, out var name) ? name : $"№{id}";

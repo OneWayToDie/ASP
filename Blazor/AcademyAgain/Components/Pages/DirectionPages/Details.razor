@@ -6,6 +6,8 @@
 
 <PageTitle>Направление: @direction?.direction_name</PageTitle>
 
+<Breadcrumbs Items="Crumbs" />
+
 <h1>Направление: @direction?.direction_name</h1>
 
 <hr />
@@ -26,6 +28,11 @@ else
 }
 
 @code {
+    private static readonly Breadcrumbs.Crumb[] Crumbs = new[]
+    {
+        new Breadcrumbs.Crumb("Направления", "/directions"),
+        new Breadcrumbs.Crumb("Профиль")
+    };
     private Direction? direction;
 
     [SupplyParameterFromQuery]

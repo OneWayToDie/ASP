@@ -3,6 +3,7 @@
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
+@using AcademyAgain.Helpers
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 @inherits RowMenuPage<Exam>
@@ -11,25 +12,35 @@
 
 <div class="list-header">
     <h1>Экзамены</h1>
-    <a class="btn btn-primary" href="exams/create">Создать</a>
+    <div class="list-actions">
+        <input class="form-control search-input" type="search" placeholder="Поиск…" value="@SearchText" @oninput="OnSearchInput" />
+        <button type="button" class="btn btn-outline-secondary" @onclick="ExportCsv">Экспорт CSV</button>
+        <a class="btn btn-primary" href="exams/create">Создать</a>
+    </div>
 </div>
 
-<QuickGrid Class="table context-table" Items="query" ItemKey="exam => exam.student.ToString() + '_' + exam.discipline.ToString()">
+<QuickGrid Class="table context-table" Items="query" ItemKey="exam => exam.student.ToString() + '_' + exam.discipline.ToString()" Pagination="Pagination">
     <TemplateColumn Title="Студент" Sortable="true" SortBy="GridSort<Exam>.ByAscending(e => StudentName(e.student))" Context="exam">
         <div class="row-key @RowClass(exam)" data-item-key="@GetKey(exam)">
-            @(StudentName(exam.student))
+            <a class="table-link" href="@($"/students/details?stud_id={exam.student}")">@(StudentName(exam.student))</a>
         </div>
     </TemplateColumn>
     <TemplateColumn Title="Дисциплина" Sortable="true" SortBy="GridSort<Exam>.ByAscending(e => DisciplineName(e.discipline))" Context="exam">
-        @(DisciplineName(exam.discipline))
+        <a class="table-link" href="@($"/disciplines/details?discipline_id={exam.discipline}")">@(DisciplineName(exam.discipline))</a>
     </TemplateColumn>
     <PropertyColumn Property="exam => exam.date" Title="Дата" Format="dd.MM.yyyy" Sortable="true" />
     <PropertyColumn Property="exam => exam.grade" Title="Оценка" Sortable="true" />
 </QuickGrid>
 
+<div class="paginator">
+    <span class="badge bg-secondary total-badge">Всего: @TotalCount</span>
+    <AppPaginator State="Pagination" />
+</div>
+
 <RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
 
 @code {
+    private List<Exam> allItems = new();
     private IQueryable<Exam> query = new List<Exam>().AsQueryable();
     private Dictionary<int, string> students = new();
     private Dictionary<int, string> disciplines = new();
@@ -41,8 +52,38 @@
             .ToDictionary(s => s.stud_id, s => StudentName(s));
         disciplines = (await context.Disciplines.OrderBy(d => d.discipline_name).ToListAsync())
             .ToDictionary(d => d.discipline_id, d => d.discipline_name ?? "");
-        query = (await context.Exams.ToListAsync()).AsQueryable();
+        allItems = await context.Exams.ToListAsync();
+        ApplyFilter();
     }
+
+    private void ApplyFilter()
+    {
+        query = ApplySearch(allItems).AsQueryable();
+        TotalCount = ApplySearch(allItems).Count();
+    }
+
+    private async Task ExportCsv()
+    {
+        var rows = new List<string?[]>
+        {
+            new[] { "Студент", "Дисциплина", "Дата", "Оценка" }
+        };
+        foreach (var e in ApplySearch(allItems))
+        {
+            rows.Add(new[] { StudentName(e.student), DisciplineName(e.discipline), e.date?.ToString("dd.MM.yyyy"), e.grade?.ToString() });
+        }
+        await ExportCsvAsync("exams.csv", CsvExport.Build(rows));
+    }
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        SearchText = e.Value?.ToString();
+        ApplyFilter();
+        await ResetPaginationAsync();
+    }
+
+    protected override bool MatchesSearch(Exam exam)
+        => TextContains(StudentName(exam.student), DisciplineName(exam.discipline));
 
     private string StudentName(int id)
         => students.TryGetValue(id, out var name) ? name : $"№{id}";

@@ -3,6 +3,7 @@
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
+@using AcademyAgain.Helpers
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 @inherits RowMenuPage<Holiday>
@@ -11,10 +12,14 @@
 
 <div class="list-header">
     <h1>Праздники</h1>
-    <a class="btn btn-primary" href="holidays/create">Создать</a>
+    <div class="list-actions">
+        <input class="form-control search-input" type="search" placeholder="Поиск…" value="@SearchText" @oninput="OnSearchInput" />
+        <button type="button" class="btn btn-outline-secondary" @onclick="ExportCsv">Экспорт CSV</button>
+        <a class="btn btn-primary" href="holidays/create">Создать</a>
+    </div>
 </div>
 
-<QuickGrid Class="table context-table" Items="query" ItemKey="holiday => holiday.holiday_id">
+<QuickGrid Class="table context-table" Items="query" ItemKey="holiday => holiday.holiday_id" Pagination="Pagination">
     <TemplateColumn Title="Название" Sortable="true" SortBy="GridSort<Holiday>.ByAscending(h => h.holiday_name)" Context="holiday">
         <div class="row-key @RowClass(holiday)" data-item-key="@GetKey(holiday)">
             @HolidayName(holiday)
@@ -27,9 +32,15 @@
     <PropertyColumn Property="holiday => holiday.day" Title="День" Sortable="true" />
 </QuickGrid>
 
+<div class="paginator">
+    <span class="badge bg-secondary total-badge">Всего: @TotalCount</span>
+    <AppPaginator State="Pagination" />
+</div>
+
 <RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
 
 @code {
+    private List<Holiday> allItems = new();
     private IQueryable<Holiday> query = new List<Holiday>().AsQueryable();
 
     private static readonly string[] MonthNames = { "", "январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь" };
@@ -37,8 +48,38 @@
     protected override async Task OnInitializedAsync()
     {
         await using var context = DbFactory.CreateDbContext();
-        query = (await context.Holidays.ToListAsync()).AsQueryable();
+        allItems = await context.Holidays.ToListAsync();
+        ApplyFilter();
     }
+
+    private void ApplyFilter()
+    {
+        query = ApplySearch(allItems).AsQueryable();
+        TotalCount = ApplySearch(allItems).Count();
+    }
+
+    private async Task ExportCsv()
+    {
+        var rows = new List<string?[]>
+        {
+            new[] { "Название", "Длительность", "Месяц", "День" }
+        };
+        foreach (var h in ApplySearch(allItems))
+        {
+            rows.Add(new[] { HolidayName(h), h.duration.ToString(), MonthName(h.month), h.day.ToString() });
+        }
+        await ExportCsvAsync("holidays.csv", CsvExport.Build(rows));
+    }
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        SearchText = e.Value?.ToString();
+        ApplyFilter();
+        await ResetPaginationAsync();
+    }
+
+    protected override bool MatchesSearch(Holiday holiday)
+        => TextContains(holiday.holiday_name, MonthName(holiday.month));
 
     private string HolidayName(Holiday h) => h.holiday_name ?? $"№{h.holiday_id}";
 

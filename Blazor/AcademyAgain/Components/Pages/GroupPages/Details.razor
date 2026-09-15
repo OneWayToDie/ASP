@@ -7,6 +7,8 @@
 
 <PageTitle>Группа: @(group?.group_name)</PageTitle>
 
+<Breadcrumbs Items="Crumbs" />
+
 <h1>Группа: @(group?.group_name)</h1>
 
 <hr />
@@ -20,7 +22,16 @@ else
         <dt class="col-sm-2">Название</dt>
         <dd class="col-sm-10">@group.group_name</dd>
         <dt class="col-sm-2">Направление</dt>
-        <dd class="col-sm-10">@DirectionName</dd>
+        <dd class="col-sm-10">
+            @if (group.direction is int directionId)
+            {
+                <a href="@($"/directions/details?direction_id={directionId}")">@DirectionName</a>
+            }
+            else
+            {
+                @DirectionName
+            }
+        </dd>
         <dt class="col-sm-2">Дни занятий</dt>
         <dd class="col-sm-10">@Weekdays.ToDisplay(group.weekdays)</dd>
         <dt class="col-sm-2">Время начала</dt>
@@ -64,6 +75,11 @@ else
 }
 
 @code {
+    private static readonly Breadcrumbs.Crumb[] Crumbs = new[]
+    {
+        new Breadcrumbs.Crumb("Группы", "/groups"),
+        new Breadcrumbs.Crumb("Профиль")
+    };
     private Group? group;
     private List<Student> students = new();
     private string? DirectionName = "—";

@@ -3,6 +3,7 @@
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
+@using AcademyAgain.Helpers
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 @inherits RowMenuPage<Discipline>
@@ -11,10 +12,14 @@
 
 <div class="list-header">
     <h1>Дисциплины</h1>
-    <a class="btn btn-primary" href="disciplines/create">Создать</a>
+    <div class="list-actions">
+        <input class="form-control search-input" type="search" placeholder="Поиск…" value="@SearchText" @oninput="OnSearchInput" />
+        <button type="button" class="btn btn-outline-secondary" @onclick="ExportCsv">Экспорт CSV</button>
+        <a class="btn btn-primary" href="disciplines/create">Создать</a>
+    </div>
 </div>
 
-<QuickGrid Class="table context-table" Items="query" ItemKey="discipline => discipline.discipline_id">
+<QuickGrid Class="table context-table" Items="query" ItemKey="discipline => discipline.discipline_id" Pagination="Pagination">
     <TemplateColumn Title="Название" Sortable="true" SortBy="GridSort<Discipline>.ByAscending(d => d.discipline_name)" Context="discipline">
         <div class="row-key @RowClass(discipline)" data-item-key="@GetKey(discipline)">
             @DisciplineName(discipline)
@@ -23,16 +28,49 @@
     <PropertyColumn Property="discipline => discipline.number_of_lessons" Title="Кол-во занятий" Sortable="true" />
 </QuickGrid>
 
+<div class="paginator">
+    <span class="badge bg-secondary total-badge">Всего: @TotalCount</span>
+    <AppPaginator State="Pagination" />
+</div>
+
 <RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
 
 @code {
+    private List<Discipline> allItems = new();
     private IQueryable<Discipline> query = new List<Discipline>().AsQueryable();
 
     protected override async Task OnInitializedAsync()
     {
         await using var context = DbFactory.CreateDbContext();
-        query = (await context.Disciplines.ToListAsync()).AsQueryable();
+        allItems = await context.Disciplines.ToListAsync();
+        ApplyFilter();
     }
+
+    private void ApplyFilter()
+    {
+        query = ApplySearch(allItems).AsQueryable();
+        TotalCount = ApplySearch(allItems).Count();
+    }
+
+    private async Task ExportCsv()
+    {
+        var rows = new List<string[]>
+        {
+            new[] { "Название", "Кол-во занятий" }
+        };
+        rows.AddRange(ApplySearch(allItems).Select(d => new[] { DisciplineName(d), d.number_of_lessons.ToString() }));
+        await ExportCsvAsync("disciplines.csv", CsvExport.Build(rows));
+    }
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        SearchText = e.Value?.ToString();
+        ApplyFilter();
+        await ResetPaginationAsync();
+    }
+
+    protected override bool MatchesSearch(Discipline discipline)
+        => TextContains(discipline.discipline_name);
 
     private string DisciplineName(Discipline d) => d.discipline_name ?? $"№{d.discipline_id}";
 

@@ -6,6 +6,8 @@
 
 <PageTitle>Посещаемость</PageTitle>
 
+<Breadcrumbs Items="Crumbs" />
+
 <h1>Посещаемость</h1>
 
 <hr />
@@ -17,9 +19,9 @@ else
 {
     <dl class="row">
         <dt class="col-sm-2">Студент</dt>
-        <dd class="col-sm-10">@StudentName</dd>
+        <dd class="col-sm-10"><a href="@($"/students/details?stud_id={attendance.student}")">@StudentName</a></dd>
         <dt class="col-sm-2">Занятие</dt>
-        <dd class="col-sm-10">@LessonName</dd>
+        <dd class="col-sm-10"><a href="@($"/schedules/details?lesson_id={attendance.lesson}")">@LessonName</a></dd>
         <dt class="col-sm-2">Присутствовал</dt>
         <dd class="col-sm-10">@(attendance.present ? "Да" : "Нет")</dd>
     </dl>
@@ -30,6 +32,11 @@ else
 }
 
 @code {
+    private static readonly Breadcrumbs.Crumb[] Crumbs = new[]
+    {
+        new Breadcrumbs.Crumb("Посещаемость", "/attendances"),
+        new Breadcrumbs.Crumb("Посещаемость")
+    };
     private Attendance? attendance;
     private string? StudentName = "—";
     private string? LessonName = "—";

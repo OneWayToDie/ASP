@@ -6,6 +6,8 @@
 
 <PageTitle>Оценка</PageTitle>
 
+<Breadcrumbs Items="Crumbs" />
+
 <h1>Оценка</h1>
 
 <hr />
@@ -17,9 +19,9 @@ else
 {
     <dl class="row">
         <dt class="col-sm-2">Студент</dt>
-        <dd class="col-sm-10">@StudentName</dd>
+        <dd class="col-sm-10"><a href="@($"/students/details?stud_id={grade.student}")">@StudentName</a></dd>
         <dt class="col-sm-2">Занятие</dt>
-        <dd class="col-sm-10">@LessonName</dd>
+        <dd class="col-sm-10"><a href="@($"/schedules/details?lesson_id={grade.lesson}")">@LessonName</a></dd>
         <dt class="col-sm-2">Оценка 1</dt>
         <dd class="col-sm-10">@(grade.grade_1?.ToString() ?? "—")</dd>
         <dt class="col-sm-2">Оценка 2</dt>
@@ -32,6 +34,11 @@ else
 }
 
 @code {
+    private static readonly Breadcrumbs.Crumb[] Crumbs = new[]
+    {
+        new Breadcrumbs.Crumb("Оценки", "/grades"),
+        new Breadcrumbs.Crumb("Оценка")
+    };
     private Grade? grade;
     private string? StudentName = "—";
     private string? LessonName = "—";

@@ -7,6 +7,8 @@
 
 <PageTitle>Профиль: @(teacher?.last_name) @(teacher?.first_name)</PageTitle>
 
+<Breadcrumbs Items="Crumbs" />
+
 @if (teacher is null)
 {
     <p><em>Загрузка...</em></p>
@@ -79,9 +81,9 @@ else
                     else
                     {
                         <ul class="mb-0">
-                            @foreach (var name in Disciplines)
+                            @foreach (var d in Disciplines)
                             {
-                                <li>@name</li>
+                                <li><a href="@($"/disciplines/details?discipline_id={d.Id}")">@d.Name</a></li>
                             }
                         </ul>
                     }
@@ -147,6 +149,12 @@ else
 }
 
 @code {
+    private static readonly Breadcrumbs.Crumb[] Crumbs = new[]
+    {
+        new Breadcrumbs.Crumb("Преподаватели", "/teachers"),
+        new Breadcrumbs.Crumb("Профиль")
+    };
+
     private sealed record LessonRow(string Group, string Discipline, string Date);
     private sealed record SalaryRow(long Id, decimal Accrued, bool Received);
 
@@ -157,7 +165,7 @@ else
     private decimal SalaryTotal;
     private decimal SalaryPaid;
 
-    private List<string> Disciplines = new();
+    private List<(int Id, string Name)> Disciplines = new();
     private List<LessonRow> Lessons = new();
     private List<SalaryRow> Salaries = new();
 
@@ -187,9 +195,11 @@ else
             .OrderBy(r => r.discipline)
             .ToListAsync();
         Disciplines = relations
-            .Select(r => disciplines.TryGetValue(r.discipline, out var disc) && !string.IsNullOrWhiteSpace(disc.discipline_name)
-                ? disc.discipline_name!
-                : $"№{r.discipline}")
+            .Select(r => (
+                Id: r.discipline,
+                Name: disciplines.TryGetValue(r.discipline, out var disc) && !string.IsNullOrWhiteSpace(disc.discipline_name)
+                    ? disc.discipline_name!
+                    : $"№{r.discipline}"))
             .ToList();
         DisciplinesCount = Disciplines.Count;
 

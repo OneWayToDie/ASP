@@ -6,6 +6,8 @@
 
 <PageTitle>Экзамен</PageTitle>
 
+<Breadcrumbs Items="Crumbs" />
+
 <h1>Экзамен</h1>
 
 <hr />
@@ -17,9 +19,9 @@ else
 {
     <dl class="row">
         <dt class="col-sm-2">Студент</dt>
-        <dd class="col-sm-10">@StudentName</dd>
+        <dd class="col-sm-10"><a href="@($"/students/details?stud_id={exam.student}")">@StudentName</a></dd>
         <dt class="col-sm-2">Дисциплина</dt>
-        <dd class="col-sm-10">@DisciplineName</dd>
+        <dd class="col-sm-10"><a href="@($"/disciplines/details?discipline_id={exam.discipline}")">@DisciplineName</a></dd>
         <dt class="col-sm-2">Дата</dt>
         <dd class="col-sm-10">@(exam.date?.ToString("dd.MM.yyyy") ?? "—")</dd>
         <dt class="col-sm-2">Оценка</dt>
@@ -32,6 +34,11 @@ else
 }
 
 @code {
+    private static readonly Breadcrumbs.Crumb[] Crumbs = new[]
+    {
+        new Breadcrumbs.Crumb("Экзамены", "/exams"),
+        new Breadcrumbs.Crumb("Экзамен")
+    };
     private Exam? exam;
     private string? StudentName = "—";
     private string? DisciplineName = "—";

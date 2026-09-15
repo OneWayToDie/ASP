@@ -3,6 +3,7 @@
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
+@using AcademyAgain.Helpers
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 @inherits RowMenuPage<Direction>
@@ -11,10 +12,14 @@
 
 <div class="list-header">
     <h1>Направления</h1>
-    <a class="btn btn-primary" href="directions/create">Создать</a>
+    <div class="list-actions">
+        <input class="form-control search-input" type="search" placeholder="Поиск…" value="@SearchText" @oninput="OnSearchInput" />
+        <button type="button" class="btn btn-outline-secondary" @onclick="ExportCsv">Экспорт CSV</button>
+        <a class="btn btn-primary" href="directions/create">Создать</a>
+    </div>
 </div>
 
-<QuickGrid Class="table context-table" Items="query" ItemKey="direction => direction.direction_id">
+<QuickGrid Class="table context-table" Items="query" ItemKey="direction => direction.direction_id" Pagination="Pagination">
     <TemplateColumn Title="Название" Sortable="true" SortBy="GridSort<Direction>.ByAscending(d => d.direction_name)" Context="direction">
         <div class="row-key @RowClass(direction)" data-item-key="@GetKey(direction)">
             @DirectionName(direction)
@@ -22,16 +27,46 @@
     </TemplateColumn>
 </QuickGrid>
 
+<div class="paginator">
+    <span class="badge bg-secondary total-badge">Всего: @TotalCount</span>
+    <AppPaginator State="Pagination" />
+</div>
+
 <RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
 
 @code {
+    private List<Direction> allItems = new();
     private IQueryable<Direction> query = new List<Direction>().AsQueryable();
 
     protected override async Task OnInitializedAsync()
     {
         await using var context = DbFactory.CreateDbContext();
-        query = (await context.Directions.ToListAsync()).AsQueryable();
+        allItems = await context.Directions.ToListAsync();
+        ApplyFilter();
     }
+
+    private void ApplyFilter()
+    {
+        query = ApplySearch(allItems).AsQueryable();
+        TotalCount = ApplySearch(allItems).Count();
+    }
+
+    private async Task ExportCsv()
+    {
+        var rows = new List<string[]> { new[] { "Название" } };
+        rows.AddRange(ApplySearch(allItems).Select(d => new[] { DirectionName(d) }));
+        await ExportCsvAsync("directions.csv", CsvExport.Build(rows));
+    }
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        SearchText = e.Value?.ToString();
+        ApplyFilter();
+        await ResetPaginationAsync();
+    }
+
+    protected override bool MatchesSearch(Direction direction)
+        => TextContains(direction.direction_name);
 
     private string DirectionName(Direction d) => d.direction_name ?? $"№{d.direction_id}";
 

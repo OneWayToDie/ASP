@@ -4,33 +4,40 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>РџРѕРґСЂРѕР±РЅРѕСЃС‚Рё: РґРёСЃС†РёРїР»РёРЅР° РЅР°РїСЂР°РІР»РµРЅРёСЏ</PageTitle>
+<PageTitle>Профиль: дисциплина направления</PageTitle>
 
-<h1>РџРѕРґСЂРѕР±РЅРѕСЃС‚Рё: РґРёСЃС†РёРїР»РёРЅР° РЅР°РїСЂР°РІР»РµРЅРёСЏ</h1>
+<Breadcrumbs Items="Crumbs" />
+
+<h1>Профиль: дисциплина направления</h1>
 
 <hr />
 @if (relation is null)
 {
-    <p><em>Р—Р°РіСЂСѓР·РєР°...</em></p>
+    <p><em>Загрузка...</em></p>
 }
 else
 {
     <dl class="row">
-        <dt class="col-sm-2">РќР°РїСЂР°РІР»РµРЅРёРµ</dt>
-        <dd class="col-sm-10">@DirectionName</dd>
-        <dt class="col-sm-2">Р”РёСЃС†РёРїР»РёРЅР°</dt>
-        <dd class="col-sm-10">@DisciplineName</dd>
+        <dt class="col-sm-2">Направление</dt>
+        <dd class="col-sm-10"><a href="@($"/directions/details?direction_id={relation.direction}")">@DirectionName</a></dd>
+        <dt class="col-sm-2">Дисциплина</dt>
+        <dd class="col-sm-10"><a href="@($"/disciplines/details?discipline_id={relation.discipline}")">@DisciplineName</a></dd>
     </dl>
     <div>
-        <a href="@($"/disciplinesdirectionsrelations/edit?direction={relation.direction}&discipline={relation.discipline}")">РР·РјРµРЅРёС‚СЊ</a> |
-        <a href="@($"/disciplinesdirectionsrelations")">РќР°Р·Р°Рґ Рє СЃРїРёСЃРєСѓ</a>
+        <a href="@($"/disciplinesdirectionsrelations/edit?direction={relation.direction}&discipline={relation.discipline}")">Изменить</a> |
+        <a href="@($"/disciplinesdirectionsrelations")">Назад к списку</a>
     </div>
 }
 
 @code {
+    private static readonly Breadcrumbs.Crumb[] Crumbs = new[]
+    {
+        new Breadcrumbs.Crumb("Дисциплины направлений", "/disciplinesdirectionsrelations"),
+        new Breadcrumbs.Crumb("Профиль")
+    };
     private DisciplinesDirectionsRelation? relation;
-    private string? DirectionName = "вЂ”";
-    private string? DisciplineName = "вЂ”";
+    private string? DirectionName = "—";
+    private string? DisciplineName = "—";
 
     [SupplyParameterFromQuery]
     private int direction { get; set; }
@@ -52,11 +59,11 @@ else
             DirectionName = await context.Directions
                 .Where(d => d.direction_id == relation.direction)
                 .Select(d => d.direction_name)
-                .FirstOrDefaultAsync() ?? "вЂ”";
+                .FirstOrDefaultAsync() ?? "—";
             DisciplineName = await context.Disciplines
                 .Where(d => d.discipline_id == relation.discipline)
                 .Select(d => d.discipline_name)
-                .FirstOrDefaultAsync() ?? "вЂ”";
+                .FirstOrDefaultAsync() ?? "—";
         }
     }
 }

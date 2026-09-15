@@ -12,7 +12,11 @@
 
 <div class="list-header">
     <h1>Студенты</h1>
-    <a class="btn btn-primary" href="students/create">Создать</a>
+    <div class="list-actions">
+        <input class="form-control search-input" type="search" placeholder="Поиск…" value="@SearchText" @oninput="OnSearchInput" />
+        <button type="button" class="btn btn-outline-secondary" @onclick="ExportCsv">Экспорт CSV</button>
+        <a class="btn btn-primary" href="students/create">Создать</a>
+    </div>
 </div>
 
 <div class="filter-bar">
@@ -34,7 +38,7 @@
     </select>
 </div>
 
-<QuickGrid Class="table context-table" Items="filteredStudents" ItemKey="s => s.stud_id">
+<QuickGrid Class="table context-table" Items="filteredStudents" ItemKey="s => s.stud_id" Pagination="Pagination">
     <TemplateColumn Title="Фото" Context="s">
         <div class="row-key @RowClass(s)" data-item-key="@GetKey(s)">
             @if (Photo.DataSrc(s.photo) is string src)
@@ -51,13 +55,18 @@
     <PropertyColumn Property="s => s.first_name" Title="Имя" Sortable="true" />
     <PropertyColumn Property="s => s.middle_name" Title="Отчество" Sortable="true" />
     <TemplateColumn Title="Группа" Sortable="true" SortBy="GridSort<Student>.ByAscending(s => GroupName(s.group))" Context="s">
-        @GroupName(s.group)
+        <a class="table-link" href="@($"/groups/details?group_id={s.group}")">@GroupName(s.group)</a>
     </TemplateColumn>
     <TemplateColumn Title="Направление" Sortable="true" SortBy="GridSort<Student>.ByAscending(s => GroupDirectionName(s.group))" Context="s">
         @GroupDirectionName(s.group)
     </TemplateColumn>
     <PropertyColumn Property="s => s.birth_date" Title="Дата рождения" Sortable="true" />
 </QuickGrid>
+
+<div class="paginator">
+    <span class="badge bg-secondary total-badge">Всего: @TotalCount</span>
+    <AppPaginator State="Pagination" />
+</div>
 
 <RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
 
@@ -97,9 +106,16 @@
         ApplyFilter();
     }
 
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        SearchText = e.Value?.ToString();
+        ApplyFilter();
+        await ResetPaginationAsync();
+    }
+
     private void ApplyFilter()
     {
-        IEnumerable<Student> query = allStudents;
+        IEnumerable<Student> query = ApplySearch(allStudents);
 
         if (selectedGroup is int groupId)
         {
@@ -115,7 +131,26 @@
         }
 
         filteredStudents = query.OrderBy(s => s.last_name).ThenBy(s => s.first_name).AsQueryable();
+        TotalCount = filteredStudents.Count();
     }
+
+    private async Task ExportCsv()
+    {
+        var rows = new List<string?[]>
+        {
+            new[] { "Фамилия", "Имя", "Отчество", "Группа", "Направление", "Дата рождения" }
+        };
+        foreach (var s in filteredStudents)
+        {
+            rows.Add(new[] { s.last_name, s.first_name, s.middle_name, GroupName(s.group), GroupDirectionName(s.group), s.birth_date.ToString("dd.MM.yyyy") });
+        }
+        await ExportCsvAsync("students.csv", CsvExport.Build(rows));
+    }
+
+    protected override bool MatchesSearch(Student s)
+        => TextContains(
+            s.last_name, s.first_name, s.middle_name,
+            GroupName(s.group), GroupDirectionName(s.group));
 
     private string GroupName(int? id)
         => allGroups.FirstOrDefault(g => g.group_id == id)?.group_name ?? "—";

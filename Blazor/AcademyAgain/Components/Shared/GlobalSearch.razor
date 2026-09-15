@@ -1,0 +1,295 @@
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JS
+
+<div class="global-search">
+    <div class="global-search-wrap">
+        <input
+            class="form-control search-input global-search-input"
+            type="search"
+            autocomplete="off"
+            placeholder="Быстрый поиск…"
+            value="@Input"
+            @oninput="OnInput"
+            @onkeydown="OnKeyDown"
+            @onblur="Close"
+            aria-expanded="@Open.ToString().ToLowerInvariant()" />
+
+        @if (Open)
+        {
+            <div class="gs-dropdown" @onmousedown:preventDefault="true">
+                @if (ShowHistory)
+                {
+                    @if (History.Count == 0)
+                    {
+                        <div class="gs-hint">Начните вводить запрос (минимум 3 символа)</div>
+                    }
+                    else
+                    {
+                        <div class="gs-head">
+                            <span class="gs-head-title">Недавние запросы</span>
+                            <button type="button" class="btn btn-sm btn-link gs-clear" @onclick="ClearHistory">Очистить</button>
+                        </div>
+                        <div class="gs-group">
+                            @foreach (var item in History)
+                            {
+                                var url = $"/search?q={Uri.EscapeDataString(item)}";
+                                <a class="gs-item" href="@url" @onclick:preventDefault="true" @onclick="() => GoQuery(item)">
+                                    @item
+                                </a>
+                            }
+                        </div>
+                    }
+                }
+                else
+                {
+                    @if (Searching)
+                    {
+                        <div class="gs-hint">Ищем…</div>
+                    }
+                    else if (TotalMatches == 0)
+                    {
+                        <div class="gs-hint">Ничего не найдено по запросу «@Input!.Trim()»</div>
+                    }
+                    else
+                    {
+                        @if (Students.Count > 0)
+                        {
+                            <div class="gs-group">
+                                <div class="gs-group-title">Студенты</div>
+                                @foreach (var hit in Students)
+                                {
+                                    <a class="gs-item" href="@hit.Url">@hit.Title</a>
+                                }
+                            </div>
+                        }
+                        @if (Teachers.Count > 0)
+                        {
+                            <div class="gs-group">
+                                <div class="gs-group-title">Преподаватели</div>
+                                @foreach (var hit in Teachers)
+                                {
+                                    <a class="gs-item" href="@hit.Url">@hit.Title</a>
+                                }
+                            </div>
+                        }
+                        @if (Groups.Count > 0)
+                        {
+                            <div class="gs-group">
+                                <div class="gs-group-title">Группы</div>
+                                @foreach (var hit in Groups)
+                                {
+                                    <a class="gs-item" href="@hit.Url">@hit.Title</a>
+                                }
+                            </div>
+                        }
+                        @if (Disciplines.Count > 0)
+                        {
+                            <div class="gs-group">
+                                <div class="gs-group-title">Дисциплины</div>
+                                @foreach (var hit in Disciplines)
+                                {
+                                    <a class="gs-item" href="@hit.Url">@hit.Title</a>
+                                }
+                            </div>
+                        }
+                        @if (Directions.Count > 0)
+                        {
+                            <div class="gs-group">
+                                <div class="gs-group-title">Направления</div>
+                                @foreach (var hit in Directions)
+                                {
+                                    <a class="gs-item" href="@hit.Url">@hit.Title</a>
+                                }
+                            </div>
+                        }
+                        <div class="gs-footer">
+                            <a href="@($"/search?q={Uri.EscapeDataString(Input!.Trim())}")" @onclick:preventDefault="true" @onclick="GoAllResults">Все результаты →</a>
+                        </div>
+                    }
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private string? Input;
+    private bool Open;
+    private bool Searching;
+    private List<string> History = new();
+    private List<SearchHit> Students = new();
+    private List<SearchHit> Teachers = new();
+    private List<SearchHit> Groups = new();
+    private List<SearchHit> Disciplines = new();
+    private List<SearchHit> Directions = new();
+
+    private CancellationTokenSource? Debounce;
+
+    private bool ShowHistory => string.IsNullOrWhiteSpace(Input) || Input.Trim().Length < 3;
+
+    private int TotalMatches
+        => Students.Count + Teachers.Count + Groups.Count + Disciplines.Count + Directions.Count;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        var history = await JS.InvokeAsync<string[]>("AcademySearch.getHistory");
+        History = (history ?? Array.Empty<string>()).Where(h => !string.IsNullOrWhiteSpace(h)).Take(10).ToList();
+        StateHasChanged();
+    }
+
+    private void OnInput(ChangeEventArgs e)
+    {
+        Input = e.Value?.ToString();
+        Open = true;
+        Debounce?.Cancel();
+
+        if (Input is null || Input.Trim().Length < 3)
+        {
+            ResetMatches();
+            return;
+        }
+
+        Debounce = new CancellationTokenSource();
+        _ = SearchAfterDelayAsync(Debounce.Token);
+    }
+
+    private async Task SearchAfterDelayAsync(CancellationToken token)
+    {
+        await Task.Delay(250, token);
+        if (token.IsCancellationRequested) return;
+        await RunSearchAsync(token);
+    }
+
+    private async Task RunSearchAsync(CancellationToken token)
+    {
+        var query = Input?.Trim();
+        if (string.IsNullOrEmpty(query) || query.Length < 3)
+        {
+            ResetMatches();
+            return;
+        }
+
+        Searching = true;
+        StateHasChanged();
+
+        await using var context = DbFactory.CreateDbContext();
+
+        Students = (await context.Students
+            .Where(s => s.last_name.Contains(query) || s.first_name.Contains(query) || (s.middle_name != null && s.middle_name.Contains(query)))
+            .OrderBy(s => s.last_name).ThenBy(s => s.first_name)
+            .Take(5)
+            .Select(s => new { s.stud_id, s.last_name, s.first_name, s.middle_name })
+            .ToListAsync(token))
+            .Select(s => new SearchHit(
+                string.Join(' ', new[] { s.last_name, s.first_name, s.middle_name }).Trim(),
+                $"students/details?stud_id={s.stud_id}"))
+            .ToList();
+
+        Teachers = (await context.Teachers
+            .Where(t => (t.last_name != null && t.last_name.Contains(query))
+                || (t.first_name != null && t.first_name.Contains(query))
+                || (t.middle_name != null && t.middle_name.Contains(query)))
+            .OrderBy(t => t.last_name).ThenBy(t => t.first_name)
+            .Take(5)
+            .Select(t => new { t.teacher_id, t.last_name, t.first_name, t.middle_name })
+            .ToListAsync(token))
+            .Select(t => new SearchHit(
+                string.Join(' ', new[] { t.last_name, t.first_name, t.middle_name }).Trim(),
+                $"teachers/details?teacher_id={t.teacher_id}"))
+            .ToList();
+
+        Groups = (await context.Groups
+            .Where(g => g.group_name != null && g.group_name.Contains(query))
+            .OrderBy(g => g.group_name)
+            .Take(5)
+            .Select(g => new { g.group_id, g.group_name })
+            .ToListAsync(token))
+            .Select(g => new SearchHit(g.group_name!, $"groups/details?group_id={g.group_id}"))
+            .ToList();
+
+        Disciplines = (await context.Disciplines
+            .Where(d => d.discipline_name != null && d.discipline_name.Contains(query))
+            .OrderBy(d => d.discipline_name)
+            .Take(5)
+            .Select(d => new { d.discipline_id, d.discipline_name })
+            .ToListAsync(token))
+            .Select(d => new SearchHit(d.discipline_name!, $"disciplines/details?discipline_id={d.discipline_id}"))
+            .ToList();
+
+        Directions = (await context.Directions
+            .Where(d => d.direction_name != null && d.direction_name.Contains(query))
+            .OrderBy(d => d.direction_name)
+            .Take(5)
+            .Select(d => new { d.direction_id, d.direction_name })
+            .ToListAsync(token))
+            .Select(d => new SearchHit(d.direction_name!, $"directions/details?direction_id={d.direction_id}"))
+            .ToList();
+
+        Searching = false;
+        StateHasChanged();
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            Close();
+        }
+        else if (e.Key == "Enter")
+        {
+            await GoQuery(Input?.Trim() ?? "");
+        }
+    }
+
+    private async Task GoQuery(string raw)
+    {
+        var query = raw.Trim();
+        if (string.IsNullOrEmpty(query)) return;
+        await RecordAsync(query);
+        Close();
+        Debounce?.Cancel();
+        NavigationManager.NavigateTo($"/search?q={Uri.EscapeDataString(query)}");
+    }
+
+    private async Task GoAllResults()
+    {
+        if (Input is null) return;
+        await GoQuery(Input);
+    }
+
+    private async Task RecordAsync(string query)
+    {
+        History.RemoveAll(h => string.Equals(h, query, StringComparison.OrdinalIgnoreCase));
+        History.Insert(0, query);
+        if (History.Count > 10) History.RemoveRange(10, History.Count - 10);
+        await JS.InvokeVoidAsync("AcademySearch.setHistory", History);
+    }
+
+    private async Task ClearHistory()
+    {
+        History.Clear();
+        await JS.InvokeVoidAsync("AcademySearch.clearHistory");
+    }
+
+    private void Close()
+    {
+        Open = false;
+        Debounce?.Cancel();
+    }
+
+    private void ResetMatches()
+    {
+        Students.Clear();
+        Teachers.Clear();
+        Groups.Clear();
+        Disciplines.Clear();
+        Directions.Clear();
+    }
+
+    private sealed record SearchHit(string Title, string Url, string? Subtitle = null);
+}

@@ -3,6 +3,7 @@
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
+@using AcademyAgain.Helpers
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 @inherits RowMenuPage<DaysOFF>
@@ -11,10 +12,14 @@
 
 <div class="list-header">
     <h1>Выходные дни</h1>
-    <a class="btn btn-primary" href="daysoffs/create">Создать</a>
+    <div class="list-actions">
+        <input class="form-control search-input" type="search" placeholder="Поиск…" value="@SearchText" @oninput="OnSearchInput" />
+        <button type="button" class="btn btn-outline-secondary" @onclick="ExportCsv">Экспорт CSV</button>
+        <a class="btn btn-primary" href="daysoffs/create">Создать</a>
+    </div>
 </div>
 
-<QuickGrid Class="table context-table" Items="query" ItemKey="daysoff => daysoff.date">
+<QuickGrid Class="table context-table" Items="query" ItemKey="daysoff => daysoff.date" Pagination="Pagination">
     <TemplateColumn Title="Дата" Sortable="true" SortBy="GridSort<DaysOFF>.ByAscending(d => d.date)" Context="daysoff">
         <div class="row-key @RowClass(daysoff)" data-item-key="@GetKey(daysoff)">
             @daysoff.date.ToString("dd.MM.yyyy")
@@ -25,9 +30,15 @@
     </TemplateColumn>
 </QuickGrid>
 
+<div class="paginator">
+    <span class="badge bg-secondary total-badge">Всего: @TotalCount</span>
+    <AppPaginator State="Pagination" />
+</div>
+
 <RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
 
 @code {
+    private List<DaysOFF> allItems = new();
     private IQueryable<DaysOFF> query = new List<DaysOFF>().AsQueryable();
     private Dictionary<int, string> holidayNames = new();
 
@@ -35,8 +46,38 @@
     {
         await using var context = DbFactory.CreateDbContext();
         holidayNames = await context.Holidays.ToDictionaryAsync(h => h.holiday_id, h => h.holiday_name);
-        query = (await context.DaysOFF.ToListAsync()).AsQueryable();
+        allItems = await context.DaysOFF.ToListAsync();
+        ApplyFilter();
     }
+
+    private void ApplyFilter()
+    {
+        query = ApplySearch(allItems).AsQueryable();
+        TotalCount = ApplySearch(allItems).Count();
+    }
+
+    private async Task ExportCsv()
+    {
+        var rows = new List<string[]>
+        {
+            new[] { "Дата", "Праздник" }
+        };
+        foreach (var d in ApplySearch(allItems))
+        {
+            rows.Add(new[] { d.date.ToString("dd.MM.yyyy"), HolidayName(d.holiday) });
+        }
+        await ExportCsvAsync("daysoffs.csv", CsvExport.Build(rows));
+    }
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        SearchText = e.Value?.ToString();
+        ApplyFilter();
+        await ResetPaginationAsync();
+    }
+
+    protected override bool MatchesSearch(DaysOFF daysoff)
+        => TextContains(daysoff.date.ToString("dd.MM.yyyy"), daysoff.date.ToString("yyyy-MM-dd"), HolidayName(daysoff.holiday));
 
     private string HolidayName(int id)
         => holidayNames.TryGetValue(id, out var name) ? name : $"№{id}";

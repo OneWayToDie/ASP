@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.QuickGrid;
 using Microsoft.JSInterop;
 
 namespace AcademyAgain.Components
@@ -9,6 +10,12 @@ namespace AcademyAgain.Components
         private IJSRuntime Js { get; set; } = default!;
 
         private DotNetObjectReference<RowMenuPage<T>>? _ref;
+
+        public PaginationState Pagination { get; } = new() { ItemsPerPage = 10 };
+
+        public int TotalCount { get; protected set; }
+
+        public string? SearchText { get; set; }
 
         protected string? SelectedKey { get; private set; }
         protected List<RowMenuItem>? MenuItems { get; private set; }
@@ -53,6 +60,26 @@ namespace AcademyAgain.Components
         {
             MenuItems = null;
             StateHasChanged();
+        }
+
+        protected virtual bool MatchesSearch(T item) => true;
+
+        protected bool TextContains(params string?[] values)
+        {
+            var text = SearchText;
+            if (string.IsNullOrWhiteSpace(text)) return true;
+            return values.Any(v => !string.IsNullOrWhiteSpace(v)
+                && v.Contains(text, StringComparison.OrdinalIgnoreCase));
+        }
+
+        protected IEnumerable<T> ApplySearch(IEnumerable<T> source)
+            => string.IsNullOrWhiteSpace(SearchText) ? source : source.Where(MatchesSearch);
+
+        protected async Task ResetPaginationAsync() => await Pagination.SetCurrentPageIndexAsync(0);
+
+        protected async Task ExportCsvAsync(string fileName, string content)
+        {
+            await Js.InvokeVoidAsync("downloadTextFile", fileName, content);
         }
 
         protected async ValueTask UnregisterMenuAsync()

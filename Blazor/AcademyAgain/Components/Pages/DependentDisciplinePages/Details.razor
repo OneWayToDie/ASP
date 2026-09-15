@@ -4,33 +4,40 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>РџРѕРґСЂРѕР±РЅРѕСЃС‚Рё: Р·Р°РІРёСЃРёРјР°СЏ РґРёСЃС†РёРїР»РёРЅР°</PageTitle>
+<PageTitle>Профиль: зависимая дисциплина</PageTitle>
 
-<h1>РџРѕРґСЂРѕР±РЅРѕСЃС‚Рё: Р·Р°РІРёСЃРёРјР°СЏ РґРёСЃС†РёРїР»РёРЅР°</h1>
+<Breadcrumbs Items="Crumbs" />
+
+<h1>Профиль: зависимая дисциплина</h1>
 
 <hr />
 @if (dependentdiscipline is null)
 {
-    <p><em>Р—Р°РіСЂСѓР·РєР°...</em></p>
+    <p><em>Загрузка...</em></p>
 }
 else
 {
     <dl class="row">
-        <dt class="col-sm-2">Р”РёСЃС†РёРїР»РёРЅР°</dt>
-        <dd class="col-sm-10">@DisciplineName</dd>
-        <dt class="col-sm-2">Р—Р°РІРёСЃРёРјР°СЏ РґРёСЃС†РёРїР»РёРЅР°</dt>
-        <dd class="col-sm-10">@DependentDisciplineName</dd>
+        <dt class="col-sm-2">Дисциплина</dt>
+        <dd class="col-sm-10"><a href="@($"/disciplines/details?discipline_id={dependentdiscipline.discipline}")">@DisciplineName</a></dd>
+        <dt class="col-sm-2">Зависимая дисциплина</dt>
+        <dd class="col-sm-10"><a href="@($"/disciplines/details?discipline_id={dependentdiscipline.dependent_discipline}")">@DependentDisciplineName</a></dd>
     </dl>
     <div>
-        <a href="@($"/dependentdisciplines/edit?discipline={dependentdiscipline.discipline}&dependent_discipline={dependentdiscipline.dependent_discipline}")">РР·РјРµРЅРёС‚СЊ</a> |
-        <a href="@($"/dependentdisciplines")">РќР°Р·Р°Рґ Рє СЃРїРёСЃРєСѓ</a>
+        <a href="@($"/dependentdisciplines/edit?discipline={dependentdiscipline.discipline}&dependent_discipline={dependentdiscipline.dependent_discipline}")">Изменить</a> |
+        <a href="@($"/dependentdisciplines")">Назад к списку</a>
     </div>
 }
 
 @code {
+    private static readonly Breadcrumbs.Crumb[] Crumbs = new[]
+    {
+        new Breadcrumbs.Crumb("Зависимые дисциплины", "/dependentdisciplines"),
+        new Breadcrumbs.Crumb("Профиль")
+    };
     private DependentDiscipline? dependentdiscipline;
-    private string? DisciplineName = "вЂ”";
-    private string? DependentDisciplineName = "вЂ”";
+    private string? DisciplineName = "—";
+    private string? DependentDisciplineName = "—";
 
     [SupplyParameterFromQuery]
     private int discipline { get; set; }
@@ -52,11 +59,11 @@ else
             DisciplineName = await context.Disciplines
                 .Where(d => d.discipline_id == dependentdiscipline.discipline)
                 .Select(d => d.discipline_name)
-                .FirstOrDefaultAsync() ?? "вЂ”";
+                .FirstOrDefaultAsync() ?? "—";
             DependentDisciplineName = await context.Disciplines
                 .Where(d => d.discipline_id == dependentdiscipline.dependent_discipline)
                 .Select(d => d.discipline_name)
-                .FirstOrDefaultAsync() ?? "вЂ”";
+                .FirstOrDefaultAsync() ?? "—";
         }
     }
 }

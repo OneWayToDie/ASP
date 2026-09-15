@@ -6,6 +6,8 @@
 
 <PageTitle>Зарплата №@(salary?.payment_id)</PageTitle>
 
+<Breadcrumbs Items="Crumbs" />
+
 <h1>Зарплата №@(salary?.payment_id)</h1>
 
 <hr />
@@ -19,7 +21,7 @@ else
         <dt class="col-sm-2">№ платежа</dt>
         <dd class="col-sm-10">@salary.payment_id</dd>
         <dt class="col-sm-2">Преподаватель</dt>
-        <dd class="col-sm-10">@TeacherName</dd>
+        <dd class="col-sm-10"><a href="@($"/teachers/details?teacher_id={salary.teacher}")">@TeacherName</a></dd>
         <dt class="col-sm-2">Начислено</dt>
         <dd class="col-sm-10">@salary.accrued</dd>
         <dt class="col-sm-2">Выплачено</dt>
@@ -32,6 +34,11 @@ else
 }
 
 @code {
+    private static readonly Breadcrumbs.Crumb[] Crumbs = new[]
+    {
+        new Breadcrumbs.Crumb("Зарплаты", "/salarys"),
+        new Breadcrumbs.Crumb("Профиль")
+    };
     private Salary? salary;
     private string? TeacherName = "—";
 

@@ -6,6 +6,8 @@
 
 <PageTitle>Праздник: @(holiday?.holiday_name)</PageTitle>
 
+<Breadcrumbs Items="Crumbs" />
+
 <h1>Праздник: @(holiday?.holiday_name)</h1>
 
 <hr />
@@ -32,6 +34,11 @@ else
 }
 
 @code {
+    private static readonly Breadcrumbs.Crumb[] Crumbs = new[]
+    {
+        new Breadcrumbs.Crumb("Праздники", "/holidays"),
+        new Breadcrumbs.Crumb("Профиль")
+    };
     private Holiday? holiday;
     private string? MonthName = "—";
 

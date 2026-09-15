@@ -1,6 +1,6 @@
 ﻿@page "/"
+@rendermode InteractiveServer
 @using Microsoft.EntityFrameworkCore
-@implements IAsyncDisposable
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 
 <PageTitle>Панель управления</PageTitle>
@@ -9,6 +9,80 @@
     <h1>Панель управления</h1>
     <p class="page-subtitle">Учётная система академии: студенты, преподаватели, дисциплины и расписание.</p>
 </div>
+
+<div class="dashboard-stats">
+    <div class="stat-card">
+        <div class="stat-value">@AttendanceRate</div>
+        <div class="stat-label">Посещаемость</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">@AverageGrade</div>
+        <div class="stat-label">Средний балл</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">@TodayCount</div>
+        <div class="stat-label">Занятий сегодня</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">@AccruedTotal</div>
+        <div class="stat-label">Начислено зарплат</div>
+    </div>
+</div>
+
+@if (Schedule.Count > 0)
+{
+    <h2 class="section-title">Расписание на ближайшие 14 дней</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Дата</th>
+                <th>Время</th>
+                <th>Группа</th>
+                <th>Дисциплина</th>
+                <th>Преподаватель</th>
+                <th>Проведено</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var lesson in Schedule)
+            {
+                <tr>
+                    <td>@lesson.Date.ToString("dd.MM.yyyy")</td>
+                    <td>@lesson.Time</td>
+                    <td>@lesson.Group</td>
+                    <td><a class="table-link" href="@($"schedules/details?lesson_id={lesson.LessonId}")">@lesson.Discipline</a></td>
+                    <td>@lesson.Teacher</td>
+                    <td>@(lesson.Spent ? "Да" : "Нет")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (Upcoming.Count > 0)
+{
+    <h2 class="section-title">
+        <span>Ближайшие праздники и выходные</span>
+        <button type="button" class="collapse-toggle" aria-expanded="@ShowUpcoming"
+                aria-label="@(ShowUpcoming ? "Скрыть ближайшие праздники и выходные" : "Показать ближайшие праздники и выходные")"
+                title="@(ShowUpcoming ? "Скрыть" : "Показать")" @onclick="ToggleUpcoming">
+            @(ShowUpcoming ? "▲" : "▼")
+        </button>
+    </h2>
+    @if (ShowUpcoming)
+    {
+        <div class="upcoming-list">
+            @foreach (var item in Upcoming)
+            {
+                <div class="upcoming-item">
+                    <span class="upcoming-date">@item.Date.ToString("dd.MM.yyyy")</span>
+                    <span class="upcoming-name">@item.Name</span>
+                    <span class="badge @(item.IsHoliday ? "badge-holiday" : "badge-daysoff")">@(item.IsHoliday ? "праздник" : "выходной")</span>
+                </div>
+            }
+        </div>
+    }
+}
 
 @foreach (var section in sections)
 {
@@ -25,12 +99,91 @@
 }
 
 @code {
-    private AcademyAgainContext context = default!;
+    private sealed record LessonRow(DateTime Date, string Time, string Group, string Discipline, string Teacher, bool Spent, long LessonId);
+    private sealed record EventItem(DateTime Date, string Name, bool IsHoliday);
+
+    private List<LessonRow> Schedule = new();
+    private List<EventItem> Upcoming = new();
     private List<Section> sections = new();
 
-    protected override void OnInitialized()
+    private bool ShowUpcoming = true;
+
+    private void ToggleUpcoming() => ShowUpcoming = !ShowUpcoming;
+
+    private string AttendanceRate = "—";
+    private string AverageGrade = "—";
+    private string AccruedTotal = "—";
+    private int TodayCount;
+
+    protected override async Task OnInitializedAsync()
     {
-        context = DbFactory.CreateDbContext();
+        await using var context = DbFactory.CreateDbContext();
+
+        var today = DateTime.Today;
+        var horizon = today.AddDays(14);
+
+        var holidays = await context.Holidays.ToListAsync();
+        var daysoffs = await context.DaysOFF.ToListAsync();
+        var schedule = await context.Schedule.ToListAsync();
+
+        var groups = (await context.Groups.ToListAsync()).ToDictionary(g => g.group_id);
+        var disciplines = (await context.Disciplines.ToListAsync()).ToDictionary(d => d.discipline_id);
+        var teachers = (await context.Teachers.ToListAsync()).ToDictionary(t => t.teacher_id);
+
+        string GroupName(int? id) => id is int g && groups.TryGetValue(g, out var grp) ? grp.group_name ?? $"№{g}" : "—";
+        string DisciplineName(int id) => disciplines.TryGetValue(id, out var d) ? d.discipline_name ?? $"№{id}" : $"№{id}";
+        string TeacherName(int id) => teachers.TryGetValue(id, out var t)
+            ? string.Join(" ", new[] { t.last_name, t.first_name, t.middle_name }.Where(n => !string.IsNullOrWhiteSpace(n)))
+            : $"№{id}";
+
+        TodayCount = schedule.Count(s => s.date == today);
+
+        Schedule = schedule
+            .Where(s => s.date.HasValue && s.date.Value >= today && s.date.Value <= horizon)
+            .OrderBy(s => s.date).ThenBy(s => s.time)
+            .Take(10)
+            .Select(s => new LessonRow(
+                s.date!.Value,
+                s.time?.ToString(@"hh\:mm") ?? "—",
+                GroupName(s.group),
+                DisciplineName(s.discipline),
+                TeacherName(s.teacher),
+                s.spent,
+                s.lesson_id))
+            .ToList();
+
+        var upcoming = new List<EventItem>();
+        foreach (var h in holidays.Where(h => h.month.HasValue && h.day.HasValue))
+        {
+            if (NextOccurrence(h.month!.Value, h.day!.Value) is DateTime d)
+            {
+                upcoming.Add(new EventItem(d, h.holiday_name, IsHoliday: true));
+            }
+        }
+        foreach (var o in daysoffs.Where(o => o.date >= today))
+        {
+            var name = holidays.FirstOrDefault(h => h.holiday_id == o.holiday)?.holiday_name ?? "Выходной";
+            upcoming.Add(new EventItem(o.date, name, IsHoliday: false));
+        }
+        Upcoming = upcoming.OrderBy(e => e.Date).Take(7).ToList();
+
+        var attTotal = await context.Attendance.CountAsync();
+        var attPresent = await context.Attendance.CountAsync(a => a.present);
+        AttendanceRate = attTotal == 0 ? "—" : $"{100.0 * attPresent / attTotal:0.0}%";
+
+        var gradeValues = (await context.Grades.Select(g => new { g.grade_1, g.grade_2 }).ToListAsync())
+            .SelectMany(g => new[] { g.grade_1, g.grade_2 })
+            .Where(v => v.HasValue)
+            .Select(v => v!.Value)
+            .ToList();
+        var examValues = (await context.Exams.Where(e => e.grade.HasValue).Select(e => e.grade).ToListAsync())
+            .Where(v => v.HasValue)
+            .Select(v => v!.Value)
+            .ToList();
+        var allGrades = gradeValues.Concat(examValues).ToList();
+        AverageGrade = allGrades.Count == 0 ? "—" : $"{allGrades.Average():0.00}";
+
+        AccruedTotal = (await context.Salary.SumAsync(s => (decimal?)s.accrued)) is decimal sum ? $"{sum:n0}" : "0";
 
         sections = new()
         {
@@ -63,7 +216,19 @@
         };
     }
 
-    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+    private static DateTime? NextOccurrence(int month, int day)
+    {
+        var today = DateTime.Today;
+        if (DateTime.TryParse($"{today.Year}-{month:00}-{day:00}", out var thisYear) && thisYear >= today)
+        {
+            return thisYear;
+        }
+        if (DateTime.TryParse($"{today.Year + 1}-{month:00}-{day:00}", out var nextYear))
+        {
+            return nextYear;
+        }
+        return null;
+    }
 
     private record Card(string Label, int Count, string Url);
     private record Section(string Title, List<Card> Cards);

@@ -6,6 +6,8 @@
 
 <PageTitle>Выходной день: @(daysoff?.date.ToString("dd.MM.yyyy"))</PageTitle>
 
+<Breadcrumbs Items="Crumbs" />
+
 <h1>Выходной день: @(daysoff?.date.ToString("dd.MM.yyyy"))</h1>
 
 <hr />
@@ -28,6 +30,11 @@ else
 }
 
 @code {
+    private static readonly Breadcrumbs.Crumb[] Crumbs = new[]
+    {
+        new Breadcrumbs.Crumb("Выходные дни", "/daysoffs"),
+        new Breadcrumbs.Crumb("Профиль")
+    };
     private DaysOFF? daysoff;
     private string? HolidayName = "—";
 

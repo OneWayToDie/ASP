@@ -1,0 +1,58 @@
+@using Microsoft.AspNetCore.Components.QuickGrid
+
+<nav class="app-paginator" aria-label="Страницы">
+    <button type="button" class="app-page-btn" title="Предыдущая страница" aria-label="Предыдущая страница"
+            disabled="@(!HasPreviousPage)" @onclick="() => GoToAsync(State.CurrentPageIndex - 1)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+
+    <span class="app-pagination-text">
+        Страница <strong>@Current</strong>
+        @if (TotalPages is int total)
+        {
+            <span> из <strong>@total</strong></span>
+        }
+    </span>
+
+    <button type="button" class="app-page-btn" title="Следующая страница" aria-label="Следующая страница"
+            disabled="@(!HasNextPage)" @onclick="() => GoToAsync(State.CurrentPageIndex + 1)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+    <button type="button" class="app-page-btn" title="@LastTitle" aria-label="@LastTitle"
+            disabled="@(State.LastPageIndex is not int)" @onclick="() => GoToAsync(IsLast ? 0 : Last)">
+        @if (IsLast)
+        {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="13 18 7 12 13 6"/><polyline points="19 18 13 12 19 6"/></svg>
+        }
+        else
+        {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="11 18 17 12 11 6"/><polyline points="5 18 11 12 5 6"/></svg>
+        }
+    </button>
+</nav>
+
+@code {
+    [Parameter, EditorRequired] public PaginationState State { get; set; } = default!;
+
+    private int Current => State.CurrentPageIndex + 1;
+
+    private int? TotalPages => State.LastPageIndex is int last ? last + 1 : null;
+
+    private bool HasPreviousPage => State.CurrentPageIndex > 0;
+
+    private bool HasNextPage => State.LastPageIndex is int last && State.CurrentPageIndex < last;
+
+    private bool IsLast => State.LastPageIndex is int last && State.CurrentPageIndex == last;
+
+    private string LastTitle => IsLast ? "Первая страница" : "Последняя страница";
+
+    private int Last => State.LastPageIndex ?? State.CurrentPageIndex;
+
+    private async Task GoToAsync(int index)
+    {
+        var target = Math.Clamp(index, 0, State.LastPageIndex ?? int.MaxValue);
+        if (target == State.CurrentPageIndex) return;
+        await State.SetCurrentPageIndexAsync(target);
+        StateHasChanged();
+    }
+}

@@ -3,6 +3,7 @@
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
+@using AcademyAgain.Helpers
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 @inherits RowMenuPage<Grade>
@@ -11,25 +12,35 @@
 
 <div class="list-header">
     <h1>Оценки</h1>
-    <a class="btn btn-primary" href="grades/create">Создать</a>
+    <div class="list-actions">
+        <input class="form-control search-input" type="search" placeholder="Поиск…" value="@SearchText" @oninput="OnSearchInput" />
+        <button type="button" class="btn btn-outline-secondary" @onclick="ExportCsv">Экспорт CSV</button>
+        <a class="btn btn-primary" href="grades/create">Создать</a>
+    </div>
 </div>
 
-<QuickGrid Class="table context-table" Items="query" ItemKey="grade => grade.student.ToString() + '_' + grade.lesson.ToString()">
+<QuickGrid Class="table context-table" Items="query" ItemKey="grade => grade.student.ToString() + '_' + grade.lesson.ToString()" Pagination="Pagination">
     <TemplateColumn Title="Студент" Sortable="true" SortBy="GridSort<Grade>.ByAscending(g => StudentName(g.student))" Context="grade">
         <div class="row-key @RowClass(grade)" data-item-key="@GetKey(grade)">
-            @(StudentName(grade.student))
+            <a class="table-link" href="@($"/students/details?stud_id={grade.student}")">@(StudentName(grade.student))</a>
         </div>
     </TemplateColumn>
     <TemplateColumn Title="Занятие" Sortable="true" SortBy="GridSort<Grade>.ByAscending(g => LessonName(g.lesson))" Context="grade">
-        @(LessonName(grade.lesson))
+        <a class="table-link" href="@($"/schedules/details?lesson_id={grade.lesson}")">@(LessonName(grade.lesson))</a>
     </TemplateColumn>
     <PropertyColumn Property="grade => grade.grade_1" Title="Оценка 1" Sortable="true" />
     <PropertyColumn Property="grade => grade.grade_2" Title="Оценка 2" Sortable="true" />
 </QuickGrid>
 
+<div class="paginator">
+    <span class="badge bg-secondary total-badge">Всего: @TotalCount</span>
+    <AppPaginator State="Pagination" />
+</div>
+
 <RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
 
 @code {
+    private List<Grade> allItems = new();
     private IQueryable<Grade> query = new List<Grade>().AsQueryable();
     private Dictionary<int, string> students = new();
     private Dictionary<long, string> lessonNames = new();
@@ -43,8 +54,38 @@
                     ? $"{s.last_name} {s.first_name} {s.middle_name}"
                     : $"{s.last_name} {s.first_name}");
         await BuildLessonNamesAsync(context);
-        query = (await context.Grades.ToListAsync()).AsQueryable();
+        allItems = await context.Grades.ToListAsync();
+        ApplyFilter();
     }
+
+    private void ApplyFilter()
+    {
+        query = ApplySearch(allItems).AsQueryable();
+        TotalCount = ApplySearch(allItems).Count();
+    }
+
+    private async Task ExportCsv()
+    {
+        var rows = new List<string?[]>
+        {
+            new[] { "Студент", "Занятие", "Оценка 1", "Оценка 2" }
+        };
+        foreach (var g in ApplySearch(allItems))
+        {
+            rows.Add(new[] { StudentName(g.student), LessonName(g.lesson), g.grade_1?.ToString(), g.grade_2?.ToString() });
+        }
+        await ExportCsvAsync("grades.csv", CsvExport.Build(rows));
+    }
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        SearchText = e.Value?.ToString();
+        ApplyFilter();
+        await ResetPaginationAsync();
+    }
+
+    protected override bool MatchesSearch(Grade grade)
+        => TextContains(StudentName(grade.student), LessonName(grade.lesson));
 
     private async Task BuildLessonNamesAsync(AcademyAgainContext context)
     {

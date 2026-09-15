@@ -3,6 +3,7 @@
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
+@using AcademyAgain.Helpers
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 @inherits RowMenuPage<Schedule>
@@ -11,20 +12,24 @@
 
 <div class="list-header">
     <h1>Расписание</h1>
-    <a class="btn btn-primary" href="schedules/create">Создать</a>
+    <div class="list-actions">
+        <input class="form-control search-input" type="search" placeholder="Поиск…" value="@SearchText" @oninput="OnSearchInput" />
+        <button type="button" class="btn btn-outline-secondary" @onclick="ExportCsv">Экспорт CSV</button>
+        <a class="btn btn-primary" href="schedules/create">Создать</a>
+    </div>
 </div>
 
-<QuickGrid Class="table context-table" Items="query" ItemKey="schedule => schedule.lesson_id">
+<QuickGrid Class="table context-table" Items="query" ItemKey="schedule => schedule.lesson_id" Pagination="Pagination">
     <TemplateColumn Title="Группа" Sortable="true" SortBy="GridSort<Schedule>.ByAscending(s => GroupName(s.group))" Context="schedule">
         <div class="row-key @RowClass(schedule)" data-item-key="@GetKey(schedule)">
-            @(GroupName(schedule.group))
+            <a class="table-link" href="@($"/groups/details?group_id={schedule.group}")">@(GroupName(schedule.group))</a>
         </div>
     </TemplateColumn>
     <TemplateColumn Title="Дисциплина" Sortable="true" SortBy="GridSort<Schedule>.ByAscending(s => DisciplineName(s.discipline))" Context="schedule">
-        @(DisciplineName(schedule.discipline))
+        <a class="table-link" href="@($"/disciplines/details?discipline_id={schedule.discipline}")">@(DisciplineName(schedule.discipline))</a>
     </TemplateColumn>
     <TemplateColumn Title="Преподаватель" Sortable="true" SortBy="GridSort<Schedule>.ByAscending(s => TeacherName(s.teacher))" Context="schedule">
-        @(TeacherName(schedule.teacher))
+        <a class="table-link" href="@($"/teachers/details?teacher_id={schedule.teacher}")">@(TeacherName(schedule.teacher))</a>
     </TemplateColumn>
     <PropertyColumn Property="schedule => schedule.date" Title="Дата" Format="dd.MM.yyyy" Sortable="true" />
     <PropertyColumn Property="schedule => schedule.time" Title="Время" Sortable="true" />
@@ -33,9 +38,15 @@
     </TemplateColumn>
 </QuickGrid>
 
+<div class="paginator">
+    <span class="badge bg-secondary total-badge">Всего: @TotalCount</span>
+    <AppPaginator State="Pagination" />
+</div>
+
 <RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
 
 @code {
+    private List<Schedule> allItems = new();
     private IQueryable<Schedule> query = new List<Schedule>().AsQueryable();
     private Dictionary<int, string> groups = new();
     private Dictionary<int, string> disciplines = new();
@@ -50,8 +61,48 @@
             .ToDictionary(d => d.discipline_id, d => d.discipline_name ?? "");
         teachers = (await context.Teachers.OrderBy(t => t.last_name).ToListAsync())
             .ToDictionary(t => t.teacher_id, t => TeacherName(t));
-        query = (await context.Schedule.ToListAsync()).AsQueryable();
+        allItems = await context.Schedule.ToListAsync();
+        ApplyFilter();
     }
+
+    private void ApplyFilter()
+    {
+        query = ApplySearch(allItems).AsQueryable();
+        TotalCount = ApplySearch(allItems).Count();
+    }
+
+    private async Task ExportCsv()
+    {
+        var rows = new List<string?[]>
+        {
+            new[] { "Группа", "Дисциплина", "Преподаватель", "Дата", "Время", "Проведено" }
+        };
+        foreach (var s in ApplySearch(allItems))
+        {
+            rows.Add(new[]
+            {
+                GroupName(s.group), DisciplineName(s.discipline), TeacherName(s.teacher),
+                s.date?.ToString("dd.MM.yyyy"), s.time?.ToString(), s.spent ? "да" : "нет"
+            });
+        }
+        await ExportCsvAsync("schedules.csv", CsvExport.Build(rows));
+    }
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        SearchText = e.Value?.ToString();
+        ApplyFilter();
+        await ResetPaginationAsync();
+    }
+
+    protected override bool MatchesSearch(Schedule schedule)
+        => TextContains(
+            GroupName(schedule.group),
+            DisciplineName(schedule.discipline),
+            TeacherName(schedule.teacher),
+            schedule.date.HasValue ? schedule.date.Value.ToString("dd.MM.yyyy") : null,
+            schedule.time?.ToString(),
+            schedule.spent ? "да" : "нет");
 
     private string GroupName(int id)
         => groups.TryGetValue(id, out var name) ? name : $"№{id}";

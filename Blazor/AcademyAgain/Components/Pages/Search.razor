@@ -1,0 +1,178 @@
+@page "/search"
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+
+<PageTitle>Поиск</PageTitle>
+
+<div class="page-header">
+    <h1>Результаты поиска</h1>
+    @if (!string.IsNullOrWhiteSpace(Query))
+    {
+        <p class="page-subtitle">По запросу «@Query»</p>
+    }
+</div>
+
+@if (Loaded)
+{
+    if (string.IsNullOrWhiteSpace(Query))
+    {
+        <div class="section-empty">Введите запрос — найдём студентов, преподавателей, группы, дисциплины и направления.</div>
+    }
+    else if (TotalCount == 0)
+    {
+        <div class="section-empty">Ничего не найдено по запросу «@Query».</div>
+    }
+    else
+    {
+        @if (Students.Count > 0)
+        {
+            <h2 class="section-title">Студенты</h2>
+            <div class="search-results">
+                @foreach (var hit in Students)
+                {
+                    <a class="search-result" href="@hit.Url">
+                        <span class="search-result-title">@hit.Title</span>
+                        @if (!string.IsNullOrWhiteSpace(hit.Subtitle))
+                        {
+                            <span class="search-result-sub">@hit.Subtitle</span>
+                        }
+                    </a>
+                }
+            </div>
+        }
+
+        @if (Teachers.Count > 0)
+        {
+            <h2 class="section-title">Преподаватели</h2>
+            <div class="search-results">
+                @foreach (var hit in Teachers)
+                {
+                    <a class="search-result" href="@hit.Url">
+                        <span class="search-result-title">@hit.Title</span>
+                    </a>
+                }
+            </div>
+        }
+
+        @if (Groups.Count > 0)
+        {
+            <h2 class="section-title">Группы</h2>
+            <div class="search-results">
+                @foreach (var hit in Groups)
+                {
+                    <a class="search-result" href="@hit.Url">
+                        <span class="search-result-title">@hit.Title</span>
+                    </a>
+                }
+            </div>
+        }
+
+        @if (Disciplines.Count > 0)
+        {
+            <h2 class="section-title">Дисциплины</h2>
+            <div class="search-results">
+                @foreach (var hit in Disciplines)
+                {
+                    <a class="search-result" href="@hit.Url">
+                        <span class="search-result-title">@hit.Title</span>
+                    </a>
+                }
+            </div>
+        }
+
+        @if (Directions.Count > 0)
+        {
+            <h2 class="section-title">Направления</h2>
+            <div class="search-results">
+                @foreach (var hit in Directions)
+                {
+                    <a class="search-result" href="@hit.Url">
+                        <span class="search-result-title">@hit.Title</span>
+                    </a>
+                }
+            </div>
+        }
+
+        <div class="section-empty search-more">Показаны первые 20 записей по каждой категории. Уточните запрос для более точного результата.</div>
+    }
+}
+
+@code {
+    [SupplyParameterFromQuery]
+    public string? q { get; set; }
+
+    private string Query => string.IsNullOrWhiteSpace(q) ? "" : q.Trim();
+
+    private List<SearchHit> Students = new();
+    private List<SearchHit> Teachers = new();
+    private List<SearchHit> Groups = new();
+    private List<SearchHit> Disciplines = new();
+    private List<SearchHit> Directions = new();
+    private bool Loaded;
+
+    private int TotalCount
+        => Students.Count + Teachers.Count + Groups.Count + Disciplines.Count + Directions.Count;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Loaded = true;
+        var query = Query;
+        if (query.Length == 0) return;
+
+        await using var context = DbFactory.CreateDbContext();
+
+        Students = (await context.Students
+            .Where(s => s.last_name.Contains(query) || s.first_name.Contains(query) || (s.middle_name != null && s.middle_name.Contains(query)))
+            .OrderBy(s => s.last_name).ThenBy(s => s.first_name)
+            .Take(20)
+            .Select(s => new { s.stud_id, s.last_name, s.first_name, s.middle_name })
+            .ToListAsync())
+            .Select(s => new SearchHit(
+                string.Join(' ', new[] { s.last_name, s.first_name, s.middle_name }).Trim(),
+                $"students/details?stud_id={s.stud_id}"))
+            .ToList();
+
+        Teachers = (await context.Teachers
+            .Where(t => (t.last_name != null && t.last_name.Contains(query))
+                || (t.first_name != null && t.first_name.Contains(query))
+                || (t.middle_name != null && t.middle_name.Contains(query)))
+            .OrderBy(t => t.last_name).ThenBy(t => t.first_name)
+            .Take(20)
+            .Select(t => new { t.teacher_id, t.last_name, t.first_name, t.middle_name })
+            .ToListAsync())
+            .Select(t => new SearchHit(
+                string.Join(' ', new[] { t.last_name, t.first_name, t.middle_name }).Trim(),
+                $"teachers/details?teacher_id={t.teacher_id}"))
+            .ToList();
+
+        Groups = (await context.Groups
+            .Where(g => g.group_name != null && g.group_name.Contains(query))
+            .OrderBy(g => g.group_name)
+            .Take(20)
+            .Select(g => new { g.group_id, g.group_name })
+            .ToListAsync())
+            .Select(g => new SearchHit(g.group_name!, $"groups/details?group_id={g.group_id}"))
+            .ToList();
+
+        Disciplines = (await context.Disciplines
+            .Where(d => d.discipline_name != null && d.discipline_name.Contains(query))
+            .OrderBy(d => d.discipline_name)
+            .Take(20)
+            .Select(d => new { d.discipline_id, d.discipline_name })
+            .ToListAsync())
+            .Select(d => new SearchHit(d.discipline_name!, $"disciplines/details?discipline_id={d.discipline_id}"))
+            .ToList();
+
+        Directions = (await context.Directions
+            .Where(d => d.direction_name != null && d.direction_name.Contains(query))
+            .OrderBy(d => d.direction_name)
+            .Take(20)
+            .Select(d => new { d.direction_id, d.direction_name })
+            .ToListAsync())
+            .Select(d => new SearchHit(d.direction_name!, $"directions/details?direction_id={d.direction_id}"))
+            .ToList();
+    }
+
+    private sealed record SearchHit(string Title, string Url, string? Subtitle = null);
+}

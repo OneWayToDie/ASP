@@ -1,0 +1,25 @@
+@if (Items.Length > 0)
+{
+    <nav class="breadcrumbs" aria-label="breadcrumb">
+        <a class="crumb" href="/">Панель</a>
+        @foreach (var item in Items)
+        {
+            <span class="crumb-sep">/</span>
+            @if (string.IsNullOrWhiteSpace(item.Url))
+            {
+                <span class="crumb crumb-current">@item.Label</span>
+            }
+            else
+            {
+                <a class="crumb" href="@item.Url">@item.Label</a>
+            }
+        }
+    </nav>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public Crumb[] Items { get; set; } = Array.Empty<Crumb>();
+
+    public sealed record Crumb(string Label, string? Url = null);
+}

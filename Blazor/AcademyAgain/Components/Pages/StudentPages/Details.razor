@@ -7,6 +7,8 @@
 
 <PageTitle>Профиль: @(student?.last_name) @(student?.first_name)</PageTitle>
 
+<Breadcrumbs Items="Crumbs" />
+
 @if (student is null)
 {
     <p><em>Загрузка...</em></p>
@@ -30,7 +32,7 @@ else
                 <p class="profile-head-sub">
                     @if (GroupName != "—")
                     {
-                        <span>группа @GroupName</span>
+                        <span><a href="@($"/groups/details?group_id={student.group}")">группа @GroupName</a></span>
                         <span> · </span>
                     }
                     @DirectionName
@@ -166,6 +168,12 @@ else
 }
 
 @code {
+    private static readonly Breadcrumbs.Crumb[] Crumbs = new[]
+    {
+        new Breadcrumbs.Crumb("Студенты", "/students"),
+        new Breadcrumbs.Crumb("Профиль")
+    };
+
     private sealed record GradeRow(string Lesson, int? Grade1, int? Grade2);
     private sealed record AttendanceRow(string Lesson, bool Present);
     private sealed record ExamRow(string Discipline, string Date, int? Grade);

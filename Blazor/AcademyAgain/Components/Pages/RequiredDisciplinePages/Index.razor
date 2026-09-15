@@ -3,6 +3,7 @@
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
+@using AcademyAgain.Helpers
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
 @inherits RowMenuPage<RequiredDiscipline>
@@ -11,23 +12,33 @@
 
 <div class="list-header">
     <h1>Требуемые дисциплины</h1>
-    <a class="btn btn-primary" href="requireddisciplines/create">Создать</a>
+    <div class="list-actions">
+        <input class="form-control search-input" type="search" placeholder="Поиск…" value="@SearchText" @oninput="OnSearchInput" />
+        <button type="button" class="btn btn-outline-secondary" @onclick="ExportCsv">Экспорт CSV</button>
+        <a class="btn btn-primary" href="requireddisciplines/create">Создать</a>
+    </div>
 </div>
 
-<QuickGrid Class="table context-table" Items="query" ItemKey="required => required.discipline.ToString() + '_' + required.required_discipline.ToString()">
+<QuickGrid Class="table context-table" Items="query" ItemKey="required => required.discipline.ToString() + '_' + required.required_discipline.ToString()" Pagination="Pagination">
     <TemplateColumn Title="Дисциплина" Sortable="true" SortBy="GridSort<RequiredDiscipline>.ByAscending(r => DisciplineName(r.discipline))" Context="required">
         <div class="row-key @RowClass(required)" data-item-key="@GetKey(required)">
-            @DisciplineName(required.discipline)
+            <a class="table-link" href="@($"/disciplines/details?discipline_id={required.discipline}")">@DisciplineName(required.discipline)</a>
         </div>
     </TemplateColumn>
     <TemplateColumn Title="Требуемая дисциплина" Sortable="true" SortBy="GridSort<RequiredDiscipline>.ByAscending(r => DisciplineName(r.required_discipline))" Context="required">
-        @DisciplineName(required.required_discipline)
+        <a class="table-link" href="@($"/disciplines/details?discipline_id={required.required_discipline}")">@DisciplineName(required.required_discipline)</a>
     </TemplateColumn>
 </QuickGrid>
+
+<div class="paginator">
+    <span class="badge bg-secondary total-badge">Всего: @TotalCount</span>
+    <AppPaginator State="Pagination" />
+</div>
 
 <RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
 
 @code {
+    private List<RequiredDiscipline> allItems = new();
     private IQueryable<RequiredDiscipline> query = new List<RequiredDiscipline>().AsQueryable();
     private Dictionary<int, string> disciplineNames = new();
 
@@ -35,8 +46,38 @@
     {
         await using var context = DbFactory.CreateDbContext();
         disciplineNames = await context.Disciplines.ToDictionaryAsync(d => d.discipline_id, d => d.discipline_name ?? $"№{d.discipline_id}");
-        query = (await context.RequiredDisciplines.ToListAsync()).AsQueryable();
+        allItems = await context.RequiredDisciplines.ToListAsync();
+        ApplyFilter();
     }
+
+    private void ApplyFilter()
+    {
+        query = ApplySearch(allItems).AsQueryable();
+        TotalCount = ApplySearch(allItems).Count();
+    }
+
+    private async Task ExportCsv()
+    {
+        var rows = new List<string[]>
+        {
+            new[] { "Дисциплина", "Требуемая дисциплина" }
+        };
+        foreach (var r in ApplySearch(allItems))
+        {
+            rows.Add(new[] { DisciplineName(r.discipline), DisciplineName(r.required_discipline) });
+        }
+        await ExportCsvAsync("requireddisciplines.csv", CsvExport.Build(rows));
+    }
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        SearchText = e.Value?.ToString();
+        ApplyFilter();
+        await ResetPaginationAsync();
+    }
+
+    protected override bool MatchesSearch(RequiredDiscipline required)
+        => TextContains(DisciplineName(required.discipline), DisciplineName(required.required_discipline));
 
     private string DisciplineName(int id)
         => disciplineNames.TryGetValue(id, out var name) ? name : $"№{id}";
