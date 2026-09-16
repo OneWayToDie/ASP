@@ -1,4 +1,5 @@
 @page "/exams"
+@attribute [Authorize]
 @rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
@@ -42,6 +43,7 @@
 @code {
     private List<Exam> allItems = new();
     private IQueryable<Exam> query = new List<Exam>().AsQueryable();
+    private List<Exam> filtered = new();
     private Dictionary<int, string> students = new();
     private Dictionary<int, string> disciplines = new();
 
@@ -58,8 +60,9 @@
 
     private void ApplyFilter()
     {
-        query = ApplySearch(allItems).AsQueryable();
-        TotalCount = ApplySearch(allItems).Count();
+        filtered = ApplySearch(allItems).ToList();
+        query = filtered.AsQueryable();
+        TotalCount = filtered.Count;
     }
 
     private List<string?[]> BuildRows()
@@ -68,7 +71,7 @@
         {
             new[] { "Студент", "Дисциплина", "Дата", "Оценка" }
         };
-        foreach (var e in ApplySearch(allItems))
+        foreach (var e in filtered)
         {
             rows.Add(new[] { StudentName(e.student), DisciplineName(e.discipline), e.date?.ToString("dd.MM.yyyy"), e.grade?.ToString() });
         }

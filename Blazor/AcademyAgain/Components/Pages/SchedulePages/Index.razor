@@ -1,4 +1,5 @@
 @page "/schedules"
+@attribute [Authorize]
 @rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
@@ -73,6 +74,7 @@
 @code {
     private List<Schedule> allItems = new();
     private IQueryable<Schedule> query = new List<Schedule>().AsQueryable();
+    private List<Schedule> filtered = new();
     private Dictionary<int, string> groups = new();
     private Dictionary<int, string> disciplines = new();
     private Dictionary<int, string> teachers = new();
@@ -122,8 +124,9 @@
 
     private void ApplyFilter()
     {
-        query = ApplySearch(Filtered()).AsQueryable();
-        TotalCount = ApplySearch(Filtered()).Count();
+        filtered = ApplySearch(Filtered()).ToList();
+        query = filtered.AsQueryable();
+        TotalCount = filtered.Count;
     }
 
     private List<string?[]> BuildRows()
@@ -132,7 +135,7 @@
         {
             new[] { "Группа", "Дисциплина", "Преподаватель", "Дата", "Время", "Проведено" }
         };
-        foreach (var s in ApplySearch(Filtered()))
+        foreach (var s in filtered)
         {
             rows.Add(new[]
             {

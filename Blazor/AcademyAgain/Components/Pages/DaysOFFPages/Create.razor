@@ -1,4 +1,5 @@
 @page "/daysoffs/create"
+@attribute [Authorize]
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
@@ -14,6 +15,10 @@
         <EditForm method="post" Model="DaysOFF" OnValidSubmit="AddDaysOFF" FormName="create" Enhance>
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" role="alert"/>
+            @if (!string.IsNullOrEmpty(SaveError))
+            {
+                <div class="alert alert-danger" role="alert">@SaveError</div>
+            }
             <div class="mb-3">
                 <span class="text-danger">*</span>
                 <label for="date" class="form-label">Дата:</label>
@@ -49,6 +54,7 @@
     private string? holiday { get; set; }
 
     private List<Holiday> holidays = new();
+    private string? SaveError;
 
     protected override async Task OnInitializedAsync()
     {
@@ -62,6 +68,7 @@
     {
         if (!int.TryParse(holiday, out var holidayId))
         {
+            SaveError = "Выберите праздник.";
             return;
         }
 

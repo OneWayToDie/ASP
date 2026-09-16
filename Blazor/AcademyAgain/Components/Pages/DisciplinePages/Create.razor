@@ -1,5 +1,7 @@
 @page "/disciplines/create"
+@attribute [Authorize]
 @using Microsoft.EntityFrameworkCore
+@using System.Data
 @using AcademyAgain.Models
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
@@ -44,11 +46,13 @@
     private async Task AddDiscipline()
     {
         using var context = DbFactory.CreateDbContext();
+        await using var transaction = await context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
         Discipline.discipline_id = context.Disciplines.Any()
             ? context.Disciplines.Max(d => d.discipline_id) + 1
             : 1;
         context.Disciplines.Add(Discipline);
         await context.SaveChangesAsync();
+        await transaction.CommitAsync();
         NavigationManager.NavigateTo("/disciplines");
     }
 }

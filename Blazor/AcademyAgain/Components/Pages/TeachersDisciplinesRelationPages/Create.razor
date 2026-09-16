@@ -1,4 +1,5 @@
 @page "/teachersdisciplinesrelations/create"
+@attribute [Authorize]
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
@@ -14,6 +15,10 @@
         <EditForm method="post" Model="TeachersDisciplinesRelation" OnValidSubmit="AddTeachersDisciplinesRelation" FormName="create" Enhance>
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" role="alert"/>
+            @if (!string.IsNullOrEmpty(SaveError))
+            {
+                <div class="alert alert-danger" role="alert">@SaveError</div>
+            }
             <div class="mb-3">
                 <span class="text-danger">*</span>
                 <label for="teacher" class="form-label">Преподаватель:</label>
@@ -59,6 +64,7 @@
 
     private List<Teacher> teachers = new();
     private List<Discipline> disciplines = new();
+    private string? SaveError;
 
     protected override async Task OnInitializedAsync()
     {
@@ -71,12 +77,10 @@
     // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
     private async Task AddTeachersDisciplinesRelation()
     {
-        if (!int.TryParse(teacher, out var teacherId))
+        if (!int.TryParse(teacher, out var teacherId)
+            || !int.TryParse(discipline, out var disciplineId))
         {
-            return;
-        }
-        if (!int.TryParse(discipline, out var disciplineId))
-        {
+            SaveError = "Выберите преподавателя и дисциплину.";
             return;
         }
 

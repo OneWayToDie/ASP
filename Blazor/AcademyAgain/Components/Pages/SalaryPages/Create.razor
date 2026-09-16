@@ -1,5 +1,7 @@
 @page "/salarys/create"
+@attribute [Authorize]
 @using Microsoft.EntityFrameworkCore
+@using System.Data
 @using AcademyAgain.Models
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
@@ -14,6 +16,10 @@
         <EditForm method="post" Model="Salary" OnValidSubmit="AddSalary" FormName="create" Enhance>
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" role="alert"/>
+            @if (!string.IsNullOrEmpty(SaveError))
+            {
+                <div class="alert alert-danger" role="alert">@SaveError</div>
+            }
             <div class="mb-3">
                 <span class="text-danger">*</span>
                 <label for="teacher" class="form-label">Преподаватель:</label>
@@ -56,6 +62,7 @@
     private string? received { get; set; }
 
     private List<Teacher> teachers = new();
+    private string? SaveError;
 
     protected override async Task OnInitializedAsync()
     {
@@ -72,6 +79,7 @@
     {
         if (!int.TryParse(teacher, out var teacherId))
         {
+            SaveError = "Выберите преподавателя.";
             return;
         }
 
@@ -79,11 +87,13 @@
         Salary.received = received == "true";
 
         using var context = DbFactory.CreateDbContext();
+        await using var transaction = await context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
         Salary.payment_id = context.Salary.Any()
             ? context.Salary.Max(s => s.payment_id) + 1
             : 1;
         context.Salary.Add(Salary);
         await context.SaveChangesAsync();
+        await transaction.CommitAsync();
         NavigationManager.NavigateTo("/salarys");
     }
 }

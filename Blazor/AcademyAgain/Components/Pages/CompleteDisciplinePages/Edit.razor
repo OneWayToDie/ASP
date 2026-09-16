@@ -1,4 +1,5 @@
 @page "/completedisciplines/edit"
+@attribute [Authorize]
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
@@ -20,6 +21,10 @@ else
             <EditForm method="post" Model="CompleteDiscipline" OnValidSubmit="UpdateCompleteDiscipline" FormName="edit" Enhance>
                 <DataAnnotationsValidator />
                 <ValidationSummary role="alert"/>
+                @if (!string.IsNullOrEmpty(SaveError))
+                {
+                    <div class="alert alert-danger" role="alert">@SaveError</div>
+                }
                 <input type="hidden" name="CompleteDiscipline.group" value="@CompleteDiscipline.group" />
                 <input type="hidden" name="CompleteDiscipline.discipline" value="@CompleteDiscipline.discipline" />
                 <div class="mb-3">
@@ -74,6 +79,7 @@ else
 
     private List<Group> groups = new();
     private List<Discipline> disciplines = new();
+    private string? SaveError;
 
     private int? SelectedGroup
         => int.TryParse(selected_group, out var value) ? value : CompleteDiscipline?.group;
@@ -101,6 +107,7 @@ else
         if (!int.TryParse(selected_group, out var groupId)
             || !int.TryParse(selected_discipline, out var disciplineId))
         {
+            SaveError = "Выберите группу и дисциплину.";
             return;
         }
 

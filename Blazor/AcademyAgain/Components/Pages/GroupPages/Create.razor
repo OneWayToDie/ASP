@@ -1,5 +1,7 @@
 @page "/groups/create"
+@attribute [Authorize]
 @using Microsoft.EntityFrameworkCore
+@using System.Data
 @using System.Globalization
 @using AcademyAgain.Models
 @using AcademyAgain.Helpers
@@ -100,7 +102,7 @@
     protected override async Task OnInitializedAsync()
     {
         Group ??= new();
-        start_time ??= Group.start_time?.ToString(@"hh\:mm\:ss") ?? "";
+        start_time ??= Group.start_time?.ToString(@"hh\:mm") ?? "";
 
         await using var context = DbFactory.CreateDbContext();
         directions = await context.Directions.OrderBy(d => d.direction_id).ToListAsync();
@@ -114,11 +116,13 @@
         Group.start_time = ParseTime(start_time);
 
         using var context = DbFactory.CreateDbContext();
+        await using var transaction = await context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
         Group.group_id = context.Groups.Any()
             ? context.Groups.Max(g => g.group_id) + 1
             : 1;
         context.Groups.Add(Group);
         await context.SaveChangesAsync();
+        await transaction.CommitAsync();
         NavigationManager.NavigateTo("/groups");
     }
 
@@ -137,8 +141,10 @@
 
     private static TimeSpan? ParseTime(string? value)
     {
-        return TimeSpan.TryParseExact(value, @"hh\:mm\:ss", CultureInfo.InvariantCulture, out var result)
-            ? result
-            : null;
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        return TimeSpan.TryParseExact(value, @"hh\:mm", CultureInfo.InvariantCulture, out var result)
+            || TimeSpan.TryParseExact(value, @"hh\:mm\:ss", CultureInfo.InvariantCulture, out result)
+                ? result
+                : null;
     }
 }

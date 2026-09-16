@@ -1,4 +1,5 @@
 @page "/completedisciplines/create"
+@attribute [Authorize]
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
@@ -14,6 +15,10 @@
         <EditForm method="post" Model="CompleteDiscipline" OnValidSubmit="AddCompleteDiscipline" FormName="create" Enhance>
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" role="alert"/>
+            @if (!string.IsNullOrEmpty(SaveError))
+            {
+                <div class="alert alert-danger" role="alert">@SaveError</div>
+            }
             <div class="mb-3">
                 <span class="text-danger">*</span>
                 <label for="selected_group" class="form-label">Группа:</label>
@@ -59,6 +64,7 @@
 
     private List<Group> groups = new();
     private List<Discipline> disciplines = new();
+    private string? SaveError;
 
     protected override async Task OnInitializedAsync()
     {
@@ -74,6 +80,7 @@
         if (!int.TryParse(selected_group, out var groupId)
             || !int.TryParse(selected_discipline, out var disciplineId))
         {
+            SaveError = "Выберите группу и дисциплину.";
             return;
         }
 

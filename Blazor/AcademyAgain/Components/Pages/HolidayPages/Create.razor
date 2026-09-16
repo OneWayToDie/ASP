@@ -1,5 +1,7 @@
 @page "/holidays/create"
+@attribute [Authorize]
 @using Microsoft.EntityFrameworkCore
+@using System.Data
 @using AcademyAgain.Models
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager NavigationManager
@@ -68,11 +70,13 @@
         Holiday.month = int.TryParse(month, out var m) ? m : null;
 
         using var context = DbFactory.CreateDbContext();
+        await using var transaction = await context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
         Holiday.holiday_id = context.Holidays.Any()
             ? context.Holidays.Max(h => h.holiday_id) + 1
             : 1;
         context.Holidays.Add(Holiday);
         await context.SaveChangesAsync();
+        await transaction.CommitAsync();
         NavigationManager.NavigateTo("/holidays");
     }
 }

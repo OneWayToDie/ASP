@@ -1,4 +1,5 @@
 @page "/grades"
+@attribute [Authorize]
 @rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
@@ -66,6 +67,7 @@
 @code {
     private List<Grade> allItems = new();
     private IQueryable<Grade> query = new List<Grade>().AsQueryable();
+    private List<Grade> filtered = new();
     private Dictionary<int, string> students = new();
     private Dictionary<long, string> lessonNames = new();
     private string? SaveError;
@@ -130,8 +132,9 @@
 
     private void ApplyFilter()
     {
-        query = ApplySearch(allItems).AsQueryable();
-        TotalCount = ApplySearch(allItems).Count();
+        filtered = ApplySearch(allItems).ToList();
+        query = filtered.AsQueryable();
+        TotalCount = filtered.Count;
     }
 
     private List<string?[]> BuildRows()
@@ -140,7 +143,7 @@
         {
             new[] { "Студент", "Занятие", "Оценка 1", "Оценка 2" }
         };
-        foreach (var g in ApplySearch(allItems))
+        foreach (var g in filtered)
         {
             rows.Add(new[] { StudentName(g.student), LessonName(g.lesson), g.grade_1?.ToString(), g.grade_2?.ToString() });
         }

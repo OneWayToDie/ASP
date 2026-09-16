@@ -1,4 +1,5 @@
 @page "/schedules/create"
+@attribute [Authorize]
 @using Microsoft.EntityFrameworkCore
 @using System.Globalization
 @using AcademyAgain.Models
@@ -103,7 +104,7 @@
     protected override async Task OnInitializedAsync()
     {
         Schedule ??= new();
-        time ??= Schedule.time?.ToString(@"hh\:mm\:ss") ?? "";
+        time ??= Schedule.time?.ToString(@"hh\:mm") ?? "";
         await using var context = DbFactory.CreateDbContext();
         groups = (await context.Groups.OrderBy(g => g.group_name).ToListAsync())
             .Select(g => new KeyValuePair<int, string>(g.group_id, g.group_name ?? ""))
@@ -122,6 +123,7 @@
     {
         if (!int.TryParse(group, out var groupId) || !int.TryParse(discipline, out var disciplineId) || !int.TryParse(teacher, out var teacherId))
         {
+            SaveError = "Выберите группу, дисциплину и преподавателя.";
             return;
         }
 
@@ -149,8 +151,10 @@
 
     private static TimeSpan? ParseTime(string? value)
     {
-        return TimeSpan.TryParseExact(value, @"hh\:mm\:ss", CultureInfo.InvariantCulture, out var result)
-            ? result
-            : null;
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        return TimeSpan.TryParseExact(value, @"hh\:mm", CultureInfo.InvariantCulture, out var result)
+            || TimeSpan.TryParseExact(value, @"hh\:mm\:ss", CultureInfo.InvariantCulture, out result)
+                ? result
+                : null;
     }
 }

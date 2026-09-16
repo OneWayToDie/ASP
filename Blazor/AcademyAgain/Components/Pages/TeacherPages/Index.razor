@@ -1,4 +1,5 @@
 @page "/teachers"
+@attribute [Authorize]
 @rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
@@ -52,6 +53,7 @@
 @code {
     private List<Teacher> allItems = new();
     private IQueryable<Teacher> query = new List<Teacher>().AsQueryable();
+    private List<Teacher> filtered = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -62,8 +64,9 @@
 
     private void ApplyFilter()
     {
-        query = ApplySearch(allItems).AsQueryable();
-        TotalCount = ApplySearch(allItems).Count();
+        filtered = ApplySearch(allItems).ToList();
+        query = filtered.AsQueryable();
+        TotalCount = filtered.Count;
     }
 
     private List<string?[]> BuildRows()
@@ -72,7 +75,7 @@
         {
             new[] { "Фамилия", "Имя", "Отчество", "Дата рождения", "Email", "Телефон", "Работает с", "Ставка" }
         };
-        foreach (var t in ApplySearch(allItems))
+        foreach (var t in filtered)
         {
             rows.Add(new[]
             {

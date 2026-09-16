@@ -1,4 +1,5 @@
 @page "/exams/edit"
+@attribute [Authorize]
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
@@ -20,6 +21,10 @@ else
             <EditForm method="post" Model="Exam" OnValidSubmit="UpdateExam" FormName="edit" Enhance>
                 <DataAnnotationsValidator />
                 <ValidationSummary role="alert"/>
+                @if (!string.IsNullOrEmpty(SaveError))
+                {
+                    <div class="alert alert-danger" role="alert">@SaveError</div>
+                }
                 <input type="hidden" name="Exam.student" value="@Exam.student" />
                 <input type="hidden" name="Exam.discipline" value="@Exam.discipline" />
                 <div class="mb-3">
@@ -84,6 +89,7 @@ else
 
     private List<KeyValuePair<int, string>> students = new();
     private List<KeyValuePair<int, string>> disciplines = new();
+    private string? SaveError;
 
     private int SelectedStudent
         => int.TryParse(studentSel, out var value) ? value : Exam?.student ?? 0;
@@ -117,6 +123,7 @@ else
     {
         if (!int.TryParse(studentSel, out var studentId) || !int.TryParse(disciplineSel, out var disciplineId))
         {
+            SaveError = "Выберите студента и дисциплину.";
             return;
         }
 

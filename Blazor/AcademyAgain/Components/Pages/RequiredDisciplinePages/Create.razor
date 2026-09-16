@@ -1,4 +1,5 @@
 @page "/requireddisciplines/create"
+@attribute [Authorize]
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
@@ -14,6 +15,10 @@
         <EditForm method="post" Model="RequiredDiscipline" OnValidSubmit="AddRequiredDiscipline" FormName="create" Enhance>
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" role="alert"/>
+            @if (!string.IsNullOrEmpty(SaveError))
+            {
+                <div class="alert alert-danger" role="alert">@SaveError</div>
+            }
             <div class="mb-3">
                 <span class="text-danger">*</span>
                 <label for="discipline" class="form-label">Дисциплина:</label>
@@ -58,6 +63,7 @@
     private string? required_discipline { get; set; }
 
     private List<Discipline> disciplines = new();
+    private string? SaveError;
 
     protected override async Task OnInitializedAsync()
     {
@@ -69,12 +75,10 @@
     // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
     private async Task AddRequiredDiscipline()
     {
-        if (!int.TryParse(discipline, out var disciplineId))
+        if (!int.TryParse(discipline, out var disciplineId)
+            || !int.TryParse(required_discipline, out var requiredDisciplineId))
         {
-            return;
-        }
-        if (!int.TryParse(required_discipline, out var requiredDisciplineId))
-        {
+            SaveError = "Выберите обе дисциплины.";
             return;
         }
 

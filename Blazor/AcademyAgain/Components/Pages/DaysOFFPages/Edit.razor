@@ -1,4 +1,5 @@
 @page "/daysoffs/edit"
+@attribute [Authorize]
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
@@ -20,6 +21,10 @@ else
             <EditForm method="post" Model="DaysOFF" OnValidSubmit="UpdateDaysOFF" FormName="edit" Enhance>
                 <DataAnnotationsValidator />
                 <ValidationSummary role="alert"/>
+                @if (!string.IsNullOrEmpty(SaveError))
+                {
+                    <div class="alert alert-danger" role="alert">@SaveError</div>
+                }
                 <input type="hidden" name="DaysOFF.date" value="@DaysOFF.date" />
                 <div class="mb-3">
                     <span class="text-danger">*</span>
@@ -59,6 +64,7 @@ else
     private string? holiday { get; set; }
 
     private List<Holiday> holidays = new();
+    private string? SaveError;
 
     private int? SelectedHoliday
         => int.TryParse(holiday, out var value) ? value : DaysOFF?.holiday;
@@ -81,6 +87,7 @@ else
     {
         if (!int.TryParse(holiday, out var holidayId))
         {
+            SaveError = "Выберите праздник.";
             return;
         }
 

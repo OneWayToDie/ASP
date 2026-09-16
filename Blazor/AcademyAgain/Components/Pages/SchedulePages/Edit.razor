@@ -1,4 +1,5 @@
 @page "/schedules/edit"
+@attribute [Authorize]
 @using Microsoft.EntityFrameworkCore
 @using System.Globalization
 @using AcademyAgain.Models
@@ -140,7 +141,7 @@ else
             NavigationManager.NavigateTo("notfound");
         }
 
-        time ??= Schedule!.time?.ToString(@"hh\:mm\:ss") ?? "";
+        time ??= Schedule!.time?.ToString(@"hh\:mm") ?? "";
     }
 
     // To protect from overposting attacks, enable the specific properties you want to bind to.
@@ -149,6 +150,7 @@ else
     {
         if (!int.TryParse(group, out var groupId) || !int.TryParse(discipline, out var disciplineId) || !int.TryParse(teacher, out var teacherId))
         {
+            SaveError = "Выберите группу, дисциплину и преподавателя.";
             return;
         }
 
@@ -199,8 +201,10 @@ else
 
     private static TimeSpan? ParseTime(string? value)
     {
-        return TimeSpan.TryParseExact(value, @"hh\:mm\:ss", CultureInfo.InvariantCulture, out var result)
-            ? result
-            : null;
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        return TimeSpan.TryParseExact(value, @"hh\:mm", CultureInfo.InvariantCulture, out var result)
+            || TimeSpan.TryParseExact(value, @"hh\:mm\:ss", CultureInfo.InvariantCulture, out result)
+                ? result
+                : null;
     }
 }

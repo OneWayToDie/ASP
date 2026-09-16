@@ -1,4 +1,5 @@
 @page "/schedules/calendar"
+@attribute [Authorize]
 @rendermode InteractiveServer
 @using System.Globalization
 @using Microsoft.EntityFrameworkCore
@@ -296,11 +297,13 @@
                 continue;
             }
             int m = h.month.Value;
-            int daysInMonth = DateTime.DaysInMonth(2026, m);
-            int startDay = h.day.HasValue && h.day.Value >= 1 && h.day.Value <= daysInMonth ? h.day.Value : 1;
             int duration = Math.Max(1, h.duration);
             for (int year = from.Year; year <= to.Year; year++)
             {
+                int daysInMonth = DateTime.DaysInMonth(year, m);
+                int startDay = h.day.HasValue && h.day.Value >= 1 && h.day.Value <= daysInMonth
+                    ? h.day.Value
+                    : daysInMonth;
                 var start = new DateTime(year, m, startDay);
                 for (int i = 0; i < duration; i++)
                 {

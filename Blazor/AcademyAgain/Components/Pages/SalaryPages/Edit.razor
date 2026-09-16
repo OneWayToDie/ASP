@@ -1,4 +1,5 @@
 @page "/salarys/edit"
+@attribute [Authorize]
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
@@ -20,6 +21,10 @@ else
             <EditForm method="post" Model="Salary" OnValidSubmit="UpdateSalary" FormName="edit" Enhance>
                 <DataAnnotationsValidator />
                 <ValidationSummary role="alert"/>
+                @if (!string.IsNullOrEmpty(SaveError))
+                {
+                    <div class="alert alert-danger" role="alert">@SaveError</div>
+                }
                 <input type="hidden" name="Salary.payment_id" value="@Salary.payment_id" />
                 <div class="mb-3">
                     <span class="text-danger">*</span>
@@ -67,6 +72,7 @@ else
     private string? received { get; set; }
 
     private List<Teacher> teachers = new();
+    private string? SaveError;
 
     private int? SelectedTeacher
         => int.TryParse(teacher, out var value) ? value : Salary?.teacher;
@@ -93,6 +99,7 @@ else
     {
         if (!int.TryParse(teacher, out var teacherId))
         {
+            SaveError = "Выберите преподавателя.";
             return;
         }
 

@@ -1,4 +1,5 @@
 @page "/disciplinesdirectionsrelations/edit"
+@attribute [Authorize]
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
@@ -20,6 +21,10 @@ else
             <EditForm method="post" Model="DisciplinesDirectionsRelation" OnValidSubmit="UpdateDisciplinesDirectionsRelation" FormName="edit" Enhance>
                 <DataAnnotationsValidator />
                 <ValidationSummary role="alert"/>
+                @if (!string.IsNullOrEmpty(SaveError))
+                {
+                    <div class="alert alert-danger" role="alert">@SaveError</div>
+                }
                 <input type="hidden" name="DisciplinesDirectionsRelation.direction" value="@DisciplinesDirectionsRelation.direction" />
                 <input type="hidden" name="DisciplinesDirectionsRelation.discipline" value="@DisciplinesDirectionsRelation.discipline" />
                 <div class="mb-3">
@@ -74,6 +79,7 @@ else
 
     private List<Direction> directions = new();
     private List<Discipline> disciplines = new();
+    private string? SaveError;
 
     private int? SelectedDirection
         => int.TryParse(directionId, out var value) ? value : DisciplinesDirectionsRelation?.direction;
@@ -98,12 +104,10 @@ else
     // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
     private async Task UpdateDisciplinesDirectionsRelation()
     {
-        if (!int.TryParse(directionId, out var directionValue))
+        if (!int.TryParse(directionId, out var directionValue)
+            || !int.TryParse(disciplineId, out var disciplineValue))
         {
-            return;
-        }
-        if (!int.TryParse(disciplineId, out var disciplineValue))
-        {
+            SaveError = "Выберите направление и дисциплину.";
             return;
         }
 

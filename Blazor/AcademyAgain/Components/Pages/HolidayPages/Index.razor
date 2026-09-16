@@ -1,4 +1,5 @@
 @page "/holidays"
+@attribute [Authorize]
 @rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
@@ -42,6 +43,7 @@
 @code {
     private List<Holiday> allItems = new();
     private IQueryable<Holiday> query = new List<Holiday>().AsQueryable();
+    private List<Holiday> filtered = new();
 
     private static readonly string[] MonthNames = { "", "январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь" };
 
@@ -54,8 +56,9 @@
 
     private void ApplyFilter()
     {
-        query = ApplySearch(allItems).AsQueryable();
-        TotalCount = ApplySearch(allItems).Count();
+        filtered = ApplySearch(allItems).ToList();
+        query = filtered.AsQueryable();
+        TotalCount = filtered.Count;
     }
 
     private List<string?[]> BuildRows()
@@ -64,7 +67,7 @@
         {
             new[] { "Название", "Длительность", "Месяц", "День" }
         };
-        foreach (var h in ApplySearch(allItems))
+        foreach (var h in filtered)
         {
             rows.Add(new[] { HolidayName(h), h.duration.ToString(), MonthName(h.month), h.day.ToString() });
         }
