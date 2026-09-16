@@ -20,6 +20,12 @@
             <dt class="col-sm-2">direction_Name</dt>
             <dd class="col-sm-10">@direction.direction_Name</dd>
         </dl>
+        <ul>
+            @foreach (Group group in direction.Groups)
+            {
+                <li>@group.group_name</li>   
+            }
+        </ul>
         <div>
             <a href="@($"/directions/edit?direction_id={direction.direction_Id}")">Edit</a> |
             <a href="@($"/directions")">Back to List</a>
@@ -36,7 +42,11 @@
     protected override async Task OnInitializedAsync()
     {
         using var context = DbFactory.CreateDbContext();
-        direction = await context.Directions.FirstOrDefaultAsync(m => m.direction_Id == direction_Id);
+        direction = await context
+        .Directions
+        .Include(d => d.Groups)
+        .FirstOrDefaultAsync(m => m.direction_Id == direction_Id);
+        // direction = await context.Directions.FirstOrDefaultAsync(m => m.direction_Id == direction_Id);
 
         if (direction is null)
         {

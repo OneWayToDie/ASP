@@ -20,7 +20,7 @@
             <dt class="col-sm-2">group_name</dt>
             <dd class="col-sm-10">@group.group_name</dd>
             <dt class="col-sm-2">direction</dt>
-            <dd class="col-sm-10">@group.direction</dd>
+            <dd class="col-sm-10">@group.Direction.direction_Name</dd>
             <dt class="col-sm-2">learning_days</dt>
             <dd class="col-sm-10">@group.learning_days</dd>
             <dt class="col-sm-2">start_time</dt>
@@ -44,7 +44,12 @@
     protected override async Task OnInitializedAsync()
     {
         using var context = DbFactory.CreateDbContext();
-        group = await context.Groups.FirstOrDefaultAsync(m => m.group_Id == group_Id);
+        group = await context
+                             .Groups
+                             .Include(g => g.Direction)
+                             .FirstOrDefaultAsync(m => m.group_Id == group_Id);
+
+        // group = await context.Groups.FirstOrDefaultAsync(m => m.group_Id == group_Id);
 
         if (group is null)
         {

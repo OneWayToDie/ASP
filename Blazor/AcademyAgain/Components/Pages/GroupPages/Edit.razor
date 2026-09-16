@@ -31,7 +31,16 @@ else
                 <div class="mb-3">
                 <span class="text-danger">*</span>
                     <label for="direction" class="form-label">direction:</label>
-                    <InputNumber id="direction" @bind-Value="Group.direction" class="form-control" aria-required="true"/>
+                    <InputSelect id="direction" @bind-Value="Group.direction" class="form-control">
+                        @using (AcademyAgainContext context = DbFactory.CreateDbContext())
+                        {
+                            @foreach (Direction d in context.Directions)
+                            {
+                                <option value="@d.direction_Id">@d.direction_Name</option>   
+                            }
+                        }
+                    </InputSelect>
+                    @* <InputNumber id="direction" @bind-Value="Group.direction" class="form-control" aria-required="true"/> *@
                     <ValidationMessage For="() => Group.direction" class="text-danger" />
                 </div>
                 <div class="mb-3">
