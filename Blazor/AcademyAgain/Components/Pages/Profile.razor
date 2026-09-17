@@ -923,13 +923,13 @@ private string ContactEmail = string.Empty;
 RoleText = user.role_id switch
         {
             1 => "Админ", 4 => "Модератор",
-            2 => "Преподаватель", 3 => "Студент", 5 => "Абитуриент",
+            2 => "Преподаватель", 3 => "Студент", 5 => "Абитуриент", 6 => "Соискатель",
             _ => user.role_id.ToString()
         };
         RoleCss = user.role_id switch
         {
             1 => "text-bg-danger", 4 => "text-bg-info",
-            2 => "text-bg-primary", 3 => "text-bg-success", 5 => "text-bg-warning",
+            2 => "text-bg-primary", 3 => "text-bg-success", 5 => "text-bg-warning", 6 => "text-bg-secondary",
             _ => "text-bg-secondary"
         };
         InitialsCss = user.role_id switch

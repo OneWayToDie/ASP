@@ -1,0 +1,200 @@
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@using AcademyAgain.Helpers
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+
+<section class="land-hero">
+    <div class="land-hero-inner">
+        <span class="land-eyebrow">Академия — образование с личным подходом</span>
+        <h1 class="land-hero-title">Учитесь у преподавателей, которые вас знают</h1>
+        <p class="land-hero-sub">
+            Небольшие группы, живой контакт с наставником и понятный путь
+            от заявки до диплома. Выберите преподавателя и начните путь уже сегодня.
+        </p>
+        <div class="land-hero-actions">
+            <a class="btn btn-primary" href="teachers/catalog">Выбрать преподавателя</a>
+            <a class="btn btn-outline-secondary" href="applicants">Как поступить</a>
+        </div>
+    </div>
+</section>
+
+<section class="land-section">
+    <div class="land-stats">
+        <div class="land-stat">
+            <span class="land-stat-value">@TeacherCount</span>
+            <span class="land-stat-label">Преподавателей</span>
+        </div>
+        <div class="land-stat">
+            <span class="land-stat-value">@DirectionCount</span>
+            <span class="land-stat-label">Направлений</span>
+        </div>
+        <div class="land-stat">
+            <span class="land-stat-value">@GroupCount</span>
+            <span class="land-stat-label">Групп</span>
+        </div>
+    </div>
+</section>
+
+@if (Directions.Count > 0)
+{
+    <section class="land-section">
+        <h2 class="section-title">Направления подготовки</h2>
+        <div class="land-chips">
+            @foreach (var direction in Directions)
+            {
+                <span class="land-chip">@direction</span>
+            }
+        </div>
+    </section>
+}
+
+@if (Teachers.Count > 0)
+{
+    <section class="land-section">
+        <h2 class="section-title">Преподаватели академии</h2>
+        <div class="land-teachers">
+            @foreach (var t in Teachers)
+            {
+                <a class="land-teacher" href="/teachers/card/@t.Id">
+                    <div class="land-teacher-avatar">
+                        @if (Photo.DataSrc(t.Photo) is string photoSrc)
+                        {
+                            <img src="@photoSrc" alt="@t.FullName" />
+                        }
+                        else
+                        {
+                            <span>@t.Initials</span>
+                        }
+                    </div>
+                    <h3>@t.FullName</h3>
+                    @if (t.Subjects.Count > 0)
+                    {
+                        <div class="land-teacher-subjects">
+                            @foreach (var subject in t.Subjects.Take(3))
+                            {
+                                <span class="land-chip">@subject</span>
+                            }
+                            @if (t.SubjectCount > 3)
+                            {
+                                <span class="land-chip">+@(t.SubjectCount - 3)</span>
+                            }
+                        </div>
+                    }
+                    <span class="land-teacher-more">Визитка →</span>
+                </a>
+            }
+        </div>
+        <p class="land-link-row">
+            <a class="land-link" href="teachers/catalog">Все преподаватели →</a>
+        </p>
+    </section>
+}
+
+<section class="land-section">
+    <h2 class="section-title">Новости академии</h2>
+    <NewsList Take="3" />
+</section>
+
+<section class="land-contacts">
+    <div class="land-contacts-body">
+        <h2>Контакты</h2>
+        <p>
+            Приёмная комиссия работает ежедневно с 9:00 до 18:00.
+            Ответим на вопросы о поступлении, направлениях и преподавателях.
+        </p>
+        <ul class="land-contacts-list">
+            <li>г. Выдумляндия, адрес засекречен</li>
+            <li>+7 (495) 000-00-00</li>
+            <li>info@academy.example</li>
+        </ul>
+    </div>
+    <a class="btn btn-outline-secondary" href="contacts">Подробнее о контактах</a>
+</section>
+
+@code {
+    private sealed class TeacherCard
+    {
+        public int Id;
+        public string FullName = string.Empty;
+        public string Initials = "?";
+        public byte[]? Photo;
+        public List<string> Subjects = new();
+        public int SubjectCount;
+    }
+
+    private int TeacherCount;
+    private int DirectionCount;
+    private int GroupCount;
+
+    private List<string> Directions = new();
+    private List<TeacherCard> Teachers = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var context = DbFactory.CreateDbContext();
+
+        TeacherCount = await context.Teachers.AsNoTracking().CountAsync();
+        DirectionCount = await context.Directions.AsNoTracking().CountAsync();
+        GroupCount = await context.Groups.AsNoTracking().CountAsync();
+
+        Directions = (await context.Directions.AsNoTracking().ToListAsync())
+            .Select(d => d.direction_name)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Select(n => n!.Trim())
+            .Distinct()
+            .ToList();
+
+        var teachers = await context.Teachers.AsNoTracking()
+            .OrderBy(t => t.last_name).ThenBy(t => t.first_name)
+            .Take(6)
+            .ToListAsync();
+        if (teachers.Count == 0)
+        {
+            return;
+        }
+
+        var teacherIds = teachers.Select(t => t.teacher_id).ToList();
+        var disciplines = await context.Disciplines.AsNoTracking().ToDictionaryAsync(d => d.discipline_id);
+        var relations = await context.TeachersDisciplinesRelation.AsNoTracking()
+            .Where(r => teacherIds.Contains(r.teacher))
+            .ToListAsync();
+
+        foreach (var teacher in teachers)
+        {
+            var disciplineIds = relations
+                .Where(r => r.teacher == teacher.teacher_id)
+                .Select(r => r.discipline)
+                .Distinct()
+                .ToList();
+
+            var subjects = disciplineIds
+                .Where(disciplines.ContainsKey)
+                .Select(id => disciplines[id].discipline_name)
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Select(n => n!.Trim())
+                .Distinct()
+                .ToList();
+
+            var fullName = ComposeName(teacher.last_name, teacher.first_name, teacher.middle_name);
+
+            Teachers.Add(new TeacherCard
+            {
+                Id = teacher.teacher_id,
+                FullName = fullName,
+                Initials = MakeInitials(fullName),
+                Photo = teacher.photo,
+                Subjects = subjects,
+                SubjectCount = subjects.Count
+            });
+        }
+    }
+
+    private static string ComposeName(string? last, string? first, string? middle)
+        => string.Join(" ", new[] { last, first, middle }.Where(x => !string.IsNullOrWhiteSpace(x)));
+
+    private static string MakeInitials(string name)
+    {
+        var parts = name.Split(new[] { ' ', '-', '.' }, StringSplitOptions.RemoveEmptyEntries).Take(2).ToList();
+        return parts.Count == 0 ? "?" : string.Concat(parts.Select(p => char.ToUpperInvariant(p[0])));
+    }
+}

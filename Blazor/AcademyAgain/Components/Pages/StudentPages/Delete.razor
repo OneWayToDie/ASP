@@ -1,5 +1,5 @@
 @page "/students/delete"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "Teaching")]
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
 @using AcademyAgain.Helpers

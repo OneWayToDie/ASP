@@ -1,0 +1,69 @@
+@page "/applicants"
+@attribute [AllowAnonymous]
+@inject AuthenticationStateProvider Auth
+
+<PageTitle>Абитуриентам</PageTitle>
+
+<div class="page-header">
+    <h1>Абитуриентам</h1>
+    <p class="page-subtitle">Как поступить в академию — шаг за шагом.</p>
+</div>
+
+<p class="pub-lead">
+    Поступление занимает несколько минут: выберите направление, создайте аккаунт
+    абитуриента и отправьте заявку преподавателю. Приёмная комиссия рассмотрит её
+    и свяжется с вами.
+</p>
+
+<div class="pub-cards">
+    <div class="pub-card pub-step">
+        <span class="pub-step-num">1</span>
+        <h3>Выберите направление</h3>
+        <p>Ознакомьтесь с направлениями подготовки и предметами, которые вас интересуют.</p>
+    </div>
+    <div class="pub-card pub-step">
+        <span class="pub-step-num">2</span>
+        <h3>Создайте аккаунт</h3>
+        <p>Зарегистрируйтесь как абитуриент — это бесплатно и не обязывает к зачислению.</p>
+    </div>
+    <div class="pub-card pub-step">
+        <span class="pub-step-num">3</span>
+        <h3>Отправьте заявку</h3>
+        <p>Выберите преподавателя и запишитесь к нему в личном кабинете абитуриента.</p>
+    </div>
+    <div class="pub-card pub-step">
+        <span class="pub-step-num">4</span>
+        <h3>Дождитесь решения</h3>
+        <p>Статус заявки отображается в панели. После одобрения вы становитесь студентом.</p>
+    </div>
+</div>
+
+<h2 class="section-title">Что понадобится</h2>
+<ul class="pub-list">
+    <li>Действующий адрес электронной почты для подтверждения аккаунта.</li>
+    <li>Контактный телефон для связи с приёмной комиссией.</li>
+    <li>Желание учиться — остальное подскажем и поможем оформить.</li>
+</ul>
+
+<div class="pub-cta">
+    <div class="pub-cta-text">
+        <h3>Готовы начать?</h3>
+        <p>@(IsAuthenticated ? "Выберите своего преподавателя и отправьте заявку." : "Создайте аккаунт абитуриента и выберите своего преподавателя.")</p>
+    </div>
+    @if (!IsAuthenticated)
+    {
+        <a class="btn btn-primary" href="register">Создать аккаунт</a>
+    }
+    <a class="btn btn-outline-secondary" href="admission">Оставить заявку без регистрации</a>
+    <a class="btn btn-outline-secondary" href="teachers/catalog">Выбрать преподавателя</a>
+</div>
+
+@code {
+    private bool IsAuthenticated;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await Auth.GetAuthenticationStateAsync();
+        IsAuthenticated = authState.User.Identity?.IsAuthenticated == true;
+    }
+}

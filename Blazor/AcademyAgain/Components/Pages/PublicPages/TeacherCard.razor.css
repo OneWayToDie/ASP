@@ -1,0 +1,175 @@
+.tcard
+{
+    max-width: 860px;
+    margin: 1.5rem auto;
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.tcard-banner
+{
+    height: 120px;
+    background: linear-gradient(135deg, #0a1f4a, #114e9b 55%, #66a3ff);
+}
+
+.tcard-head
+{
+    display: flex;
+    gap: 1.25rem;
+    align-items: center;
+    padding: 1.5rem;
+}
+
+.tcard-avatar
+{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 128px;
+    height: 128px;
+    flex: 0 0 128px;
+    border-radius: 50%;
+    background: var(--app-surface-2);
+    border: 3px solid var(--app-accent);
+    overflow: hidden;
+}
+
+.tcard-avatar img
+{
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.tcard-initials
+{
+    font-size: 2.4rem;
+    font-weight: 700;
+    color: var(--app-accent);
+    letter-spacing: 0.05em;
+}
+
+.tcard-head-info
+{
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+    min-width: 0;
+}
+
+.tcard-head-info h1
+{
+    margin: 0;
+    font-size: 1.7rem;
+}
+
+.tcard-rating
+{
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.9rem;
+}
+
+.tcard-stars
+{
+    color: var(--app-accent-warn);
+    letter-spacing: 0.05em;
+}
+
+.tcard-rating-value
+{
+    font-weight: 700;
+    color: var(--app-text);
+}
+
+.tcard-rating-empty
+{
+    color: var(--app-text-secondary);
+    font-size: 0.8rem;
+}
+
+.tcard-sub
+{
+    margin: 0;
+    color: var(--app-text-secondary);
+}
+
+.tcard-subjects
+{
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 0.5rem;
+}
+
+.tcard-subject
+{
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.55rem 0.8rem;
+    background: var(--app-surface-2);
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+}
+
+.tcard-subject-name
+{
+    color: var(--app-text);
+    font-weight: 600;
+}
+
+.tcard-subject-lessons
+{
+    color: var(--app-text-secondary);
+    font-size: 0.8rem;
+}
+
+.tcard-chips
+{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.tcard-chip
+{
+    padding: 0.25rem 0.7rem;
+    background: var(--app-surface-2);
+    border: 1px solid var(--app-border);
+    border-radius: 999px;
+    font-size: 0.82rem;
+    color: var(--app-text-soft);
+}
+
+.tcard-achievements
+{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.tcard-pill
+{
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    background: var(--app-surface-2);
+    border: 1px solid var(--app-border);
+    color: var(--app-accent);
+    font-size: 0.85rem;
+}
+
+.tcard-contacts
+{
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    margin: 0;
+    padding-left: 1.1rem;
+    color: var(--app-text-secondary);
+}

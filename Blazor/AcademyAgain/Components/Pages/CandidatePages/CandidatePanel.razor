@@ -1,0 +1,249 @@
+@page "/candidate"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider Auth
+@inject IJSRuntime JS
+
+<PageTitle>Панель абитуриента</PageTitle>
+
+@if (Redirecting)
+{
+    <div class="section-empty">Переход к панели управления…</div>
+}
+else if (Ready)
+{
+    <div class="page-header">
+        <h1>Здравствуйте, @Greeting!</h1>
+        <p class="page-subtitle">Здесь вы можете выбрать преподавателя, следить за своими заявками и узнавать новости академии.</p>
+    </div>
+
+    <div class="dashboard-stats">
+        <div class="stat-card">
+            <div class="stat-value">@Sent</div>
+            <div class="stat-label">Отправлено заявок</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">@Pending</div>
+            <div class="stat-label">Ожидают ответа</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">@Accepted</div>
+            <div class="stat-label">Принято</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">@Rejected</div>
+            <div class="stat-label">Отклонено</div>
+        </div>
+    </div>
+
+    <h2 class="section-title" id="requests">Мои заявки к преподавателям</h2>
+    @if (Requests.Count == 0)
+    {
+        <div class="cand-empty">
+            <div>Вы пока ни к кому не записались.</div>
+            <a class="btn btn-primary" href="teachers/catalog">Выбрать преподавателя</a>
+        </div>
+    }
+    else
+    {
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Преподаватель</th>
+                    <th>Дата</th>
+                    <th>Статус</th>
+                    <th style="width:120px"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var r in Requests)
+                {
+                    <tr>
+                        <td class="fw-semibold">@r.TeacherName</td>
+                        <td>@r.Date</td>
+                        <td><span class="badge @StatusCss(r.Status)">@StatusText(r.Status)</span></td>
+                        <td>
+                            @if (r.Status == 0)
+                            {
+                                <button type="button" class="btn btn-sm btn-outline-danger"
+                                        @onclick="() => CancelAsync(r.Id)">Отменить</button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    <h2 class="section-title">Быстрый доступ</h2>
+    <div class="quick-grid">
+        <a class="quick-card" href="teachers/catalog">
+            <span class="quick-title">Преподаватели</span>
+            <span class="quick-desc">Выбрать преподавателя и записаться</span>
+        </a>
+        <a class="quick-card" href="#requests">
+            <span class="quick-title">Заявки</span>
+            <span class="quick-desc">Посмотреть статусы своих заявок</span>
+        </a>
+        <a class="quick-card" href="#directions">
+            <span class="quick-title">Направления</span>
+            <span class="quick-desc">Ознакомиться с направлениями подготовки</span>
+        </a>
+        <a class="quick-card" href="profile">
+            <span class="quick-title">Профиль</span>
+            <span class="quick-desc">Анкета, фото и доступ в академию</span>
+        </a>
+    </div>
+
+    <h2 class="section-title" id="directions">Направления подготовки</h2>
+    @if (Directions.Count == 0)
+    {
+        <div class="section-empty">Направления пока не добавлены.</div>
+    }
+    else
+    {
+        <div class="cand-chips">
+            @foreach (var direction in Directions)
+            {
+                <span class="cand-chip">@direction</span>
+            }
+        </div>
+    }
+
+    <h2 class="section-title">Новости академии</h2>
+    <NewsList Take="4" />
+}
+
+@code {
+    private sealed record RequestRow(int Id, string TeacherName, string Date, int Status);
+
+    private bool Ready;
+    private bool Redirecting;
+    private string Greeting = "абитуриент";
+
+    private List<RequestRow> Requests = new();
+    private List<string> Directions = new();
+
+    private int Sent;
+    private int Pending;
+    private int Accepted;
+    private int Rejected;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await Auth.GetAuthenticationStateAsync();
+        if (!authState.User.IsInRole("candidate"))
+        {
+            Redirecting = true;
+            try
+            {
+                Navigation.NavigateTo("/", forceLoad: true);
+            }
+            catch (InvalidOperationException)
+            {
+            }
+            Ready = true;
+            return;
+        }
+
+        await LoadDataAsync();
+        Ready = true;
+    }
+
+    private async Task LoadDataAsync()
+    {
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var currentName = authState.User.Identity?.Name;
+        await using var context = DbFactory.CreateDbContext();
+
+        User? me = null;
+        if (currentName is not null)
+        {
+            me = await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.username == currentName);
+        }
+        Greeting = me is { first_name: not null and not "" } && !string.IsNullOrWhiteSpace(me.first_name)
+            ? me.first_name.Trim()
+            : (string.IsNullOrWhiteSpace(currentName) ? "абитуриент" : currentName);
+
+        var myRequests = me is null
+            ? new List<CandidateRequest>()
+            : await context.CandidateRequests.AsNoTracking()
+                .Where(r => r.candidate_user_id == me.user_id)
+                .OrderByDescending(r => r.created_at)
+                .ToListAsync();
+
+        var teachers = await context.Teachers.AsNoTracking().ToDictionaryAsync(t => t.teacher_id);
+        Requests = myRequests
+            .Select(r =>
+            {
+                teachers.TryGetValue(r.teacher_id, out var t);
+                var name = t is null
+                    ? $"Преподаватель №{r.teacher_id}"
+                    : ComposeName(t.last_name, t.first_name, t.middle_name);
+                return new RequestRow(r.id, name, r.created_at?.ToString("dd.MM.yyyy") ?? "—", r.status);
+            })
+            .ToList();
+
+        Sent = myRequests.Count;
+        Pending = myRequests.Count(r => r.status == 0);
+        Accepted = myRequests.Count(r => r.status == 1);
+        Rejected = myRequests.Count(r => r.status == 2);
+
+        Directions = (await context.Directions.AsNoTracking().ToListAsync())
+            .Select(d => d.direction_name)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Select(n => n!.Trim())
+            .Distinct()
+            .ToList();
+    }
+
+    private async Task CancelAsync(int requestId)
+    {
+        var ok = await JS.InvokeAsync<bool>("confirm", "Отменить заявку? После отмены вы сможете записаться заново.");
+        if (!ok) return;
+
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var currentName = authState.User.Identity?.Name;
+        await using var context = DbFactory.CreateDbContext();
+
+        var me = currentName is null
+            ? null
+            : await context.Users.FirstOrDefaultAsync(u => u.username == currentName);
+        if (me is null)
+        {
+            return;
+        }
+
+        var row = await context.CandidateRequests
+            .FirstOrDefaultAsync(r => r.id == requestId && r.candidate_user_id == me.user_id && r.status == 0);
+        if (row is not null)
+        {
+            context.CandidateRequests.Remove(row);
+            await context.SaveChangesAsync();
+        }
+
+        await LoadDataAsync();
+        StateHasChanged();
+    }
+
+    private static string ComposeName(string? last, string? first, string? middle)
+        => string.Join(" ", new[] { last, first, middle }.Where(x => !string.IsNullOrWhiteSpace(x)));
+
+    private static string StatusText(int status) => status switch
+    {
+        1 => "Принято",
+        2 => "Отклонено",
+        _ => "Ожидает"
+    };
+
+    private static string StatusCss(int status) => status switch
+    {
+        1 => "text-bg-success",
+        2 => "text-bg-danger",
+        _ => "text-bg-secondary"
+    };
+}

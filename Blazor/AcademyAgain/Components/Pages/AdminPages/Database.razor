@@ -1,14 +1,14 @@
 @page "/admin/database"
-@attribute [Authorize(Roles = "admin,moderator")]
+@attribute [Authorize(Policy = "AdminOnly")]
 @rendermode InteractiveServer
 @using AcademyAgain.Components.Admin
-@inject AuthenticationStateProvider Auth
 
 <PageTitle>База данных</PageTitle>
 
 <div class="list-header">
     <h1>База данных</h1>
     <div class="list-actions">
+        <a class="btn btn-outline-secondary" href="admin/users">Пользователи</a>
         <a class="btn btn-outline-secondary" href="">Панель</a>
     </div>
 </div>
@@ -16,27 +16,16 @@
 @if (loaded)
 {
     <div class="table-card mb-3">
-        <h2 class="form-section-title">Пользователи</h2>
-        <UserManager />
+        <h2 class="form-section-title">Резервная копия</h2>
+        <BackupPanel />
     </div>
-
-    @if (IsAdmin)
-    {
-        <div class="table-card mb-3">
-            <h2 class="form-section-title">Резервная копия</h2>
-            <BackupPanel />
-        </div>
-    }
 }
 
 @code {
     private bool loaded;
-    private bool IsAdmin;
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
-        var state = await Auth.GetAuthenticationStateAsync();
-        IsAdmin = state.User.IsInRole("admin");
         loaded = true;
     }
 }

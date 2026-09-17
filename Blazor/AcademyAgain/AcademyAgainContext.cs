@@ -44,9 +44,29 @@ public class AcademyAgainContext(DbContextOptions<AcademyAgainContext> options) 
     { get; set; } = default!;
     public DbSet<AcademyAgain.Models.CandidateRequest> CandidateRequests
     { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.News> News
+    { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.Semester> Semesters
+    { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.AdmissionRequest> AdmissionRequests
+    { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.Vacancy> Vacancies
+    { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.VacancyApplication> VacancyApplications
+    { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.EmailVerificationCode> EmailVerificationCodes
+    { get; set; } = default!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<AcademyAgain.Models.User>()
+            .HasIndex(u => u.email)
+            .IsUnique()
+            .HasFilter("[email] IS NOT NULL");
+
+        modelBuilder.Entity<AcademyAgain.Models.EmailVerificationCode>()
+            .HasIndex(c => new { c.email, c.purpose, c.consumed });
+
         modelBuilder.Entity<AcademyAgain.Models.Attendance>()
             .HasKey(a => new { a.student, a.lesson });
         modelBuilder.Entity<AcademyAgain.Models.CompleteDiscipline>()

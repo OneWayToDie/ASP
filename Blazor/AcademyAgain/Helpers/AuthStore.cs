@@ -1,6 +1,8 @@
 using AcademyAgain.Models;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using System.Security.Cryptography;
 
 namespace AcademyAgain.Helpers
@@ -8,6 +10,17 @@ namespace AcademyAgain.Helpers
 	public static class AuthStore
 	{
 		private const int Iterations = 600_000;
+
+		public static ClaimsPrincipal CreatePrincipal(string username, string roleName)
+		{
+			var claims = new[]
+			{
+				new Claim(ClaimTypes.Name, username),
+				new Claim(ClaimTypes.Role, roleName)
+			};
+			var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+			return new ClaimsPrincipal(identity);
+		}
 
 		public static string HashPassword(string password)
 		{
@@ -36,101 +49,26 @@ namespace AcademyAgain.Helpers
 			}
 		}
 
-		public static async Task EnsureUsersSchemaAsync(AcademyAgainContext context)
+		public static async Task SeedAsync(AcademyAgainContext context)
 		{
-			await context.Database.ExecuteSqlRawAsync(
-				"IF OBJECT_ID('dbo.Users', 'U') IS NULL CREATE TABLE [dbo].[Users] (" +
-				"[user_id] INT IDENTITY(1,1) NOT NULL, " +
-				"[username] NVARCHAR(50) NOT NULL, " +
-				"[password_hash] NVARCHAR(200) NOT NULL, " +
-				"[role_id] TINYINT NOT NULL, " +
-				"[status] TINYINT NOT NULL CONSTRAINT [DF_Users_status] DEFAULT 0, " +
-				"[linked_id] INT NULL, " +
-				"[photo] IMAGE NULL, " +
-				"[banner] IMAGE NULL, " +
-				"[bio] NVARCHAR(300) NULL, " +
-				"[tagline] NVARCHAR(80) NULL, " +
-				"CONSTRAINT [PK_Users] PRIMARY KEY ([user_id]), " +
-				"CONSTRAINT [UQ_Users_username] UNIQUE ([username]))");
-
-			var hasStatus = await context.Database.SqlQueryRaw<int>(
-				"SELECT COUNT(*) AS [Value] FROM [sys].[columns] " +
-				"WHERE [object_id] = OBJECT_ID('dbo.Users') AND [name] = 'status'").FirstOrDefaultAsync();
-			if (hasStatus == 0)
+			var roles = new (int Id, string Name)[]
 			{
-				await context.Database.ExecuteSqlRawAsync(
-					"ALTER TABLE [dbo].[Users] ADD [status] TINYINT NOT NULL " +
-					"CONSTRAINT [DF_Users_status] DEFAULT 0");
-				await context.Database.ExecuteSqlRawAsync(
-					"UPDATE [dbo].[Users] SET [status] = 1");
-			}
+				(1, "admin"),
+				(2, "teacher"),
+				(3, "student"),
+				(4, "moderator"),
+				(5, "candidate"),
+				(6, "teacher_candidate")
+			};
 
-			var hasLinkedId = await context.Database.SqlQueryRaw<int>(
-				"SELECT COUNT(*) AS [Value] FROM [sys].[columns] " +
-				"WHERE [object_id] = OBJECT_ID('dbo.Users') AND [name] = 'linked_id'").FirstOrDefaultAsync();
-			if (hasLinkedId == 0)
+			foreach (var (id, name) in roles)
 			{
-				await context.Database.ExecuteSqlRawAsync(
-					"ALTER TABLE [dbo].[Users] ADD [linked_id] INT NULL");
+				if (!await context.Roles.AnyAsync(r => r.role_id == id))
+				{
+					context.Roles.Add(new Role { role_id = id, role_name = name });
+				}
 			}
-
-			var hasPhoto = await context.Database.SqlQueryRaw<int>(
-				"SELECT COUNT(*) AS [Value] FROM [sys].[columns] " +
-				"WHERE [object_id] = OBJECT_ID('dbo.Users') AND [name] = 'photo'").FirstOrDefaultAsync();
-			if (hasPhoto == 0)
-			{
-				await context.Database.ExecuteSqlRawAsync(
-					"ALTER TABLE [dbo].[Users] ADD [photo] IMAGE NULL");
-			}
-
-			var hasBanner = await context.Database.SqlQueryRaw<int>(
-				"SELECT COUNT(*) AS [Value] FROM [sys].[columns] " +
-				"WHERE [object_id] = OBJECT_ID('dbo.Users') AND [name] = 'banner'").FirstOrDefaultAsync();
-			if (hasBanner == 0)
-			{
-				await context.Database.ExecuteSqlRawAsync(
-					"ALTER TABLE [dbo].[Users] ADD [banner] IMAGE NULL");
-			}
-
-			var hasBio = await context.Database.SqlQueryRaw<int>(
-				"SELECT COUNT(*) AS [Value] FROM [sys].[columns] " +
-				"WHERE [object_id] = OBJECT_ID('dbo.Users') AND [name] = 'bio'").FirstOrDefaultAsync();
-			if (hasBio == 0)
-			{
-				await context.Database.ExecuteSqlRawAsync(
-					"ALTER TABLE [dbo].[Users] ADD [bio] NVARCHAR(300) NULL");
-			}
-
-			var hasTagline = await context.Database.SqlQueryRaw<int>(
-				"SELECT COUNT(*) AS [Value] FROM [sys].[columns] " +
-				"WHERE [object_id] = OBJECT_ID('dbo.Users') AND [name] = 'tagline'").FirstOrDefaultAsync();
-			if (hasTagline == 0)
-			{
-				await context.Database.ExecuteSqlRawAsync(
-					"ALTER TABLE [dbo].[Users] ADD [tagline] NVARCHAR(80) NULL");
-			}
-
-			await context.Database.ExecuteSqlRawAsync(
-				"IF OBJECT_ID('dbo.Roles', 'U') IS NULL CREATE TABLE [dbo].[Roles] (" +
-				"[role_id] TINYINT NOT NULL, " +
-				"[role_name] NVARCHAR(20) NOT NULL, " +
-				"CONSTRAINT [PK_Roles] PRIMARY KEY ([role_id]))");
-
-			await context.Database.ExecuteSqlRawAsync(
-				"IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [role_id] = 1) " +
-				"INSERT INTO [dbo].[Roles] ([role_id], [role_name]) VALUES (1, N'admin')");
-			await context.Database.ExecuteSqlRawAsync(
-				"IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [role_id] = 2) " +
-				"INSERT INTO [dbo].[Roles] ([role_id], [role_name]) VALUES (2, N'teacher')");
-			await context.Database.ExecuteSqlRawAsync(
-				"IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [role_id] = 3) " +
-				"INSERT INTO [dbo].[Roles] ([role_id], [role_name]) VALUES (3, N'student')");
-			await context.Database.ExecuteSqlRawAsync(
-				"IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [role_id] = 4) " +
-				"INSERT INTO [dbo].[Roles] ([role_id], [role_name]) VALUES (4, N'moderator')");
-			await context.Database.ExecuteSqlRawAsync(
-				"IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [role_id] = 5) " +
-				"INSERT INTO [dbo].[Roles] ([role_id], [role_name]) VALUES (5, N'candidate')");
+			await context.SaveChangesAsync();
 
 			if (!await context.Users.AnyAsync(u => u.username == "admin"))
 			{
@@ -143,29 +81,6 @@ namespace AcademyAgain.Helpers
 				});
 				await context.SaveChangesAsync();
 			}
-
-			await context.Database.ExecuteSqlRawAsync(
-				"IF OBJECT_ID('dbo.Projects', 'U') IS NULL CREATE TABLE [dbo].[Projects] (" +
-				"[project_id] INT IDENTITY(1,1) NOT NULL, " +
-				"[user_id] INT NOT NULL, " +
-				"[title] NVARCHAR(100) NOT NULL, " +
-				"[description] NVARCHAR(1000) NULL, " +
-				"[tags] NVARCHAR(200) NULL, " +
-				"[url] NVARCHAR(300) NULL, " +
-				"[status] TINYINT NOT NULL, " +
-				"[pinned] BIT NOT NULL CONSTRAINT [DF_Projects_pinned] DEFAULT 0, " +
-				"[cover] IMAGE NULL, " +
-				"[created_at] DATETIME NULL, " +
-				"CONSTRAINT [PK_Projects] PRIMARY KEY ([project_id]))");
-
-			await context.Database.ExecuteSqlRawAsync(
-				"IF OBJECT_ID('dbo.CandidateRequests', 'U') IS NULL CREATE TABLE [dbo].[CandidateRequests] (" +
-				"[id] INT IDENTITY(1,1) NOT NULL, " +
-				"[candidate_user_id] INT NOT NULL, " +
-				"[teacher_id] INT NOT NULL, " +
-				"[status] TINYINT NOT NULL CONSTRAINT [DF_CandidateRequests_status] DEFAULT 0, " +
-				"[created_at] DATETIME NULL CONSTRAINT [DF_CandidateRequests_created_at] DEFAULT GETDATE(), " +
-				"CONSTRAINT [PK_CandidateRequests] PRIMARY KEY ([id]))");
 		}
 	}
 }

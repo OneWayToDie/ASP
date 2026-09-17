@@ -1,0 +1,18 @@
+@page "/admin/users"
+@attribute [Authorize(Policy = "ManageData")]
+@rendermode InteractiveServer
+@using AcademyAgain.Components.Admin
+
+<PageTitle>Пользователи</PageTitle>
+
+<div class="list-header">
+    <h1>Пользователи</h1>
+    <div class="list-actions">
+        <a class="btn btn-outline-secondary" href="admin/database">База данных</a>
+        <a class="btn btn-outline-secondary" href="">Панель</a>
+    </div>
+</div>
+
+<div class="table-card mb-3">
+    <UserManager />
+</div>

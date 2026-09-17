@@ -1,5 +1,5 @@
 @page "/reports/teacher-load"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "Teaching")]
 @rendermode InteractiveServer
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models

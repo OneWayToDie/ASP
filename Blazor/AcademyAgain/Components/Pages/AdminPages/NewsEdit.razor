@@ -1,0 +1,163 @@
+@page "/admin/news/create"
+@page "/admin/news/edit"
+@attribute [Authorize(Policy = "ManageData")]
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider Auth
+
+<PageTitle>@(existing is null ? "Новая новость" : "Редактирование новости")</PageTitle>
+
+<h1>@(existing is null ? "Новая новость" : "Редактирование новости")</h1>
+
+<hr />
+
+@if (loading)
+{
+    <p><em>Загрузка...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-8 col-lg-7">
+            <EditForm Model="form" OnValidSubmit="SaveAsync">
+                <DataAnnotationsValidator />
+                <ValidationSummary role="alert" />
+                @if (SaveError is not null)
+                {
+                    <div class="alert alert-danger py-2">@SaveError</div>
+                }
+
+                <div class="mb-3">
+                    <label for="n_title" class="form-label">Заголовок:</label>
+                    <InputText id="n_title" @bind-Value="form.title" class="form-control" maxlength="200" />
+                    <ValidationMessage For="() => form.title" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="n_body" class="form-label">Текст:</label>
+                    <InputTextArea id="n_body" @bind-Value="form.body" class="form-control" rows="12" />
+                    <ValidationMessage For="() => form.body" class="text-danger" />
+                </div>
+                <div class="mb-3 form-check">
+                    <InputCheckbox id="n_published" @bind-Value="form.is_published" class="form-check-input" />
+                    <label for="n_published" class="form-check-label">Опубликовать</label>
+                </div>
+                <div class="mb-3">
+                    <label for="n_date" class="form-label">Дата публикации:</label>
+                    <InputDate id="n_date" @bind-Value="form.published_at" class="form-control" />
+                    <div class="form-text">Если оставить пустой, при публикации подставится текущая дата.</div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+                <a class="btn btn-outline-secondary" href="admin/news">Отмена</a>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "news_id")]
+    private int? news_id { get; set; }
+
+    private sealed class NewsForm
+    {
+        [Required(ErrorMessage = "Укажите заголовок.")]
+        [StringLength(200, ErrorMessage = "Не более 200 символов.")]
+        public string title { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Введите текст новости.")]
+        public string body { get; set; } = string.Empty;
+
+        public bool is_published { get; set; }
+        public DateTime? published_at { get; set; }
+    }
+
+    private NewsForm form = new();
+    private News? existing;
+    private bool loading = true;
+    private string? SaveError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (news_id is int id)
+        {
+            await using var context = DbFactory.CreateDbContext();
+            existing = await context.News.AsNoTracking().FirstOrDefaultAsync(n => n.news_id == id);
+            if (existing is null)
+            {
+                NavigationManager.NavigateTo("notfound");
+                return;
+            }
+            form = new NewsForm
+            {
+                title = existing.title,
+                body = existing.body,
+                is_published = existing.is_published,
+                published_at = existing.published_at
+            };
+        }
+        else
+        {
+            form = new NewsForm { is_published = false, published_at = DateTime.Today };
+        }
+
+        loading = false;
+    }
+
+    private async Task SaveAsync()
+    {
+        SaveError = null;
+        var title = form.title.Trim();
+        var body = form.body.Trim();
+        if (title.Length == 0 || body.Length == 0)
+        {
+            SaveError = "Заголовок и текст не могут быть пустыми.";
+            return;
+        }
+
+        var publishedAt = form.published_at;
+        if (form.is_published && publishedAt is null)
+        {
+            publishedAt = DateTime.Now;
+        }
+
+        await using var context = DbFactory.CreateDbContext();
+
+        if (existing is null)
+        {
+            var authState = await Auth.GetAuthenticationStateAsync();
+            var name = authState.User.Identity?.Name;
+            var author = name is null
+                ? null
+                : await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.username == name);
+
+            context.News.Add(new News
+            {
+                title = title,
+                body = body,
+                is_published = form.is_published,
+                published_at = publishedAt,
+                author_id = author?.user_id
+            });
+        }
+        else
+        {
+            var entity = await context.News.FirstOrDefaultAsync(n => n.news_id == existing.news_id);
+            if (entity is null)
+            {
+                NavigationManager.NavigateTo("notfound");
+                return;
+            }
+            entity.title = title;
+            entity.body = body;
+            entity.is_published = form.is_published;
+            entity.published_at = publishedAt;
+        }
+
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/admin/news");
+    }
+}

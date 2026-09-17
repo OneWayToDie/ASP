@@ -10,6 +10,7 @@
 @using AcademyAgain.Models
 @using AcademyAgain.Helpers
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject EmailVerificationService Verification
 @inject NavigationManager Navigation
 
 <PageTitle>Вход</PageTitle>
@@ -18,12 +19,17 @@
 {
     <div class="alert alert-danger">@Error</div>
 }
+@if (Message is not null)
+{
+    <div class="alert alert-success">@Message</div>
+}
 
 <div class="d-flex justify-content-center">
-    <div class="auth-card" style="width: 100%; max-width: 380px">
+    <div class="auth-card" style="width: 100%; max-width: 400px">
         <h1 class="mb-4">Вход</h1>
 
-        <EditForm Model="Model" OnValidSubmit="SubmitAsync" FormName="LoginForm">
+        <h2 class="form-section-title">По паролю</h2>
+        <EditForm Model="Model" OnValidSubmit="SubmitPasswordAsync" FormName="LoginForm">
             <DataAnnotationsValidator />
             <div class="mb-3">
                 <label class="form-label" for="login_username">Логин:</label>
@@ -32,7 +38,13 @@
             </div>
             <div class="mb-3">
                 <label class="form-label" for="login_password">Пароль:</label>
-                <InputText id="login_password" type="password" @bind-Value="Model.Password" class="form-control" autocomplete="current-password" />
+                <div class="input-group">
+                    <InputText id="login_password" type="password" @bind-Value="Model.Password" class="form-control" autocomplete="current-password" />
+                    <button type="button" class="btn btn-outline-secondary password-toggle" data-toggle-password="login_password" aria-label="Показать пароль" aria-pressed="false">
+                        <svg class="icon-eye" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8M1.173 8a13 13 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5s3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5s-3.879-1.168-5.168-2.457A13 13 0 0 1 1.172 8z"/><path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5M4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0"/></svg>
+                        <svg class="icon-eye-off" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7 7 0 0 0-2.79.588l.77.771A6 6 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755q-.247.248-.517.486z"/><path d="M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.829 2.829zm-2.943 1.299.822.822a3.5 3.5 0 0 1-4.474-4.474l.823.823a2.5 2.5 0 0 0 2.829 2.829"/><path d="M3.35 5.47q-.27.24-.518.487A13 13 0 0 0 1.172 8l.195.288c.335.48.83 1.12 1.465 1.755C4.121 11.332 5.881 12.5 8 12.5c.716 0 1.39-.133 2.02-.36l.77.772A7 7 0 0 1 8 13.5C3 13.5 0 8 0 8s.939-1.721 2.641-3.238l.708.709zm10.296 8.884-12-12 .708-.708 12 12z"/></svg>
+                    </button>
+                </div>
                 <ValidationMessage For="() => Model.Password" class="text-danger" />
             </div>
             <div class="form-check mb-3">
@@ -41,8 +53,91 @@
             </div>
             <button type="submit" class="btn btn-primary w-100">Войти</button>
         </EditForm>
+
+        @if (ShowForgotBlock)
+        {
+            <hr class="my-4" />
+
+            <h2 class="form-section-title">Не помню пароль</h2>
+
+        @if (ResetDone)
+        {
+            <div class="alert alert-success">Пароль изменён. Войдите с новым паролем.</div>
+        }
+        else
+        {
+            @if (!ResetStep2)
+            {
+                <p class="text-secondary small">
+                    Введите email, привязанный к аккаунту, и нажмите «Получить код».
+                </p>
+            }
+            else
+            {
+                <p class="text-secondary small">
+                    Введите код из письма и новый пароль.
+                </p>
+            }
+
+            <EditForm Model="Forgot" OnValidSubmit="SendResetCodeAsync" FormName="ForgotSendForm">
+                <DataAnnotationsValidator />
+                <input type="hidden" name="step" value="send" />
+                @if (!ResetStep2)
+                {
+                    <div class="mb-3">
+                        <label class="form-label" for="forgot_email">Email:</label>
+                        <InputText id="forgot_email" type="email" @bind-Value="Forgot.Email" class="form-control" autocomplete="email" />
+                        <ValidationMessage For="() => Forgot.Email" class="text-danger" />
+                    </div>
+                    <button type="submit" class="btn btn-outline-primary w-100">Получить код</button>
+                }
+            </EditForm>
+
+            <EditForm Model="ResetPwd" OnValidSubmit="SubmitResetPasswordAsync" FormName="ForgotResetForm">
+                <DataAnnotationsValidator />
+                <input type="hidden" name="step" value="reset" />
+                <input type="hidden" name="ResetPwd.Email" value="@ResetEmail" />
+                @if (ResetStep2)
+                {
+                    <div class="mb-3">
+                        <label class="form-label" for="reset_code">Код из письма:</label>
+                        <InputText id="reset_code" @bind-Value="ResetPwd.Code" class="form-control" inputmode="numeric" autocomplete="one-time-code" maxlength="6" />
+                        <ValidationMessage For="() => ResetPwd.Code" class="text-danger" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="reset_password">Новый пароль:</label>
+                        <div class="input-group">
+                            <InputText id="reset_password" type="password" @bind-Value="ResetPwd.NewPassword" class="form-control" autocomplete="new-password" />
+                            <button type="button" class="btn btn-outline-secondary password-toggle" data-toggle-password="reset_password" aria-label="Показать пароль" aria-pressed="false">
+                                <svg class="icon-eye" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8M1.173 8a13 13 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5s3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5s-3.879-1.168-5.168-2.457A13 13 0 0 1 1.172 8z"/><path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5M4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0"/></svg>
+                                <svg class="icon-eye-off" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7 7 0 0 0-2.79.588l.77.771A6 6 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755q-.247.248-.517.486z"/><path d="M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.829 2.829zm-2.943 1.299.822.822a3.5 3.5 0 0 1-4.474-4.474l.823.823a2.5 2.5 0 0 0 2.829 2.829"/><path d="M3.35 5.47q-.27.24-.518.487A13 13 0 0 0 1.172 8l.195.288c.335.48.83 1.12 1.465 1.755C4.121 11.332 5.881 12.5 8 12.5c.716 0 1.39-.133 2.02-.36l.77.772A7 7 0 0 1 8 13.5C3 13.5 0 8 0 8s.939-1.721 2.641-3.238l.708.709zm10.296 8.884-12-12 .708-.708 12 12z"/></svg>
+                            </button>
+                        </div>
+                        <ValidationMessage For="() => ResetPwd.NewPassword" class="text-danger" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="reset_confirm">Повторите пароль:</label>
+                        <div class="input-group">
+                            <InputText id="reset_confirm" type="password" @bind-Value="ResetPwd.ConfirmNewPassword" class="form-control" autocomplete="new-password" />
+                            <button type="button" class="btn btn-outline-secondary password-toggle" data-toggle-password="reset_confirm" aria-label="Показать пароль" aria-pressed="false">
+                                <svg class="icon-eye" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8M1.173 8a13 13 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5s3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5s-3.879-1.168-5.168-2.457A13 13 0 0 1 1.172 8z"/><path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5M4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0"/></svg>
+                                <svg class="icon-eye-off" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7 7 0 0 0-2.79.588l.77.771A6 6 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755q-.247.248-.517.486z"/><path d="M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.829 2.829zm-2.943 1.299.822.822a3.5 3.5 0 0 1-4.474-4.474l.823.823a2.5 2.5 0 0 0 2.829 2.829"/><path d="M3.35 5.47q-.27.24-.518.487A13 13 0 0 0 1.172 8l.195.288c.335.48.83 1.12 1.465 1.755C4.121 11.332 5.881 12.5 8 12.5c.716 0 1.39-.133 2.02-.36l.77.772A7 7 0 0 1 8 13.5C3 13.5 0 8 0 8s.939-1.721 2.641-3.238l.708.709zm10.296 8.884-12-12 .708-.708 12 12z"/></svg>
+                            </button>
+                        </div>
+                        <ValidationMessage For="() => ResetPwd.ConfirmNewPassword" class="text-danger" />
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Изменить пароль</button>
+                }
+            </EditForm>
+        }
+        }
+
         <div class="mt-3 text-center">
             <a href="register">Нет аккаунта? Зарегистрироваться</a>
+            @if (!ShowForgotBlock)
+            {
+                <span class="text-secondary mx-1">·</span><a href="login?reset=1">Забыли пароль?</a>
+            }
         </div>
     </div>
 </div>
@@ -59,19 +154,74 @@
         public bool RememberMe { get; set; }
     }
 
+    private sealed class ForgotModel
+    {
+        [Required(ErrorMessage = "Введите email")]
+        [EmailAddress(ErrorMessage = "Некорректный email")]
+        public string Email { get; set; } = string.Empty;
+    }
+
+    private sealed class ResetPasswordModel
+    {
+        [Required(ErrorMessage = "Введите код")]
+        [StringLength(6, MinimumLength = 6, ErrorMessage = "Код состоит из 6 цифр")]
+        public string Code { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Введите новый пароль")]
+        [MinLength(6, ErrorMessage = "Пароль должен быть не короче 6 символов")]
+        public string NewPassword { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Подтвердите пароль")]
+        [Compare(nameof(NewPassword), ErrorMessage = "Пароли не совпадают")]
+        public string ConfirmNewPassword { get; set; } = string.Empty;
+
+        public string? Email { get; set; }
+    }
+
     [SupplyParameterFromQuery]
     private string? returnUrl { get; set; }
 
-    [SupplyParameterFromForm]
+    [SupplyParameterFromQuery(Name = "reset")]
+    private string? QueryReset { get; set; }
+
+    [SupplyParameterFromQuery(Name = "email")]
+    private string? QueryEmail { get; set; }
+
+    [SupplyParameterFromForm(Name = "step")]
+    private string? FormStep { get; set; }
+
+    [SupplyParameterFromForm(FormName = "LoginForm")]
     private LoginModel Model { get; set; } = new();
+
+    [SupplyParameterFromForm(FormName = "ForgotSendForm")]
+    private ForgotModel Forgot { get; set; } = new();
+
+    [SupplyParameterFromForm(FormName = "ForgotResetForm")]
+    private ResetPasswordModel ResetPwd { get; set; } = new();
+
     private string? Error;
+    private string? Message;
+
+    private bool ShowForgotBlock => string.Equals(QueryReset, "1", StringComparison.Ordinal)
+        || string.Equals(QueryReset, "done", StringComparison.Ordinal)
+        || string.Equals(FormStep, "send", StringComparison.Ordinal)
+        || string.Equals(FormStep, "reset", StringComparison.Ordinal);
+    private bool ResetStep2 => string.Equals(FormStep, "reset", StringComparison.Ordinal)
+        || (string.Equals(QueryReset, "1", StringComparison.Ordinal) && !string.IsNullOrWhiteSpace(ResetEmail));
+    private bool ResetDone => string.Equals(QueryReset, "done", StringComparison.Ordinal);
+    private string? ResetEmail => !string.IsNullOrWhiteSpace(QueryEmail)
+        ? QueryEmail
+        : (!string.IsNullOrWhiteSpace(ResetPwd.Email) ? ResetPwd.Email : null);
 
     [CascadingParameter]
     private HttpContext? HttpContext { get; set; }
 
-    private async Task SubmitAsync()
+    private static string Normalize(string value) => value.Trim().ToLowerInvariant();
+
+    private async Task SubmitPasswordAsync()
     {
         Error = null;
+        Message = null;
         await using var context = await DbFactory.CreateDbContextAsync();
         var user = await context.Users.AsNoTracking()
             .FirstOrDefaultAsync(u => u.username == Model.Username);
@@ -85,18 +235,112 @@
             Error = "Учётная запись ожидает подтверждения модератором.";
             return;
         }
-        var role = await context.Roles.AsNoTracking()
-            .FirstOrDefaultAsync(r => r.role_id == user.role_id);
-        role ??= new Role { role_id = user.role_id, role_name = user.role_id.ToString() };
-
-        var claims = new[]
+        if (user.status == 2)
         {
-            new Claim(ClaimTypes.Name, user.username),
-            new Claim(ClaimTypes.Role, role.role_name)
-        };
-        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            Error = "Учётная запись заблокирована. Обратитесь к администратору.";
+            return;
+        }
 
-        await HttpContext!.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity), new AuthenticationProperties { IsPersistent = Model.RememberMe });
+        var roleName = await GetRoleNameAsync(context, user.role_id);
+        await SignInAsync(user.username, roleName, Model.RememberMe);
+        NavigateAfterLogin();
+    }
+
+    private async Task SendResetCodeAsync()
+    {
+        Error = null;
+        Message = null;
+        var email = Normalize(Forgot.Email);
+        await using var context = await DbFactory.CreateDbContextAsync();
+        var user = await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.email == email);
+        if (user is null)
+        {
+            Error = "Аккаунт с таким email не найден.";
+            return;
+        }
+        if (user.status == 0)
+        {
+            Error = "Учётная запись ожидает подтверждения модератором.";
+            return;
+        }
+        if (user.status == 2)
+        {
+            Error = "Учётная запись заблокирована. Обратитесь к администратору.";
+            return;
+        }
+
+        try
+        {
+            await Verification.IssueAsync(email, VerificationPurpose.PasswordReset, userId: user.user_id);
+        }
+        catch (Exception ex)
+        {
+            Error = "Не удалось отправить письмо. " + ex.Message;
+            return;
+        }
+
+        Navigation.NavigateTo("/login?reset=1&email=" + Uri.EscapeDataString(email), forceLoad: true);
+    }
+
+    private async Task SubmitResetPasswordAsync()
+    {
+        Error = null;
+        Message = null;
+        var email = Normalize(ResetEmail ?? string.Empty);
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            Error = "Укажите email.";
+            return;
+        }
+
+        var result = await Verification.VerifyAsync(email, VerificationPurpose.PasswordReset, ResetPwd.Code);
+        switch (result.Status)
+        {
+            case VerifyStatus.NotFound:
+                Error = "Код не найден или уже использован. Запросите новый код.";
+                return;
+            case VerifyStatus.Expired:
+                Error = "Срок действия кода истёк. Запросите новый код.";
+                return;
+            case VerifyStatus.TooManyAttempts:
+                Error = "Слишком много неверных попыток. Запросите новый код.";
+                return;
+            case VerifyStatus.InvalidCode:
+                Error = "Неверный код.";
+                return;
+        }
+
+        await using var context = await DbFactory.CreateDbContextAsync();
+        var user = await context.Users.FirstOrDefaultAsync(u => u.email == email);
+        if (user is null)
+        {
+            Error = "Аккаунт не найден.";
+            return;
+        }
+
+        user.password_hash = AuthStore.HashPassword(ResetPwd.NewPassword);
+        await context.SaveChangesAsync();
+
+        Navigation.NavigateTo("/login?reset=done", forceLoad: true);
+    }
+
+    private static async Task<string> GetRoleNameAsync(AcademyAgainContext context, int roleId)
+    {
+        var role = await context.Roles.AsNoTracking().FirstOrDefaultAsync(r => r.role_id == roleId);
+        return role?.role_name ?? roleId.ToString();
+    }
+
+    private async Task SignInAsync(string username, string roleName, bool persistent)
+    {
+        var principal = AuthStore.CreatePrincipal(username, roleName);
+        await HttpContext!.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            principal,
+            new AuthenticationProperties { IsPersistent = persistent });
+    }
+
+    private void NavigateAfterLogin()
+    {
         var target = returnUrl is { Length: > 1 } && returnUrl.StartsWith('/') && !returnUrl.StartsWith("//")
             ? returnUrl
             : "/";

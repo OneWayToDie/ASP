@@ -1,0 +1,66 @@
+@page "/news/{id:int}"
+@attribute [AllowAnonymous]
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider Auth
+
+<PageTitle>@(article is null ? "Новость" : article.title)</PageTitle>
+
+@if (!loaded)
+{
+    <p><em>Загрузка...</em></p>
+}
+else if (article is not null)
+{
+    <div class="page-header">
+        <h1>@article.title</h1>
+        <p class="page-subtitle">
+            @(article.published_at?.ToString("dd.MM.yyyy") ?? "—")
+            @if (!article.is_published)
+            {
+                <span class="badge text-bg-secondary ms-2">черновик</span>
+            }
+        </p>
+    </div>
+
+    <div class="news-article-body">@article.body</div>
+
+    <p class="mt-4">
+        <a href="news">← Все новости</a>
+    </p>
+}
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+
+    private News? article;
+    private bool loaded;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var canManage = authState.User.IsInRole("admin") || authState.User.IsInRole("moderator");
+
+        await using var context = DbFactory.CreateDbContext();
+        article = await context.News.AsNoTracking().FirstOrDefaultAsync(n => n.news_id == id);
+
+        if (article is null || (!article.is_published && !canManage))
+        {
+            article = null;
+            loaded = true;
+            try
+            {
+                Navigation.NavigateTo("notfound", forceLoad: true);
+            }
+            catch (InvalidOperationException)
+            {
+            }
+            return;
+        }
+
+        loaded = true;
+    }
+}

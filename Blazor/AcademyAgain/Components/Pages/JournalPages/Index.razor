@@ -1,5 +1,5 @@
 @page "/journal"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "Teaching")]
 @rendermode InteractiveServer
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models

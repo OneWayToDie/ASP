@@ -1,5 +1,5 @@
 @page "/schedules/calendar"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "Teaching")]
 @rendermode InteractiveServer
 @using System.Globalization
 @using Microsoft.EntityFrameworkCore

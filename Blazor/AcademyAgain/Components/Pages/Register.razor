@@ -7,58 +7,127 @@
 @using AcademyAgain.Models
 @using AcademyAgain.Helpers
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject EmailVerificationService Verification
+@inject NavigationManager Navigation
 
 <PageTitle>Регистрация</PageTitle>
 
-@if (Success is not null)
-{
-    <div class="alert alert-success">@Success</div>
-}
 @if (Error is not null)
 {
     <div class="alert alert-danger">@Error</div>
 }
+@if (Message is not null)
+{
+    <div class="alert alert-success">@Message</div>
+}
 
 <div class="d-flex justify-content-center">
-    <div class="auth-card" style="width: 100%; max-width: 380px">
+    <div class="auth-card" style="width: 100%; max-width: 460px">
         <h1 class="mb-4">Регистрация</h1>
 
-        @if (Success is null)
+        @if (CurrentStep == "1")
         {
-            <EditForm Model="Model" OnValidSubmit="SubmitAsync" FormName="RegisterForm">
+            <EditForm Model="Model" OnValidSubmit="SubmitRegistrationAsync" FormName="RegisterForm">
                 <DataAnnotationsValidator />
+                <input type="hidden" name="step" value="1" />
                 <div class="mb-3">
-                    <label class="form-label" for="register_username">Логин:</label>
+                    <label class="form-label" for="register_username">Ник (логин):</label>
                     <InputText id="register_username" @bind-Value="Model.Username" class="form-control" autocomplete="username" />
                     <ValidationMessage For="() => Model.Username" class="text-danger" />
                 </div>
+                <div class="row g-2 mb-1">
+                    <div class="col-12">
+                        <label class="form-label" for="register_lastname">Фамилия:</label>
+                        <InputText id="register_lastname" @bind-Value="Model.LastName" class="form-control" autocomplete="family-name" />
+                        <ValidationMessage For="() => Model.LastName" class="text-danger" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="register_firstname">Имя:</label>
+                        <InputText id="register_firstname" @bind-Value="Model.FirstName" class="form-control" autocomplete="given-name" />
+                        <ValidationMessage For="() => Model.FirstName" class="text-danger" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="register_middlename">Отчество <span class="text-secondary">(если есть)</span>:</label>
+                        <InputText id="register_middlename" @bind-Value="Model.MiddleName" class="form-control" autocomplete="additional-name" />
+                        <ValidationMessage For="() => Model.MiddleName" class="text-danger" />
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="register_email">Email:</label>
+                    <InputText id="register_email" type="email" @bind-Value="Model.Email" class="form-control" autocomplete="email" />
+                    <ValidationMessage For="() => Model.Email" class="text-danger" />
+                    <div class="form-text">На этот адрес придёт код подтверждения.</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="register_phone">Телефон <span class="text-secondary">(необязательно)</span>:</label>
+                    <InputText id="register_phone" @bind-Value="Model.Phone" class="form-control" autocomplete="tel" />
+                    <ValidationMessage For="() => Model.Phone" class="text-danger" />
+                </div>
                 <div class="mb-3">
                     <label class="form-label" for="register_password">Пароль:</label>
-                    <InputText id="register_password" type="password" @bind-Value="Model.Password" class="form-control" autocomplete="new-password" />
+                    <div class="input-group">
+                        <InputText id="register_password" type="password" @bind-Value="Model.Password" class="form-control" autocomplete="new-password" />
+                        <button type="button" class="btn btn-outline-secondary password-toggle" data-toggle-password="register_password" aria-label="Показать пароль" aria-pressed="false">
+                            <svg class="icon-eye" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8M1.173 8a13 13 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5s3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5s-3.879-1.168-5.168-2.457A13 13 0 0 1 1.172 8z"/><path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5M4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0"/></svg>
+                            <svg class="icon-eye-off" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7 7 0 0 0-2.79.588l.77.771A6 6 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755q-.247.248-.517.486z"/><path d="M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.829 2.829zm-2.943 1.299.822.822a3.5 3.5 0 0 1-4.474-4.474l.823.823a2.5 2.5 0 0 0 2.829 2.829"/><path d="M3.35 5.47q-.27.24-.518.487A13 13 0 0 0 1.172 8l.195.288c.335.48.83 1.12 1.465 1.755C4.121 11.332 5.881 12.5 8 12.5c.716 0 1.39-.133 2.02-.36l.77.772A7 7 0 0 1 8 13.5C3 13.5 0 8 0 8s.939-1.721 2.641-3.238l.708.709zm10.296 8.884-12-12 .708-.708 12 12z"/></svg>
+                        </button>
+                    </div>
                     <ValidationMessage For="() => Model.Password" class="text-danger" />
                 </div>
                 <div class="mb-3">
                     <label class="form-label" for="register_confirm">Подтверждение пароля:</label>
-                    <InputText id="register_confirm" type="password" @bind-Value="Model.ConfirmPassword" class="form-control" autocomplete="new-password" />
+                    <div class="input-group">
+                        <InputText id="register_confirm" type="password" @bind-Value="Model.ConfirmPassword" class="form-control" autocomplete="new-password" />
+                        <button type="button" class="btn btn-outline-secondary password-toggle" data-toggle-password="register_confirm" aria-label="Показать пароль" aria-pressed="false">
+                            <svg class="icon-eye" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8M1.173 8a13 13 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5s3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5s-3.879-1.168-5.168-2.457A13 13 0 0 1 1.172 8z"/><path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5M4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0"/></svg>
+                            <svg class="icon-eye-off" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7 7 0 0 0-2.79.588l.77.771A6 6 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755q-.247.248-.517.486z"/><path d="M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.829 2.829zm-2.943 1.299.822.822a3.5 3.5 0 0 1-4.474-4.474l.823.823a2.5 2.5 0 0 0 2.829 2.829"/><path d="M3.35 5.47q-.27.24-.518.487A13 13 0 0 0 1.172 8l.195.288c.335.48.83 1.12 1.465 1.755C4.121 11.332 5.881 12.5 8 12.5c.716 0 1.39-.133 2.02-.36l.77.772A7 7 0 0 1 8 13.5C3 13.5 0 8 0 8s.939-1.721 2.641-3.238l.708.709zm10.296 8.884-12-12 .708-.708 12 12z"/></svg>
+                        </button>
+                    </div>
                     <ValidationMessage For="() => Model.ConfirmPassword" class="text-danger" />
                 </div>
                 <div class="mb-3">
-                    <label class="form-label" for="register_role">Роль:</label>
+                    <label class="form-label" for="register_role">Цель регистрации:</label>
                     <InputSelect id="register_role" @bind-Value="Model.RoleId" class="form-select">
-                        <option value="5">Абитуриент (хочу начать учиться)</option>
-                        <option value="3">Студент</option>
-                        <option value="2">Преподаватель</option>
+                        <option value="5">Хочу учиться (абитуриент)</option>
+                        <option value="6">Хочу преподавать (соискатель)</option>
                     </InputSelect>
                     <ValidationMessage For="() => Model.RoleId" class="text-danger" />
                 </div>
-                <button type="submit" class="btn btn-primary w-100">Зарегистрироваться</button>
+                <button type="submit" class="btn btn-primary w-100">Получить код на email</button>
             </EditForm>
             <div class="mt-3 text-center">
                 <a href="login">Уже есть аккаунт? Войти</a>
             </div>
         }
+        else if (CurrentStep == "2")
+        {
+            <p class="text-secondary">
+                Мы отправили 6-значный код на <strong>@PendingEmail</strong>.
+                Введите его, чтобы завершить регистрацию.
+            </p>
+            <EditForm Model="Verify" OnValidSubmit="SubmitVerifyAsync" FormName="VerifyRegistrationForm">
+                <DataAnnotationsValidator />
+                <input type="hidden" name="step" value="2" />
+                <input type="hidden" name="Verify.Email" value="@PendingEmail" />
+                <div class="mb-3">
+                    <label class="form-label" for="register_code">Код из письма:</label>
+                    <InputText id="register_code" @bind-Value="Verify.Code" class="form-control" inputmode="numeric" autocomplete="one-time-code" maxlength="6" />
+                    <ValidationMessage For="() => Verify.Code" class="text-danger" />
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Подтвердить</button>
+            </EditForm>
+            <EditForm Model="Resend" OnValidSubmit="ResendAsync" FormName="ResendForm">
+                <input type="hidden" name="step" value="2" />
+                <input type="hidden" name="Resend.Email" value="@PendingEmail" />
+                <button type="submit" class="btn btn-outline-secondary w-100 mt-2">Отправить код повторно</button>
+            </EditForm>
+            <div class="mt-3 text-center">
+                <a href="register">← Изменить данные</a>
+            </div>
+        }
         else
         {
+            <div class="alert alert-success">Аккаунт создан. Добро пожаловать!</div>
             <a class="btn btn-outline-secondary w-100" href="login">Перейти ко входу</a>
         }
     </div>
@@ -71,6 +140,25 @@
         [StringLength(50, ErrorMessage = "Логин должен быть не длиннее 50 символов")]
         public string Username { get; set; } = string.Empty;
 
+        [Required(ErrorMessage = "Введите фамилию")]
+        [StringLength(50, ErrorMessage = "Фамилия должна быть не длиннее 50 символов")]
+        public string LastName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Введите имя")]
+        [StringLength(50, ErrorMessage = "Имя должно быть не длиннее 50 символов")]
+        public string FirstName { get; set; } = string.Empty;
+
+        [StringLength(50, ErrorMessage = "Отчество должно быть не длиннее 50 символов")]
+        public string? MiddleName { get; set; }
+
+        [Required(ErrorMessage = "Введите email")]
+        [EmailAddress(ErrorMessage = "Некорректный email")]
+        [StringLength(100, ErrorMessage = "Email должен быть не длиннее 100 символов")]
+        public string Email { get; set; } = string.Empty;
+
+        [StringLength(100, ErrorMessage = "Телефон должен быть не длиннее 100 символов")]
+        public string? Phone { get; set; }
+
         [Required(ErrorMessage = "Введите пароль")]
         [MinLength(6, ErrorMessage = "Пароль должен быть не короче 6 символов")]
         public string Password { get; set; } = string.Empty;
@@ -79,39 +167,191 @@
         [Compare(nameof(Password), ErrorMessage = "Пароли не совпадают")]
         public string ConfirmPassword { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Выберите роль")]
+        [Required(ErrorMessage = "Выберите цель регистрации")]
         public int RoleId { get; set; } = 5;
     }
 
-    [SupplyParameterFromForm]
-    private RegisterModel Model { get; set; } = new();
-    private string? Error;
-    private string? Success;
+    private sealed class VerifyModel
+    {
+        [Required]
+        public string Email { get; set; } = string.Empty;
 
-    private async Task SubmitAsync()
+        [Required(ErrorMessage = "Введите код")]
+        [StringLength(6, MinimumLength = 6, ErrorMessage = "Код состоит из 6 цифр")]
+        [RegularExpression("^[0-9]{6}$", ErrorMessage = "Код состоит из 6 цифр")]
+        public string Code { get; set; } = string.Empty;
+    }
+
+    [SupplyParameterFromForm(FormName = "RegisterForm")]
+    private RegisterModel Model { get; set; } = new();
+
+    [SupplyParameterFromForm(FormName = "VerifyRegistrationForm")]
+    private VerifyModel Verify { get; set; } = new();
+
+    private sealed class ResendModel
+    {
+        public string Email { get; set; } = string.Empty;
+    }
+
+    [SupplyParameterFromForm(FormName = "ResendForm")]
+    private ResendModel Resend { get; set; } = new();
+
+    [SupplyParameterFromQuery(Name = "step")]
+    private string? QueryStep { get; set; }
+
+    [SupplyParameterFromForm(Name = "step")]
+    private string? FormStep { get; set; }
+
+    [SupplyParameterFromQuery(Name = "email")]
+    private string? QueryEmail { get; set; }
+
+    private string CurrentStep => FormStep ?? QueryStep ?? "1";
+
+    private string? PendingEmail;
+    private string? Error;
+    private string? Message;
+
+    protected override void OnParametersSet()
+    {
+        if (CurrentStep == "2")
+        {
+            var email = !string.IsNullOrWhiteSpace(QueryEmail) ? QueryEmail : Verify.Email;
+            PendingEmail = Normalize(email);
+        }
+    }
+
+    private static string Normalize(string value) => value.Trim().ToLowerInvariant();
+
+    private async Task SubmitRegistrationAsync()
     {
         Error = null;
-        if (Model.RoleId != 2 && Model.RoleId != 3 && Model.RoleId != 5)
+        Message = null;
+        if (Model.RoleId != 5 && Model.RoleId != 6)
         {
             Error = "Недопустимая роль.";
             return;
         }
+
+        var username = Model.Username.Trim();
+        var email = Normalize(Model.Email);
+
         await using var context = await DbFactory.CreateDbContextAsync();
-        if (await context.Users.AsNoTracking().AnyAsync(u => u.username == Model.Username.Trim()))
+        if (await context.Users.AsNoTracking().AnyAsync(u => u.username == username))
         {
             Error = "Пользователь с таким логином уже существует.";
             return;
         }
+        if (await context.Users.AsNoTracking().AnyAsync(u => u.email == email))
+        {
+            Error = "На этот email уже зарегистрирован аккаунт.";
+            return;
+        }
+
+        var payload = new VerificationCodePayload(
+            username,
+            AuthStore.HashPassword(Model.Password),
+            Model.RoleId,
+            Model.LastName.Trim(),
+            Model.FirstName.Trim(),
+            string.IsNullOrWhiteSpace(Model.MiddleName) ? null : Model.MiddleName.Trim(),
+            string.IsNullOrWhiteSpace(Model.Phone) ? null : Model.Phone.Trim());
+
+        try
+        {
+            await Verification.IssueAsync(email, VerificationPurpose.Registration, payload);
+        }
+        catch (Exception ex)
+        {
+            Error = "Не удалось отправить письмо с кодом. Попробуйте позже. " + ex.Message;
+            return;
+        }
+
+        PendingEmail = email;
+        Navigation.NavigateTo("/register?step=2&email=" + Uri.EscapeDataString(email), forceLoad: true);
+    }
+
+    private async Task SubmitVerifyAsync()
+    {
+        Error = null;
+        Message = null;
+        var email = Normalize(string.IsNullOrWhiteSpace(Verify.Email) ? PendingEmail ?? string.Empty : Verify.Email);
+        PendingEmail = email;
+
+        var result = await Verification.VerifyAsync(email, VerificationPurpose.Registration, Verify.Code);
+        switch (result.Status)
+        {
+            case VerifyStatus.NotFound:
+                Error = "Код не найден или уже использован. Запросите новый код.";
+                return;
+            case VerifyStatus.Expired:
+                Error = "Срок действия кода истёк. Запросите новый код.";
+                return;
+            case VerifyStatus.TooManyAttempts:
+                Error = "Слишком много неверных попыток. Запросите новый код.";
+                return;
+            case VerifyStatus.InvalidCode:
+                Error = "Неверный код.";
+                return;
+        }
+
+        var data = result.Code!;
+        await using var context = await DbFactory.CreateDbContextAsync();
+        if (await context.Users.AsNoTracking().AnyAsync(u => u.username == data.pending_username))
+        {
+            Error = "Пользователь с таким логином уже существует.";
+            return;
+        }
+        if (await context.Users.AsNoTracking().AnyAsync(u => u.email == email))
+        {
+            Error = "На этот email уже зарегистрирован аккаунт.";
+            return;
+        }
+
         context.Users.Add(new User
         {
-            username = Model.Username.Trim(),
-            password_hash = AuthStore.HashPassword(Model.Password),
-            role_id = Model.RoleId,
-            status = Model.RoleId == 5 ? 1 : 0
+            username = data.pending_username!,
+            password_hash = data.pending_password_hash!,
+            role_id = data.pending_role_id ?? 5,
+            status = 1,
+            email = email,
+            last_name = data.pending_last_name ?? string.Empty,
+            first_name = data.pending_first_name ?? string.Empty,
+            middle_name = data.pending_middle_name,
+            contact = data.pending_phone
         });
-        await context.SaveChangesAsync();
-        Success = Model.RoleId == 5
-            ? "Аккаунт создан. Добро пожаловать!"
-            : "Аккаунт создан. Дождитесь подтверждения модератором.";
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            Error = "Не удалось создать аккаунт: логин или email уже заняты.";
+            return;
+        }
+
+        Navigation.NavigateTo("/register?step=3", forceLoad: true);
+    }
+
+    private async Task ResendAsync()
+    {
+        Error = null;
+        Message = null;
+        var email = Normalize(string.IsNullOrWhiteSpace(Resend.Email) ? PendingEmail ?? string.Empty : Resend.Email);
+        PendingEmail = email;
+
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            Error = "Укажите email.";
+            return;
+        }
+        try
+        {
+            await Verification.IssueAsync(email, VerificationPurpose.Registration);
+            Message = "Новый код отправлен на " + email + ".";
+        }
+        catch (Exception ex)
+        {
+            Error = "Не удалось отправить письмо. " + ex.Message;
+        }
     }
 }

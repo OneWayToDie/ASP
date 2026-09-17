@@ -1,5 +1,5 @@
 @page "/schedules/create"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "Teaching")]
 @using Microsoft.EntityFrameworkCore
 @using System.Globalization
 @using AcademyAgain.Models

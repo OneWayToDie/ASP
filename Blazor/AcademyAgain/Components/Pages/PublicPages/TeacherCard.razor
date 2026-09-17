@@ -1,0 +1,319 @@
+@page "/teachers/card/{id:int}"
+@attribute [AllowAnonymous]
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@using AcademyAgain.Helpers
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider Auth
+
+<PageTitle>@DisplayName — преподаватель</PageTitle>
+
+@if (NotFound)
+{
+    <div class="section-empty">Преподаватель не найден.</div>
+}
+else if (loaded)
+{
+    <div class="tcard">
+        <div class="tcard-banner"></div>
+
+        <div class="tcard-head">
+            <div class="tcard-avatar">
+                @if (Photo.DataSrc(PhotoBytes) is string avatarSrc)
+                {
+                    <img src="@avatarSrc" alt="@DisplayName" />
+                }
+                else
+                {
+                    <span class="tcard-initials">@Initials</span>
+                }
+            </div>
+            <div class="tcard-head-info">
+                <h1>@DisplayName</h1>
+                <div class="tcard-rating" title="Рейтинг 5.0 — отзывов пока нет">
+                    <span class="tcard-stars" aria-hidden="true">★★★★★</span>
+                    <span class="tcard-rating-value">5.0</span>
+                    <span class="tcard-rating-empty">нет отзывов</span>
+                </div>
+                <p class="tcard-sub">Преподаватель академии</p>
+            </div>
+        </div>
+
+        <div class="profile-sections">
+            <div class="profile-section">
+                <h3>Предметы</h3>
+                @if (Subjects.Count == 0)
+                {
+                    <div class="section-empty">Дисциплины пока не назначены</div>
+                }
+                else
+                {
+                    <div class="tcard-subjects">
+                        @foreach (var subject in Subjects)
+                        {
+                            <span class="tcard-subject">
+                                <span class="tcard-subject-name">@subject.Name</span>
+                                <span class="tcard-subject-lessons">@subject.Lessons зан.</span>
+                            </span>
+                        }
+                    </div>
+                }
+            </div>
+
+            <div class="profile-section">
+                <h3>Направления</h3>
+                @if (Directions.Count == 0)
+                {
+                    <div class="section-empty">Направления пока не указаны</div>
+                }
+                else
+                {
+                    <div class="tcard-chips">
+                        @foreach (var direction in Directions)
+                        {
+                            <span class="tcard-chip">@direction</span>
+                        }
+                    </div>
+                }
+            </div>
+
+            <div class="profile-section">
+                <h3>Достижения</h3>
+                <div class="tcard-achievements">
+                    @foreach (var a in Achievements)
+                    {
+                        <span class="tcard-pill" title="@a.Detail">★ @a.Title</span>
+                    }
+                </div>
+            </div>
+
+            @if (CanSeeContacts)
+            {
+                <div class="profile-section">
+                    <h3>Контакты</h3>
+                    @if (string.IsNullOrWhiteSpace(Email) && string.IsNullOrWhiteSpace(Phone))
+                    {
+                        <div class="section-empty">Контакты не указаны</div>
+                    }
+                    else
+                    {
+                        <ul class="tcard-contacts">
+                            @if (!string.IsNullOrWhiteSpace(Email))
+                            {
+                                <li>Email: <a href="mailto:@Email">@Email</a></li>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(Phone))
+                            {
+                                <li>Телефон: @Phone</li>
+                            }
+                        </ul>
+                    }
+                </div>
+            }
+
+            @if (ShowApply)
+            {
+                <div class="profile-section">
+                    <h3>Записаться к преподавателю</h3>
+                    @if (!IsAuthenticated)
+                    {
+                        <p class="mb-2">Чтобы оставить заявку, войдите как абитуриент.</p>
+                        <a class="btn btn-primary" href="@LoginUrl">Войти и записаться</a>
+                    }
+                    else if (AlreadyApplied)
+                    {
+                        <div class="alert alert-info py-2 mb-0">Вы уже отправили заявку этому преподавателю.</div>
+                    }
+                    else
+                    {
+                        <EditForm method="post" Model="applyModel" OnValidSubmit="ApplyAsync" FormName="teacherApply" Enhance>
+                            <p class="mb-2">Хотите учиться у @DisplayName? Оставьте заявку — её рассмотрят в академии.</p>
+                            <button type="submit" class="btn btn-primary">Записаться</button>
+                        </EditForm>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+
+    private sealed class ApplyModel { }
+    private sealed record SubjectRow(string Name, int Lessons);
+    private sealed record AchievementRow(string Title, string Detail);
+
+    private ApplyModel applyModel = new();
+
+    [SupplyParameterFromForm]
+    private ApplyModel? Post { get; set; }
+
+    private bool loaded;
+    private bool NotFound;
+
+    private string DisplayName = string.Empty;
+    private string Initials = "?";
+    private byte[]? PhotoBytes;
+    private string? Email;
+    private string? Phone;
+    private DateTime? WorkSince;
+    private int LessonCount;
+
+    private List<SubjectRow> Subjects = new();
+    private List<string> Directions = new();
+    private List<AchievementRow> Achievements = new();
+
+    private bool IsAuthenticated;
+    private bool IsCandidate;
+    private bool CanSeeContacts;
+    private bool AlreadyApplied;
+
+    private bool ShowApply => !IsAuthenticated || IsCandidate;
+    private string LoginUrl => $"/login?returnUrl={Uri.EscapeDataString($"/teachers/card/{id}")}";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var context = DbFactory.CreateDbContext();
+
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var currentName = authState.User.Identity?.Name;
+        IsAuthenticated = authState.User.Identity?.IsAuthenticated == true;
+        IsCandidate = authState.User.IsInRole("candidate");
+        CanSeeContacts = authState.User.IsInRole("admin") || authState.User.IsInRole("moderator");
+
+        var teacher = await context.Teachers.AsNoTracking()
+            .FirstOrDefaultAsync(t => t.teacher_id == id);
+        if (teacher is null)
+        {
+            NotFound = true;
+            loaded = true;
+            return;
+        }
+
+        DisplayName = ComposeName(teacher.last_name, teacher.first_name, teacher.middle_name);
+        Initials = MakeInitials(DisplayName);
+        PhotoBytes = teacher.photo;
+        Email = teacher.email;
+        Phone = teacher.phone;
+        WorkSince = teacher.work_since;
+
+        var disciplineIds = await context.TeachersDisciplinesRelation.AsNoTracking()
+            .Where(r => r.teacher == id)
+            .Select(r => r.discipline)
+            .Distinct()
+            .ToListAsync();
+
+        var disciplines = await context.Disciplines.AsNoTracking()
+            .Where(d => disciplineIds.Contains(d.discipline_id))
+            .ToListAsync();
+        Subjects = disciplines
+            .Select(d => new SubjectRow(
+                string.IsNullOrWhiteSpace(d.discipline_name) ? $"Дисциплина №{d.discipline_id}" : d.discipline_name!.Trim(),
+                d.number_of_lessons))
+            .OrderBy(s => s.Name)
+            .ToList();
+
+        var directionIds = await context.DisciplinesDirectionsRelation.AsNoTracking()
+            .Where(x => disciplineIds.Contains(x.discipline))
+            .Select(x => x.direction)
+            .Distinct()
+            .ToListAsync();
+        Directions = (await context.Directions.AsNoTracking()
+                .Where(d => directionIds.Contains(d.direction_id))
+                .ToListAsync())
+            .Select(d => d.direction_name)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Select(n => n!.Trim())
+            .Distinct()
+            .ToList();
+
+        LessonCount = await context.Schedule.AsNoTracking().CountAsync(s => s.teacher == id);
+
+        Achievements = BuildAchievements();
+
+        if (IsCandidate && currentName is not null)
+        {
+            var me = await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.username == currentName);
+            if (me is not null)
+            {
+                AlreadyApplied = await context.CandidateRequests.AsNoTracking()
+                    .AnyAsync(r => r.candidate_user_id == me.user_id && r.teacher_id == id && r.status != 2);
+            }
+        }
+
+        loaded = true;
+    }
+
+    private List<AchievementRow> BuildAchievements()
+    {
+        var list = new List<AchievementRow>();
+        if (WorkSince is DateTime since)
+        {
+            var years = DateTime.Today.Year - since.Year;
+            if (since.Date > DateTime.Today.AddYears(-years)) years--;
+            list.Add(new AchievementRow(
+                years > 0 ? $"Стаж {years} лет" : "Начинающий педагог",
+                $"Работает с {since:dd.MM.yyyy}"));
+        }
+        if (Subjects.Count > 0)
+        {
+            list.Add(new AchievementRow($"Ведёт дисциплин: {Subjects.Count}", string.Join(", ", Subjects.Select(s => s.Name))));
+        }
+        if (LessonCount > 0)
+        {
+            list.Add(new AchievementRow($"Проведено занятий: {LessonCount}", "По данным расписания академии"));
+        }
+        if (list.Count == 0)
+        {
+            list.Add(new AchievementRow("Преподаватель академии", "Данные уточняются"));
+        }
+        return list;
+    }
+
+    private async Task ApplyAsync()
+    {
+        await using var context = DbFactory.CreateDbContext();
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var currentName = authState.User.Identity?.Name;
+        if (!authState.User.IsInRole("candidate") || currentName is null)
+        {
+            Navigation.NavigateTo(LoginUrl, forceLoad: true);
+            return;
+        }
+
+        var me = await context.Users.FirstOrDefaultAsync(u => u.username == currentName);
+        if (me is null)
+        {
+            Navigation.NavigateTo(LoginUrl, forceLoad: true);
+            return;
+        }
+
+        var exists = await context.CandidateRequests.AsNoTracking()
+            .AnyAsync(r => r.candidate_user_id == me.user_id && r.teacher_id == id && r.status != 2);
+        if (!exists)
+        {
+            context.CandidateRequests.Add(new CandidateRequest
+            {
+                candidate_user_id = me.user_id,
+                teacher_id = id,
+                status = 0,
+                created_at = DateTime.Now
+            });
+            await context.SaveChangesAsync();
+        }
+
+        Navigation.NavigateTo($"/teachers/card/{id}", forceLoad: true);
+    }
+
+    private static string ComposeName(string? last, string? first, string? middle)
+        => string.Join(" ", new[] { last, first, middle }.Where(x => !string.IsNullOrWhiteSpace(x)));
+
+    private static string MakeInitials(string name)
+    {
+        var parts = name.Split(new[] { ' ', '-', '.' }, StringSplitOptions.RemoveEmptyEntries).Take(2).ToList();
+        return parts.Count == 0 ? "?" : string.Concat(parts.Select(p => char.ToUpperInvariant(p[0])));
+    }
+}

@@ -1,5 +1,5 @@
 @page "/disciplines/create"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "ManageData")]
 @using Microsoft.EntityFrameworkCore
 @using System.Data
 @using AcademyAgain.Models

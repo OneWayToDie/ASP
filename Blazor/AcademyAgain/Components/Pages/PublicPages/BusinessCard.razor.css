@@ -166,7 +166,7 @@
     align-items: center;
     padding: 0.35rem 0.75rem;
     border-radius: 999px;
-    background: var(--app-surface-muted);
+    background: var(--app-surface-2);
     border: 1px solid var(--app-border);
     font-size: 0.85rem;
 }
@@ -189,7 +189,7 @@
 
 .vis-qr-hint
 {
-    color: var(--app-muted);
+    color: var(--app-text-secondary);
     font-size: 0.8rem;
 }
 

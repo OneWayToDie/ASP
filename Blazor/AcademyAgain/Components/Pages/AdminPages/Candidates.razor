@@ -1,0 +1,435 @@
+@page "/admin/candidates"
+@attribute [Authorize(Policy = "ManageData")]
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+
+<PageTitle>Заявки абитуриентов</PageTitle>
+
+<div class="list-header">
+    <h1>Заявки абитуриентов</h1>
+    <div class="list-actions">
+        <a class="btn btn-outline-secondary" href="admin/users">Пользователи</a>
+        <a class="btn btn-outline-secondary" href="">Панель</a>
+    </div>
+</div>
+
+@if (Message is not null)
+{
+    <div class="alert alert-success">@Message</div>
+}
+@if (Error is not null)
+{
+    <div class="alert alert-danger">@Error</div>
+}
+
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+        <button class="nav-link @(activeTab == "training" ? "active" : null)" @onclick='() => activeTab = "training"'>
+            На обучение (@TrainingRows.Count(r => r.Status == 0))
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link @(activeTab == "work" ? "active" : null)" @onclick='() => activeTab = "work"'>
+            На работу (@WorkRows.Count(r => r.Status == 0))
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link @(activeTab == "admission" ? "active" : null)" @onclick='() => activeTab = "admission"'>
+            Без аккаунта (@AdmissionRows.Count(r => r.Status == 0))
+        </button>
+    </li>
+</ul>
+
+<div class="form-check mb-3">
+    <input class="form-check-input" type="checkbox" id="showProcessed" @bind="ShowProcessed" />
+    <label class="form-check-label" for="showProcessed">Показывать обработанные</label>
+</div>
+
+@if (loaded && activeTab == "training")
+{
+    @if (!TrainingRows.Any())
+    {
+        <p class="text-secondary">Нет заявок на обучение.</p>
+    }
+    else
+    {
+        <table class="table context-table">
+            <thead>
+                <tr>
+                    <th>Абитуриент</th>
+                    <th>ФИО / контакт</th>
+                    <th>К преподавателю</th>
+                    <th>Дата рождения</th>
+                    <th>Статус</th>
+                    <th style="width:260px"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in TrainingRows)
+                {
+                    <tr>
+                        <td class="fw-semibold">@row.Username</td>
+                        <td>
+                            <div>@(string.IsNullOrWhiteSpace(row.Name) ? "—" : row.Name)</div>
+                            <div class="text-secondary small">@row.Email</div>
+                            <div class="text-secondary small">@row.Contact</div>
+                        </td>
+                        <td>@row.TeacherName</td>
+                        <td>
+                            @if (row.Status == 0)
+                            {
+                                <input type="date" class="form-control form-control-sm" @bind="TrainBirth[row.Id]" />
+                            }
+                            else
+                            {
+                                <span class="text-secondary">—</span>
+                            }
+                        </td>
+                        <td><span class="badge @StatusCss(row.Status)">@StatusText(row.Status)</span></td>
+                        <td>
+                            @if (row.Status == 0)
+                            {
+                                <div class="d-flex gap-2 justify-content-end">
+                                    <button type="button" class="btn btn-sm btn-success" @onclick="() => ApproveTrainingAsync(row)">Перевести в студенты</button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => RejectTrainingAsync(row.Id)">Отклонить</button>
+                                </div>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@if (loaded && activeTab == "work")
+{
+    @if (!WorkRows.Any())
+    {
+        <p class="text-secondary">Нет заявок на работу.</p>
+    }
+    else
+    {
+        <table class="table context-table">
+            <thead>
+                <tr>
+                    <th>Соискатель</th>
+                    <th>ФИО / контакт</th>
+                    <th>Вакансия</th>
+                    <th>Статус</th>
+                    <th style="width:220px"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in WorkRows)
+                {
+                    <tr>
+                        <td class="fw-semibold">@row.Username</td>
+                        <td>
+                            <div>@(string.IsNullOrWhiteSpace(row.Name) ? "—" : row.Name)</div>
+                            <div class="text-secondary small">@row.Email</div>
+                            <div class="text-secondary small">@row.Contact</div>
+                        </td>
+                        <td>@row.VacancyTitle</td>
+                        <td><span class="badge @StatusCss(row.Status)">@StatusText(row.Status)</span></td>
+                        <td>
+                            @if (row.Status == 0)
+                            {
+                                <div class="d-flex gap-2 justify-content-end">
+                                    <button type="button" class="btn btn-sm btn-success" @onclick="() => ApproveWorkAsync(row)">Принять на работу</button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => RejectWorkAsync(row.Id)">Отклонить</button>
+                                </div>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@if (loaded && activeTab == "admission")
+{
+    @if (!AdmissionRows.Any())
+    {
+        <p class="text-secondary">Нет заявок без аккаунта.</p>
+    }
+    else
+    {
+        <table class="table context-table">
+            <thead>
+                <tr>
+                    <th>ФИО</th>
+                    <th>Контакт</th>
+                    <th>Направление</th>
+                    <th>Дата</th>
+                    <th>Статус</th>
+                    <th style="width:220px"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in AdmissionRows)
+                {
+                    <tr>
+                        <td class="fw-semibold">@row.FullName</td>
+                        <td>@row.Contact</td>
+                        <td>@row.DirectionName</td>
+                        <td>@(row.CreatedAt?.ToString("dd.MM.yyyy HH:mm") ?? "—")</td>
+                        <td><span class="badge @StatusCss(row.Status)">@StatusText(row.Status)</span></td>
+                        <td>
+                            @if (row.Status == 0)
+                            {
+                                <div class="d-flex gap-2 justify-content-end">
+                                    <button type="button" class="btn btn-sm btn-success" @onclick="() => ProcessAdmissionAsync(row.Id)">Обработана</button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => RejectAdmissionAsync(row.Id)">Отклонить</button>
+                                </div>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@code {
+    [Inject]
+    private IDbContextFactory<AcademyAgainContext> DbFactory { get; set; } = default!;
+
+    private bool loaded;
+    private string activeTab = "training";
+    private bool ShowProcessed;
+
+    private List<TrainingRow> AllTraining = new();
+    private List<WorkRow> AllWork = new();
+    private List<AdmissionRow> AllAdmissions = new();
+    private Dictionary<int, DateTime> TrainBirth = new();
+
+    private string? Message;
+    private string? Error;
+
+    private IEnumerable<TrainingRow> TrainingRows =>
+        ShowProcessed ? AllTraining : AllTraining.Where(r => r.Status == 0);
+
+    private IEnumerable<WorkRow> WorkRows =>
+        ShowProcessed ? AllWork : AllWork.Where(r => r.Status == 0);
+
+    private IEnumerable<AdmissionRow> AdmissionRows =>
+        ShowProcessed ? AllAdmissions : AllAdmissions.Where(r => r.Status == 0);
+
+    private sealed record TrainingRow(int Id, int CandidateUserId, string Username, string Name, string? Email, string? Contact, string TeacherName, int Status, DateTime? CreatedAt);
+    private sealed record WorkRow(int Id, int CandidateUserId, string Username, string Name, string? Email, string? Contact, string VacancyTitle, int Status, DateTime? CreatedAt);
+    private sealed record AdmissionRow(int Id, string FullName, string Contact, string DirectionName, int Status, DateTime? CreatedAt);
+
+    protected override async Task OnInitializedAsync()
+        => await ReloadAsync();
+
+    private async Task ReloadAsync()
+    {
+        await using var context = DbFactory.CreateDbContext();
+
+        var users = await context.Users.AsNoTracking().ToDictionaryAsync(u => u.user_id);
+        var teachers = await context.Teachers.AsNoTracking().ToDictionaryAsync(t => t.teacher_id);
+        var vacancies = await context.Vacancies.AsNoTracking().ToDictionaryAsync(v => v.vacancy_id);
+        var directions = await context.Directions.AsNoTracking().ToDictionaryAsync(d => d.direction_id);
+
+        var requests = await context.CandidateRequests.AsNoTracking().OrderByDescending(r => r.created_at).ToListAsync();
+        AllTraining = requests.Select(r =>
+        {
+            users.TryGetValue(r.candidate_user_id, out var u);
+            teachers.TryGetValue(r.teacher_id, out var t);
+            var teacherName = t is null ? $"#{r.teacher_id}" : $"{t.last_name} {t.first_name} {t.middle_name}".Trim();
+            return new TrainingRow(r.id, r.candidate_user_id, u?.username ?? $"#{r.candidate_user_id}", ComposeName(u), u?.email, u?.contact, teacherName, r.status, r.created_at);
+        }).ToList();
+
+        var applications = await context.VacancyApplications.AsNoTracking().OrderByDescending(a => a.created_at).ToListAsync();
+        AllWork = applications.Select(a =>
+        {
+            users.TryGetValue(a.candidate_user_id, out var u);
+            vacancies.TryGetValue(a.vacancy_id, out var v);
+            return new WorkRow(a.id, a.candidate_user_id, u?.username ?? $"#{a.candidate_user_id}", ComposeName(u), u?.email, u?.contact, v?.title ?? $"#{a.vacancy_id}", a.status, a.created_at);
+        }).ToList();
+
+        var admissions = await context.AdmissionRequests.AsNoTracking().OrderByDescending(r => r.created_at).ToListAsync();
+        AllAdmissions = admissions.Select(r =>
+        {
+            var directionName = r.direction_id.HasValue && directions.TryGetValue(r.direction_id.Value, out var d)
+                ? d.direction_name ?? $"#{r.direction_id}"
+                : "—";
+            return new AdmissionRow(r.id, r.full_name, r.contact, directionName, r.status, r.created_at);
+        }).ToList();
+
+        TrainBirth.Clear();
+        foreach (var row in AllTraining)
+        {
+            TrainBirth[row.Id] = DateTime.Today;
+        }
+
+        loaded = true;
+        StateHasChanged();
+    }
+
+    private async Task ApproveTrainingAsync(TrainingRow row)
+    {
+        Message = null;
+        Error = null;
+        await using var context = DbFactory.CreateDbContext();
+        var user = await context.Users.FindAsync(row.CandidateUserId);
+        var request = await context.CandidateRequests.FindAsync(row.Id);
+        if (user is null || request is null)
+        {
+            Error = "Заявка или пользователь не найдены.";
+            await ReloadAsync();
+            return;
+        }
+
+        var student = new Student
+        {
+            last_name = Limit(user.last_name, 50) ?? string.Empty,
+            first_name = Limit(user.first_name, 50) ?? string.Empty,
+            middle_name = Limit(user.middle_name, 50),
+            birth_date = TrainBirth.TryGetValue(row.Id, out var bd) ? bd : DateTime.Today,
+            email = Limit(user.email, 50),
+            phone = Limit(user.contact, 16)
+        };
+        context.Students.Add(student);
+        await context.SaveChangesAsync();
+
+        user.role_id = 3;
+        user.status = 1;
+        user.linked_id = student.stud_id;
+        request.status = 1;
+        await context.SaveChangesAsync();
+
+        Message = $"Абитуриент «{user.username}» переведён в студенты.";
+        await ReloadAsync();
+    }
+
+    private async Task RejectTrainingAsync(int id)
+    {
+        Message = null;
+        Error = null;
+        await using var context = DbFactory.CreateDbContext();
+        var request = await context.CandidateRequests.FindAsync(id);
+        if (request is null)
+        {
+            Error = "Заявка не найдена.";
+            await ReloadAsync();
+            return;
+        }
+        request.status = 2;
+        await context.SaveChangesAsync();
+        Message = "Заявка отклонена.";
+        await ReloadAsync();
+    }
+
+    private async Task ApproveWorkAsync(WorkRow row)
+    {
+        Message = null;
+        Error = null;
+        await using var context = DbFactory.CreateDbContext();
+        var user = await context.Users.FindAsync(row.CandidateUserId);
+        var application = await context.VacancyApplications.FindAsync(row.Id);
+        if (user is null || application is null)
+        {
+            Error = "Заявка или пользователь не найдены.";
+            await ReloadAsync();
+            return;
+        }
+
+        var teacher = new Teacher
+        {
+            last_name = Limit(user.last_name, 50),
+            first_name = Limit(user.first_name, 50),
+            middle_name = Limit(user.middle_name, 50),
+            email = Limit(user.email, 50),
+            phone = Limit(user.contact, 16)
+        };
+        context.Teachers.Add(teacher);
+        await context.SaveChangesAsync();
+
+        user.role_id = 2;
+        user.status = 1;
+        user.linked_id = teacher.teacher_id;
+        application.status = 1;
+        await context.SaveChangesAsync();
+
+        Message = $"Соискатель «{user.username}» принят на работу.";
+        await ReloadAsync();
+    }
+
+    private async Task RejectWorkAsync(int id)
+    {
+        Message = null;
+        Error = null;
+        await using var context = DbFactory.CreateDbContext();
+        var application = await context.VacancyApplications.FindAsync(id);
+        if (application is null)
+        {
+            Error = "Заявка не найдена.";
+            await ReloadAsync();
+            return;
+        }
+        application.status = 2;
+        await context.SaveChangesAsync();
+        Message = "Заявка отклонена.";
+        await ReloadAsync();
+    }
+
+    private async Task ProcessAdmissionAsync(int id)
+    {
+        Message = null;
+        Error = null;
+        await using var context = DbFactory.CreateDbContext();
+        var request = await context.AdmissionRequests.FindAsync(id);
+        if (request is null)
+        {
+            Error = "Заявка не найдена.";
+            await ReloadAsync();
+            return;
+        }
+        request.status = 1;
+        await context.SaveChangesAsync();
+        Message = $"Заявка «{request.full_name}» обработана.";
+        await ReloadAsync();
+    }
+
+    private async Task RejectAdmissionAsync(int id)
+    {
+        Message = null;
+        Error = null;
+        await using var context = DbFactory.CreateDbContext();
+        var request = await context.AdmissionRequests.FindAsync(id);
+        if (request is null)
+        {
+            Error = "Заявка не найдена.";
+            await ReloadAsync();
+            return;
+        }
+        request.status = 2;
+        await context.SaveChangesAsync();
+        Message = "Заявка отклонена.";
+        await ReloadAsync();
+    }
+
+    private static string ComposeName(User? u)
+        => u is null ? string.Empty : string.Join(" ", new[] { u.last_name, u.first_name, u.middle_name }.Where(p => !string.IsNullOrWhiteSpace(p)));
+
+    private static string? Limit(string? value, int max)
+        => string.IsNullOrWhiteSpace(value) ? null : (value.Trim().Length > max ? value.Trim()[..max] : value.Trim());
+
+    private static string StatusText(int status) => status switch
+    {
+        1 => "Принято",
+        2 => "Отклонено",
+        _ => "Ожидает"
+    };
+
+    private static string StatusCss(int status) => status switch
+    {
+        1 => "text-bg-success",
+        2 => "text-bg-danger",
+        _ => "text-bg-secondary"
+    };
+}

@@ -9,7 +9,7 @@
 
 <div class="page-header">
     <h2>Преподаватели академии</h2>
-    <p class="text-secondary mb-0">Выберите преподавателя и посмотрите его визитную карточку с достижениями и портфолио.</p>
+    <p class="text-secondary mb-0">Выберите преподавателя, посмотрите его предметы и оставьте заявку на обучение.</p>
 </div>
 
 @if (Teachers.Count == 0)
@@ -21,7 +21,7 @@ else
     <div class="portfolio-grid">
         @foreach (var t in Teachers)
         {
-            <a class="catalog-card" href="u/@t.Username">
+            <a class="catalog-card" href="/teachers/card/@t.Id">
                 <div class="catalog-avatar">
                     @if (Photo.DataSrc(t.Photo) is string photoSrc)
                     {
@@ -32,16 +32,41 @@ else
                         <span class="catalog-initials">@t.Initials</span>
                     }
                 </div>
+
                 <h3>@t.FullName</h3>
-                @if (!string.IsNullOrWhiteSpace(t.Tagline))
-                {
-                    <p class="catalog-tagline">@t.Tagline</p>
-                }
-                <div class="catalog-meta">
-                    <span>@t.DisciplineCount шт. дисциплин</span>
-                    <span>@t.ProjectCount проектов</span>
+
+                <div class="catalog-rating" title="Рейтинг 5.0 — отзывов пока нет">
+                    <span class="catalog-stars" aria-hidden="true">★★★★★</span>
+                    <span class="catalog-rating-value">5.0</span>
+                    <span class="catalog-rating-empty">нет отзывов</span>
                 </div>
-                <span class="catalog-open">Открыть визитку →</span>
+
+                @if (t.Subjects.Count > 0)
+                {
+                    <div class="catalog-subjects">
+                        @foreach (var subject in t.Subjects.Take(4))
+                        {
+                            <span class="catalog-chip">@subject</span>
+                        }
+                        @if (t.SubjectCount > 4)
+                        {
+                            <span class="catalog-chip catalog-chip-more">+@(t.SubjectCount - 4)</span>
+                        }
+                    </div>
+                }
+
+                <div class="catalog-meta">
+                    @if (t.WorkSince is DateTime since)
+                    {
+                        <span>Стаж с @since.ToString("yyyy")</span>
+                    }
+                    @if (t.Directions.Count > 0)
+                    {
+                        <span>@string.Join(", ", t.Directions.Take(2))@(t.Directions.Count > 2 ? " и др." : "")</span>
+                    }
+                </div>
+
+                <span class="catalog-open">Подробнее →</span>
             </a>
         }
     </div>
@@ -50,13 +75,14 @@ else
 @code {
     private sealed class TeacherCard
     {
-        public string Username = string.Empty;
+        public int Id;
         public string FullName = string.Empty;
         public string Initials = "?";
         public byte[]? Photo;
-        public string Tagline = string.Empty;
-        public int DisciplineCount;
-        public int ProjectCount;
+        public DateTime? WorkSince;
+        public List<string> Subjects = new();
+        public int SubjectCount;
+        public List<string> Directions = new();
     }
 
     private List<TeacherCard> Teachers = new();
@@ -65,53 +91,68 @@ else
     {
         await using var context = DbFactory.CreateDbContext();
 
-        var users = await context.Users.AsNoTracking()
-            .Where(u => u.role_id == 2 && u.linked_id != null)
+        var teachers = await context.Teachers.AsNoTracking()
+            .OrderBy(t => t.last_name).ThenBy(t => t.first_name)
             .ToListAsync();
-        if (users.Count == 0)
+        if (teachers.Count == 0)
         {
             return;
         }
 
-        var teacherIds = users.Select(u => u.linked_id!.Value).ToList();
-        var teachers = await context.Teachers.AsNoTracking()
-            .Where(t => teacherIds.Contains(t.teacher_id))
-            .ToListAsync();
+        var teacherIds = teachers.Select(t => t.teacher_id).ToList();
+        var disciplines = await context.Disciplines.AsNoTracking().ToDictionaryAsync(d => d.discipline_id);
+        var directions = await context.Directions.AsNoTracking().ToDictionaryAsync(d => d.direction_id);
 
-        var disciplineCounts = await context.TeachersDisciplinesRelation.AsNoTracking()
+        var relations = await context.TeachersDisciplinesRelation.AsNoTracking()
             .Where(r => teacherIds.Contains(r.teacher))
-            .GroupBy(r => r.teacher)
-            .Select(g => new { Id = g.Key, Count = g.Count() })
             .ToListAsync();
+        var disciplineDirections = await context.DisciplinesDirectionsRelation.AsNoTracking().ToListAsync();
 
-        var projectCounts = await context.Projects.AsNoTracking()
-            .Where(p => users.Select(u => u.user_id).Contains(p.user_id))
-            .GroupBy(p => p.user_id)
-            .Select(g => new { Id = g.Key, Count = g.Count() })
-            .ToListAsync();
-
-        var pCountByUser = projectCounts.ToDictionary(x => x.Id, x => x.Count);
-
-        foreach (var user in users.OrderBy(u => u.username))
+        foreach (var teacher in teachers)
         {
-            var teacher = teachers.FirstOrDefault(t => t.teacher_id == user.linked_id);
-            var fullName = teacher is null
-                ? user.username
-                : string.Join(" ", new[] { teacher.last_name, teacher.first_name, teacher.middle_name }
-                    .Where(x => !string.IsNullOrWhiteSpace(x)));
-            var initials = MakeInitials(fullName);
+            var disciplineIds = relations
+                .Where(r => r.teacher == teacher.teacher_id)
+                .Select(r => r.discipline)
+                .Distinct()
+                .ToList();
+
+            var subjects = disciplineIds
+                .Where(disciplines.ContainsKey)
+                .Select(id => disciplines[id].discipline_name)
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Select(n => n!.Trim())
+                .Distinct()
+                .ToList();
+
+            var dirs = disciplineDirections
+                .Where(x => disciplineIds.Contains(x.discipline))
+                .Select(x => x.direction)
+                .Distinct()
+                .Where(directions.ContainsKey)
+                .Select(id => directions[id].direction_name)
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Select(n => n!.Trim())
+                .Distinct()
+                .ToList();
+
+            var fullName = ComposeName(teacher.last_name, teacher.first_name, teacher.middle_name);
+
             Teachers.Add(new TeacherCard
             {
-                Username = user.username,
+                Id = teacher.teacher_id,
                 FullName = fullName,
-                Initials = initials,
-                Photo = user.photo is { Length: > 0 } ? user.photo : teacher?.photo,
-                Tagline = (user.tagline ?? string.Empty).Trim(),
-                DisciplineCount = disciplineCounts.FirstOrDefault(d => d.Id == user.linked_id)?.Count ?? 0,
-                ProjectCount = pCountByUser.GetValueOrDefault(user.user_id)
+                Initials = MakeInitials(fullName),
+                Photo = teacher.photo,
+                WorkSince = teacher.work_since,
+                Subjects = subjects,
+                SubjectCount = subjects.Count,
+                Directions = dirs
             });
         }
     }
+
+    private static string ComposeName(string? last, string? first, string? middle)
+        => string.Join(" ", new[] { last, first, middle }.Where(x => !string.IsNullOrWhiteSpace(x)));
 
     private static string MakeInitials(string name)
     {

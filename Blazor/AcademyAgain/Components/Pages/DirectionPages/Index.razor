@@ -1,5 +1,5 @@
 @page "/directions"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "ManageData")]
 @rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore

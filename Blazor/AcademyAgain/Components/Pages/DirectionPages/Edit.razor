@@ -1,5 +1,5 @@
 @page "/directions/edit"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "ManageData")]
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
 @inject IDbContextFactory<AcademyAgainContext> DbFactory

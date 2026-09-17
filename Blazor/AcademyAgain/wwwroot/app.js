@@ -117,6 +117,19 @@
         }
     });
 
+    document.addEventListener('click', (event) => {
+        const toggle = event.target.closest('[data-toggle-password]');
+        if (!toggle) return;
+        const input = document.getElementById(toggle.getAttribute('data-toggle-password'));
+        if (!input) return;
+        event.preventDefault();
+        const show = input.type === 'password';
+        input.type = show ? 'text' : 'password';
+        toggle.classList.toggle('is-visible', show);
+        toggle.setAttribute('aria-pressed', show ? 'true' : 'false');
+        toggle.setAttribute('aria-label', show ? 'Скрыть пароль' : 'Показать пароль');
+    });
+
     document.addEventListener('change', (event) => {
         const target = event.target;
 

@@ -6,7 +6,7 @@
             <NotAuthorized>
                 @if (context.User.Identity?.IsAuthenticated == true)
                 {
-                    <p class="text-center my-5">Доступ запрещён: у вас нет прав для этой страницы.</p>
+                    <RedirectToAccessDenied />
                 }
                 else
                 {
@@ -16,4 +16,9 @@
         </AuthorizeRouteView>
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
+    <NotFound>
+        <LayoutView Layout="typeof(Layout.MainLayout)">
+            <RedirectToNotFound />
+        </LayoutView>
+    </NotFound>
 </Router>

@@ -25,6 +25,23 @@ namespace AcademyAgain.Models
 		[Column(TypeName = "TINYINT")]
 		public int status { get; set; }
 
+		[Required]
+		[Column(TypeName = "NVARCHAR(50)")]
+		public string last_name { get; set; } = string.Empty;
+
+		[Required]
+		[Column(TypeName = "NVARCHAR(50)")]
+		public string first_name { get; set; } = string.Empty;
+
+		[Column(TypeName = "NVARCHAR(50)")]
+		public string? middle_name { get; set; }
+
+		[Column(TypeName = "NVARCHAR(100)")]
+		public string? email { get; set; }
+
+		[Column(TypeName = "NVARCHAR(100)")]
+		public string? contact { get; set; }
+
 		[Column(TypeName = "INT")]
 		public int? linked_id { get; set; }
 

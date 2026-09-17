@@ -1,0 +1,17 @@
+@page "/403"
+@attribute [AllowAnonymous]
+
+<PageTitle>Доступ запрещён</PageTitle>
+
+<div class="notfound-page" data-forbidden>
+    <div class="notfound-back">
+        <a class="btn btn-outline-secondary" href="/">← На главную</a>
+    </div>
+
+    <div class="forbidden-code" aria-hidden="true">403</div>
+
+    <p class="notfound-text">
+        Доступ запрещён: у вас нет прав для этой страницы.
+    </p>
+    <a class="btn btn-primary" href="/">На главную</a>
+</div>

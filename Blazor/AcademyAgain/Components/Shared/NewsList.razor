@@ -1,0 +1,123 @@
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+
+@if (Items.Count == 0)
+{
+    <div class="section-empty">Новостей пока нет.</div>
+}
+else
+{
+    <div class="news-grid">
+        @foreach (var item in Items)
+        {
+            if (item.Id is int newsId)
+            {
+                <a class="news-card" href="/news/@newsId">
+                    @CardBody(item)
+                </a>
+            }
+            else
+            {
+                <article class="news-card">
+                    @CardBody(item)
+                </article>
+            }
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int Take { get; set; } = 4;
+
+    private sealed record NewsItem(int? Id, string Title, string Text, string? Image, DateTime? Date);
+
+    private List<NewsItem> Items = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var context = DbFactory.CreateDbContext();
+
+        var query = context.News.AsNoTracking()
+            .Where(n => n.is_published)
+            .OrderByDescending(n => n.published_at);
+        var published = Take > 0
+            ? await query.Take(Take).ToListAsync()
+            : await query.ToListAsync();
+
+        Items = published.Count > 0
+            ? published.Select(n => new NewsItem(
+                n.news_id,
+                n.title,
+                Truncate(n.body, 170),
+                null,
+                n.published_at)).ToList()
+            : (Take > 0 ? TemplateNews().Take(Take).ToList() : TemplateNews());
+    }
+
+    private RenderFragment CardBody(NewsItem item) => @<text>
+        <div class="news-cover">
+            @if (item.Image is string src)
+            {
+                <img src="@src" alt="@item.Title" loading="lazy" />
+            }
+            else
+            {
+                <div class="news-cover-fallback" aria-hidden="true">@MakeInitial(item.Title)</div>
+            }
+        </div>
+        <div class="news-body">
+            <span class="news-date">@(item.Date?.ToString("dd.MM.yyyy") ?? "—")</span>
+            <h3>@item.Title</h3>
+            <p>@item.Text</p>
+        </div>
+    </text>;
+
+    private static List<NewsItem> TemplateNews() => new()
+    {
+        new NewsItem(
+            null,
+            "Открыт набор в новую группу",
+            "Приглашаем абитуриентов на программы обучения. Количество мест ограничено — успевайте записаться к выбранному преподавателю.",
+            "/images/news/Students%20with%20computer(1).jpg",
+            new DateTime(2026, 9, 1)),
+        new NewsItem(
+            null,
+            "День открытых дверей",
+            "Посетите академию: познакомьтесь с преподавателями, посмотрите аудитории и задайте свои вопросы приёмной комиссии.",
+            "/images/news/open%20doors(2).jpg",
+            new DateTime(2026, 9, 15)),
+        new NewsItem(
+            null,
+            "Хакатон по искусственному интеллекту",
+            "Команды студентов и абитуриентов будут бороться за призовой фонд. Участие бесплатное, регистрация уже открыта.",
+            "/images/news/hakaton(3).jpg",
+            new DateTime(2026, 9, 3)),
+        new NewsItem(
+            null,
+            "Библиотека обновилась",
+            "В фонд академии добавлены новые учебники и научные журналы. Список литературы доступен на портале.",
+            "/images/news/library(4).webp",
+            new DateTime(2026, 9, 10)),
+        new NewsItem(
+            null,
+            "Кампус открыт для гостей",
+            "Загляните в академию до начала занятий — аудитории, библиотека и лаборатории уже готовы к приёму.",
+            "/images/news/campus(5).jpg",
+            new DateTime(2026, 9, 12)),
+    };
+
+    private static string Truncate(string text, int max)
+    {
+        var clean = (text ?? string.Empty).Trim();
+        if (clean.Length <= max) return clean;
+        return clean[..max].TrimEnd() + "…";
+    }
+
+    private static string MakeInitial(string title)
+    {
+        var clean = (title ?? string.Empty).Trim();
+        return clean.Length == 0 ? "?" : clean[0].ToString().ToUpperInvariant();
+    }
+}

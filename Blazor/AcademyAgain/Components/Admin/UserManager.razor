@@ -15,15 +15,15 @@
             <div class="alert alert-danger py-2">@NewError</div>
         }
         <div class="row g-2 align-items-end">
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label">Логин</label>
                 <input class="form-control" @bind="NewUsername" placeholder="логин" />
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label">Пароль</label>
                 <input type="password" class="form-control" @bind="NewPassword" placeholder="мин. 6 символов" />
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label">Роль</label>
                 <select class="form-select" @bind="NewRole">
                     @foreach (var role in Roles)
@@ -33,93 +33,152 @@
                 </select>
             </div>
             <div class="col-md-3">
-                <button type="button" class="btn btn-primary" @onclick="AddAsync">Добавить</button>
+                <label class="form-label">Email</label>
+                <input class="form-control" @bind="NewEmail" placeholder="user@mail.ru" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Телефон</label>
+                <input class="form-control" @bind="NewContact" placeholder="+7 ..." />
+            </div>
+        </div>
+        <div class="row g-2 align-items-end mt-1">
+            <div class="col-md-3">
+                <label class="form-label">Фамилия</label>
+                <input class="form-control" @bind="NewLastName" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Имя</label>
+                <input class="form-control" @bind="NewFirstName" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Отчество</label>
+                <input class="form-control" @bind="NewMiddleName" />
+            </div>
+            <div class="col-md-3">
+                <button type="button" class="btn btn-primary w-100" @onclick="AddAsync">Добавить</button>
             </div>
         </div>
     </div>
 }
 
-@if (loaded && PendingRows.Count > 0)
-{
-    <h3 class="form-section-title">Ожидают подтверждения</h3>
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Пользователь</th>
-                <th>Запрошенная роль</th>
-                <th>Роль</th>
-                <th style="width:220px"></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var row in PendingRows)
-            {
-                <tr>
-                    <td class="fw-semibold">@row.Username</td>
-                    <td><span class="badge @RoleInfo(row.RoleId).Css">@RoleInfo(row.RoleId).Text</span></td>
-                    <td>
-                        <div class="d-flex gap-2 align-items-center">
-                            <span class="badge @RoleInfo(row.RoleId).Css">@RoleInfo(row.RoleId).Text</span>
-                            <select class="form-select form-select-sm" style="width:auto" value="@row.RoleId" @onchange='e => RoleEdit[row.Id] = int.Parse(e.Value?.ToString() ?? "3")'>
-                                @foreach (var role in SelectableRoles)
-                                {
-                                    <option value="@role.role_id" selected="@(role.role_id == row.RoleId)">@RoleInfo(role.role_id).Text</option>
-                                }
-                            </select>
-                        </div>
-                    </td>
-                    <td>
-                        <div class="d-flex gap-2 justify-content-end">
-                            <button type="button" class="btn btn-sm btn-success" @onclick="() => ApproveAsync(row.Id)">Подтвердить</button>
-                            <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(row.Id)">Отклонить</button>
-                        </div>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
-
 @if (loaded)
 {
+    <div class="row g-2 align-items-end mb-3">
+        <div class="col-md-4">
+            <label class="form-label">Поиск</label>
+            <input class="form-control" @bind="Search" @bind:event="oninput" placeholder="логин, ФИО или контакт" />
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Роль</label>
+            <select class="form-select" @bind="RoleFilter">
+                <option value="0">Все роли</option>
+                @foreach (var role in Roles)
+                {
+                    <option value="@role.role_id">@RoleInfo(role.role_id).Text</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Статус</label>
+            <select class="form-select" @bind="StatusFilter">
+                <option value="-1">Все статусы</option>
+                <option value="0">Ожидает</option>
+                <option value="1">Активен</option>
+                <option value="2">Заблокирован</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="text-secondary small mb-2">Найдено: @FilteredRows.Count</div>
+
     <table class="table context-table">
         <thead>
             <tr>
                 <th>Пользователь</th>
+                <th>ФИО / контакт</th>
                 <th>Роль</th>
+                <th>Привязка</th>
                 <th>Статус</th>
                 <th>Новый пароль</th>
-                <th style="width:120px"></th>
+                <th style="width:200px"></th>
             </tr>
         </thead>
         <tbody>
-            @foreach (var row in ActiveRows)
+            @foreach (var row in FilteredRows)
             {
                 <tr>
                     <td class="fw-semibold">@row.Username</td>
                     <td>
-                        <div class="d-flex gap-2 align-items-center">
-                            <span class="badge @RoleInfo(row.RoleId).Css">@RoleInfo(row.RoleId).Text</span>
-                            <select class="form-select form-select-sm" style="width:auto" value="@row.RoleId" @onchange='e => RoleEdit[row.Id] = int.Parse(e.Value?.ToString() ?? "3")'>
-                                @foreach (var role in SelectableRoles)
+                        <div>@(string.IsNullOrWhiteSpace(row.DisplayName) ? "—" : row.DisplayName)</div>
+                        <div class="text-secondary small">@row.Email</div>
+                        <div class="text-secondary small">@row.Contact</div>
+                    </td>
+                    <td>
+                        <select class="form-select form-select-sm" style="width:auto" value="@row.RoleId"
+                                @onchange='e => RoleEdit[row.Id] = int.Parse(e.Value?.ToString() ?? "3")'>
+                            @foreach (var role in SelectableRoles(row.RoleId))
+                            {
+                                <option value="@role.role_id" selected="@(role.role_id == row.RoleId)">@RoleInfo(role.role_id).Text</option>
+                            }
+                        </select>
+                    </td>
+                    <td>
+                        @{
+                            var effectiveRole = RoleEdit.TryGetValue(row.Id, out var er) ? er : row.RoleId;
+                        }
+                        @if (effectiveRole == 3)
+                        {
+                            <select class="form-select form-select-sm" style="width:auto" value="@(LinkEdit.TryGetValue(row.Id, out var sl) ? sl : row.LinkedId)"
+                                    @onchange='e => LinkEdit[row.Id] = ParseNullableInt(e.Value?.ToString())'>
+                                <option value="">— не привязан —</option>
+                                @foreach (var s in Students)
                                 {
-                                    <option value="@role.role_id" selected="@(role.role_id == row.RoleId)">@RoleInfo(role.role_id).Text</option>
+                                    <option value="@s.stud_id" selected="@(s.stud_id == row.LinkedId)">@StudentLabel(s)</option>
                                 }
                             </select>
-                        </div>
+                        }
+                        else if (effectiveRole == 2)
+                        {
+                            <select class="form-select form-select-sm" style="width:auto" value="@(LinkEdit.TryGetValue(row.Id, out var tl) ? tl : row.LinkedId)"
+                                    @onchange='e => LinkEdit[row.Id] = ParseNullableInt(e.Value?.ToString())'>
+                                <option value="">— не привязан —</option>
+                                @foreach (var t in Teachers)
+                                {
+                                    <option value="@t.teacher_id" selected="@(t.teacher_id == row.LinkedId)">@TeacherLabel(t)</option>
+                                }
+                            </select>
+                        }
+                        else
+                        {
+                            <span class="text-secondary">—</span>
+                        }
                     </td>
                     <td>
-                        <span class="badge @(row.Status == 1 ? "text-bg-success" : "text-bg-secondary")">@(row.Status == 1 ? "Активен" : "Ожидает")</span>
+                        <span class="badge @StatusCss(row.Status)">@StatusText(row.Status)</span>
                     </td>
                     <td>
-                        <div class="d-flex gap-2">
-                            <input type="password" class="form-control form-control-sm" placeholder="••••••" @bind="PassEdit[row.Id]" />
-                        </div>
+                        <input type="password" class="form-control form-control-sm" placeholder="••••••" @bind="PassEdit[row.Id]" />
                     </td>
                     <td>
-                        <div class="d-flex gap-2 justify-content-end">
-                            <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => SaveRowAsync(row.Id)">Сохранить</button>
-                            <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(row.Id)">Удалить</button>
+                        <div class="d-flex gap-2 justify-content-end flex-wrap">
+                            @if (row.Status == 0)
+                            {
+                                <button type="button" class="btn btn-sm btn-success" @onclick="() => SetStatusAsync(row.Id, 1)">Подтвердить</button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(row.Id)">Отклонить</button>
+                            }
+                            else
+                            {
+                                <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => SaveRowAsync(row.Id)">Сохранить</button>
+                                @if (row.Status == 2)
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-success" @onclick="() => SetStatusAsync(row.Id, 1)">Разблокировать</button>
+                                }
+                                else
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-warning" @onclick="() => SetStatusAsync(row.Id, 2)">Заблокировать</button>
+                                }
+                                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(row.Id)">Удалить</button>
+                            }
                         </div>
                     </td>
                 </tr>
@@ -133,22 +192,70 @@
     private bool IsAdmin;
     private List<UserRow> Rows = new();
     private List<Role> Roles = new();
+    private List<Student> Students = new();
+    private List<Teacher> Teachers = new();
+
+    private string Search = string.Empty;
+    private int RoleFilter = 0;
+    private int StatusFilter = -1;
 
     private string NewUsername = string.Empty;
     private string NewPassword = string.Empty;
+    private string NewLastName = string.Empty;
+    private string NewFirstName = string.Empty;
+    private string NewMiddleName = string.Empty;
+    private string NewEmail = string.Empty;
+    private string NewContact = string.Empty;
     private int NewRole = 3;
     private string? NewError;
 
     private Dictionary<int, int> RoleEdit = new();
     private Dictionary<int, string> PassEdit = new();
+    private Dictionary<int, int?> LinkEdit = new();
 
-    private IEnumerable<Role> SelectableRoles
-        => IsAdmin ? Roles : Roles.Where(r => r.role_id is 2 or 3);
+    private IEnumerable<Role> SelectableRoles(int currentRoleId)
+    {
+        if (IsAdmin)
+        {
+            return Roles;
+        }
+        return Roles.Where(r => r.role_id is 2 or 3 or 5 or 6 || r.role_id == currentRoleId);
+    }
 
-    private List<UserRow> PendingRows => Rows.Where(r => r.Status == 0).ToList();
-    private List<UserRow> ActiveRows => Rows.Where(r => r.Status == 1).ToList();
+    private List<UserRow> FilteredRows
+    {
+        get
+        {
+            IEnumerable<UserRow> query = Rows;
+            if (RoleFilter != 0)
+            {
+                query = query.Where(r => r.RoleId == RoleFilter);
+            }
+            if (StatusFilter >= 0)
+            {
+                query = query.Where(r => r.Status == StatusFilter);
+            }
+            var term = Search.Trim();
+            if (term.Length > 0)
+            {
+                query = query.Where(r =>
+                    r.Username.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                    (r.DisplayName.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+                    (r.Email?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (r.Contact?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false));
+            }
+            return query.ToList();
+        }
+    }
 
-    private sealed record UserRow(int Id, string Username, int RoleId, int Status);
+    private sealed record UserRow(int Id, string Username, string? LastName, string? FirstName, string? MiddleName, string? Email, string? Contact, int RoleId, int Status, int? LinkedId)
+    {
+        public string DisplayName => string.Join(" ", new[] { LastName, FirstName, MiddleName }.Where(p => !string.IsNullOrWhiteSpace(p)));
+    }
+
+    private static string StudentLabel(Student s) => $"{s.last_name} {s.first_name} {s.middle_name}".Trim();
+    private static string TeacherLabel(Teacher t) => $"{t.last_name} {t.first_name} {t.middle_name}".Trim();
+    private static int? ParseNullableInt(string? value) => int.TryParse(value, out var result) ? result : null;
 
     private static (string Text, string Css) RoleInfo(int roleId) => roleId switch
     {
@@ -156,7 +263,23 @@
         4 => ("Модератор", "text-bg-info"),
         2 => ("Преподаватель", "text-bg-primary"),
         3 => ("Студент", "text-bg-success"),
+        5 => ("Абитуриент", "text-bg-warning"),
+        6 => ("Соискатель", "text-bg-secondary"),
         _ => (roleId.ToString(), "text-bg-secondary")
+    };
+
+    private static string StatusText(int status) => status switch
+    {
+        1 => "Активен",
+        2 => "Заблокирован",
+        _ => "Ожидает"
+    };
+
+    private static string StatusCss(int status) => status switch
+    {
+        1 => "text-bg-success",
+        2 => "text-bg-danger",
+        _ => "text-bg-secondary"
     };
 
     protected override async Task OnInitializedAsync()
@@ -169,10 +292,14 @@
 
         await using var context = DbFactory.CreateDbContext();
         Roles = await context.Roles.OrderBy(r => r.role_id).ToListAsync();
+        Students = await context.Students.OrderBy(s => s.last_name).ThenBy(s => s.first_name).ToListAsync();
+        Teachers = await context.Teachers.OrderBy(t => t.last_name).ThenBy(t => t.first_name).ToListAsync();
         Rows = (await context.Users.OrderBy(u => u.username).ToListAsync())
-            .Select(u => new UserRow(u.user_id, u.username, u.role_id, u.status))
+            .Select(u => new UserRow(u.user_id, u.username, u.last_name, u.first_name, u.middle_name, u.email, u.contact, u.role_id, u.status, u.linked_id))
             .ToList();
         PassEdit = Rows.ToDictionary(r => r.Id, _ => string.Empty);
+        RoleEdit.Clear();
+        LinkEdit.Clear();
         loaded = true;
         StateHasChanged();
     }
@@ -185,31 +312,52 @@
             NewError = "Введите логин.";
             return;
         }
+        if (string.IsNullOrWhiteSpace(NewLastName) || string.IsNullOrWhiteSpace(NewFirstName))
+        {
+            NewError = "Введите фамилию и имя.";
+            return;
+        }
         if (NewPassword.Length < 6)
         {
             NewError = "Пароль должен быть не короче 6 символов.";
             return;
         }
+        var email = string.IsNullOrWhiteSpace(NewEmail) ? null : NewEmail.Trim().ToLowerInvariant();
         await using var context = DbFactory.CreateDbContext();
         if (await context.Users.AnyAsync(u => u.username == NewUsername))
         {
             NewError = "Пользователь с таким логином уже существует.";
             return;
         }
+        if (email is not null && await context.Users.AnyAsync(u => u.email == email))
+        {
+            NewError = "Пользователь с таким email уже существует.";
+            return;
+        }
         context.Users.Add(new User
         {
-            username = NewUsername,
+            username = NewUsername.Trim(),
             password_hash = AuthStore.HashPassword(NewPassword),
             role_id = NewRole,
-            status = 1
+            status = 1,
+            last_name = NewLastName.Trim(),
+            first_name = NewFirstName.Trim(),
+            middle_name = string.IsNullOrWhiteSpace(NewMiddleName) ? null : NewMiddleName.Trim(),
+            email = email,
+            contact = string.IsNullOrWhiteSpace(NewContact) ? null : NewContact.Trim()
         });
         await context.SaveChangesAsync();
         NewUsername = string.Empty;
         NewPassword = string.Empty;
+        NewLastName = string.Empty;
+        NewFirstName = string.Empty;
+        NewMiddleName = string.Empty;
+        NewEmail = string.Empty;
+        NewContact = string.Empty;
         await ReloadAsync();
     }
 
-    private async Task ApproveAsync(int id)
+    private async Task SetStatusAsync(int id, int status)
     {
         await using var context = DbFactory.CreateDbContext();
         var user = await context.Users.FindAsync(id);
@@ -218,11 +366,7 @@
             await ReloadAsync();
             return;
         }
-        if (RoleEdit.TryGetValue(id, out var roleId))
-        {
-            user.role_id = roleId;
-        }
-        user.status = 1;
+        user.status = status;
         await context.SaveChangesAsync();
         await ReloadAsync();
     }
@@ -245,6 +389,10 @@
                 return;
             }
             user.role_id = roleId;
+        }
+        if (LinkEdit.TryGetValue(id, out var linkedId))
+        {
+            user.linked_id = linkedId;
         }
         if (PassEdit.TryGetValue(id, out var pass) && !string.IsNullOrWhiteSpace(pass))
         {

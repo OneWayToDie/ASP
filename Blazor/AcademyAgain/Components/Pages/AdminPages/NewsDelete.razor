@@ -1,0 +1,59 @@
+@page "/admin/news/delete"
+@attribute [Authorize(Policy = "ManageData")]
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Удаление новости</PageTitle>
+
+<h1>Удаление новости</h1>
+
+<p class="text-danger">Вы уверены, что хотите удалить эту новость?</p>
+<div>
+    <hr />
+    @if (news is null)
+    {
+        <p><em>Загрузка...</em></p>
+    }
+    else
+    {
+        <dl class="row">
+            <dt class="col-sm-2">Заголовок</dt>
+            <dd class="col-sm-10">@news.title</dd>
+            <dt class="col-sm-2">Дата</dt>
+            <dd class="col-sm-10">@(news.published_at?.ToString("dd.MM.yyyy") ?? "—")</dd>
+        </dl>
+        <EditForm method="post" Model="news" OnValidSubmit="DeleteNews" FormName="delete" Enhance>
+            <input type="hidden" name="News.news_id" value="@news.news_id" />
+            <button type="submit" class="btn btn-danger">Удалить</button> |
+            <a href="/admin/news">Назад к списку</a>
+        </EditForm>
+    }
+</div>
+
+@code {
+    private News? news;
+
+    [SupplyParameterFromQuery]
+    private int news_id { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        news = await context.News.FirstOrDefaultAsync(n => n.news_id == news_id);
+
+        if (news is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+
+    private async Task DeleteNews()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.News.Remove(news!);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/admin/news");
+    }
+}

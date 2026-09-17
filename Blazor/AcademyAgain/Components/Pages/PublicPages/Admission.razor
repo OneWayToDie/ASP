@@ -1,0 +1,106 @@
+@page "/admission"
+@attribute [AllowAnonymous]
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager Navigation
+
+<PageTitle>Поступление</PageTitle>
+
+<div class="page-header">
+    <h1>Поступление</h1>
+    <p class="page-subtitle">Оставьте заявку без регистрации — приёмная комиссия свяжется с вами.</p>
+</div>
+
+<div class="d-flex justify-content-center">
+    <div class="auth-card" style="width: 100%; max-width: 560px">
+        @if (Sent)
+        {
+            <div class="alert alert-success">Заявка отправлена. Приёмная комиссия свяжется с вами в ближайшее время.</div>
+            <a class="btn btn-outline-secondary w-100 mb-2" href="teachers/catalog">Выбрать преподавателя</a>
+            <a class="btn btn-link w-100" href="">Вернуться на главную</a>
+        }
+        else
+        {
+            <p class="text-secondary">
+                Заполните форму — аккаунт не нужен. Заявка попадёт в приёмную комиссию.
+            </p>
+            <EditForm method="post" Model="Model" OnValidSubmit="SubmitAsync" FormName="AdmissionForm" Enhance>
+                <DataAnnotationsValidator />
+                <ValidationSummary class="text-danger" role="alert" />
+                <div class="mb-3">
+                    <label class="form-label" for="admission_name">ФИО:</label>
+                    <InputText id="admission_name" @bind-Value="Model.FullName" class="form-control" autocomplete="name" />
+                    <ValidationMessage For="() => Model.FullName" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="admission_contact">Контакт (телефон или email):</label>
+                    <InputText id="admission_contact" @bind-Value="Model.Contact" class="form-control" />
+
+                    <ValidationMessage For="() => Model.Contact" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="admission_direction">Интересующее направление:</label>
+                    <InputSelect id="admission_direction" @bind-Value="Model.DirectionId" class="form-select">
+                        <option value="">— не выбрано —</option>
+                        @foreach (var direction in directions)
+                        {
+                            <option value="@direction.direction_id">@direction.direction_name</option>
+                        }
+                    </InputSelect>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Отправить заявку</button>
+            </EditForm>
+        }
+    </div>
+</div>
+
+@code {
+    private sealed class AdmissionRequestModel
+    {
+        [Required(ErrorMessage = "Введите ФИО")]
+        [StringLength(150, ErrorMessage = "ФИО должно быть не длиннее 150 символов")]
+        public string FullName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Укажите контакт для связи")]
+        [StringLength(100, ErrorMessage = "Контакт должен быть не длиннее 100 символов")]
+        public string Contact { get; set; } = string.Empty;
+
+        public int? DirectionId { get; set; }
+    }
+
+    [SupplyParameterFromForm(FormName = "AdmissionForm")]
+    private AdmissionRequestModel Model { get; set; } = new();
+
+    [SupplyParameterFromQuery(Name = "sent")]
+    private string? SentParam { get; set; }
+
+    private bool Sent => SentParam == "1";
+
+    private List<Direction> directions = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var context = await DbFactory.CreateDbContextAsync();
+        directions = await context.Directions.AsNoTracking()
+            .OrderBy(d => d.direction_name)
+            .ToListAsync();
+    }
+
+    private async Task SubmitAsync()
+    {
+        await using var context = await DbFactory.CreateDbContextAsync();
+        context.AdmissionRequests.Add(new AdmissionRequest
+        {
+            full_name = Model.FullName.Trim(),
+            contact = Model.Contact.Trim(),
+            direction_id = Model.DirectionId,
+            status = 0,
+            created_at = DateTime.Now
+        });
+        await context.SaveChangesAsync();
+        Navigation.NavigateTo("/admission?sent=1", forceLoad: true);
+    }
+}

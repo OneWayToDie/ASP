@@ -1,5 +1,5 @@
 @page "/students/create"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "Teaching")]
 @using Microsoft.AspNetCore.Http
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models

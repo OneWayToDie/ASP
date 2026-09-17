@@ -1,0 +1,8 @@
+.news-article-body
+{
+    max-width: 760px;
+    white-space: pre-line;
+    line-height: 1.7;
+    color: var(--app-text-soft);
+    overflow-wrap: anywhere;
+}

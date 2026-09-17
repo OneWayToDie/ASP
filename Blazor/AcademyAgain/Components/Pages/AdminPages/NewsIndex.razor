@@ -1,0 +1,116 @@
+@page "/admin/news"
+@attribute [Authorize(Policy = "ManageData")]
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+@inherits RowMenuPage<News>
+
+<PageTitle>Новости</PageTitle>
+
+<div class="list-header">
+    <h1>Новости</h1>
+    <div class="list-actions">
+        <input class="form-control search-input" type="search" placeholder="Поиск…" value="@SearchText" @oninput="OnSearchInput" />
+        <ExportMenu RowBuilder="BuildRows" FileName="news" />
+        <a class="btn btn-primary" href="admin/news/create">Создать</a>
+    </div>
+</div>
+
+<QuickGrid Class="table context-table" Items="query" ItemKey="n => n.news_id" Pagination="Pagination">
+    <TemplateColumn Title="Заголовок" Sortable="true" SortBy="GridSort<News>.ByAscending(n => n.title)" Context="news">
+        <div class="row-key @RowClass(news)" data-item-key="@GetKey(news)">
+            @NewsTitle(news)
+        </div>
+    </TemplateColumn>
+    <TemplateColumn Title="Дата" Sortable="true" SortBy="GridSort<News>.ByAscending(n => n.published_at)" Context="news">
+        @(news.published_at?.ToString("dd.MM.yyyy") ?? "—")
+    </TemplateColumn>
+    <TemplateColumn Title="Статус" Sortable="true" SortBy="GridSort<News>.ByAscending(n => n.is_published)" Context="news">
+        <span class="badge @(news.is_published ? "text-bg-success" : "text-bg-secondary")">@(news.is_published ? "Опубликовано" : "Черновик")</span>
+    </TemplateColumn>
+    <TemplateColumn Title="Автор" Context="news">
+        @AuthorName(news.author_id)
+    </TemplateColumn>
+</QuickGrid>
+
+<div class="paginator">
+    <span class="badge bg-secondary total-badge">Всего: @TotalCount</span>
+    <AppPaginator State="Pagination" OnPageSizeChanged="HandlePageSizeChanged" />
+</div>
+
+<RowContextMenu MenuItems="@MenuItems" X="@MenuX" Y="@MenuY" OnClose="CloseMenu" />
+
+@code {
+    private List<News> allItems = new();
+    private IQueryable<News> query = new List<News>().AsQueryable();
+    private List<News> filtered = new();
+    private Dictionary<int, string> authors = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var context = DbFactory.CreateDbContext();
+        allItems = await context.News.AsNoTracking()
+            .OrderByDescending(n => n.published_at)
+            .ToListAsync();
+        authors = await context.Users.AsNoTracking()
+            .ToDictionaryAsync(u => u.user_id, u => u.username);
+        ApplyFilter();
+    }
+
+    private void ApplyFilter()
+    {
+        filtered = ApplySearch(allItems).ToList();
+        query = filtered.AsQueryable();
+        TotalCount = filtered.Count;
+    }
+
+    private List<string?[]> BuildRows()
+    {
+        var rows = new List<string?[]>
+        {
+            new[] { "Заголовок", "Дата", "Статус", "Автор" }
+        };
+        foreach (var n in filtered)
+        {
+            rows.Add(new[]
+            {
+                NewsTitle(n),
+                n.published_at?.ToString("dd.MM.yyyy") ?? "—",
+                n.is_published ? "Опубликовано" : "Черновик",
+                AuthorName(n.author_id)
+            });
+        }
+        return rows;
+    }
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        SearchText = e.Value?.ToString();
+        ApplyFilter();
+        await ResetPaginationAsync();
+    }
+
+    protected override bool MatchesSearch(News news)
+        => TextContains(news.title, news.body);
+
+    private static string NewsTitle(News n) => string.IsNullOrWhiteSpace(n.title) ? $"№{n.news_id}" : n.title;
+
+    private string AuthorName(int? authorId)
+        => authorId is int id && authors.TryGetValue(id, out var name) ? name : "—";
+
+    protected override string GetKey(News n) => n.news_id.ToString();
+
+    protected override List<RowMenuItem> BuildMenu(string key)
+    {
+        if (!int.TryParse(key, out var id)) return new List<RowMenuItem>();
+        return new List<RowMenuItem>
+        {
+            new("Просмотр", $"news/{id}"),
+            new("Изменить", $"admin/news/edit?news_id={id}"),
+            new("Удалить", $"admin/news/delete?news_id={id}", Danger: true),
+        };
+    }
+}

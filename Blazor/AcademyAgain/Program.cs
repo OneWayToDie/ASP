@@ -11,17 +11,26 @@ builder.Services.AddDbContextFactory<AcademyAgainContext>(options => options.Use
 
 builder.Services.AddQuickGridEntityFrameworkAdapter();
 
+builder.Services.Configure<AcademyAgain.Models.SmtpOptions>(builder.Configuration.GetSection("Smtp"));
+builder.Services.AddScoped<AcademyAgain.Helpers.IEmailSender, AcademyAgain.Helpers.EmailSender>();
+builder.Services.AddScoped<AcademyAgain.Helpers.EmailVerificationService>();
+
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
         options.LoginPath = "/login";
-        options.AccessDeniedPath = "/login";
+        options.AccessDeniedPath = "/403";
         options.ExpireTimeSpan = TimeSpan.FromHours(12);
         options.SlidingExpiration = true;
     });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("ManageData", policy => policy.RequireRole("admin", "moderator"));
+    options.AddPolicy("Teaching", policy => policy.RequireRole("admin", "moderator", "teacher"));
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole("admin"));
+});
 builder.Services.AddCascadingAuthenticationState();
 
 // Add services to the container.
@@ -33,7 +42,8 @@ var app = builder.Build();
 await using (var scope = app.Services.CreateAsyncScope())
 {
     await using var db = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AcademyAgainContext>>().CreateDbContext();
-    await AuthStore.EnsureUsersSchemaAsync(db);
+    await db.Database.MigrateAsync();
+    await AuthStore.SeedAsync(db);
 }
 
 // Configure the HTTP request pipeline.

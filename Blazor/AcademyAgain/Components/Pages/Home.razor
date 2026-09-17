@@ -1,11 +1,27 @@
 ﻿@page "/"
-@attribute [Authorize]
+@attribute [AllowAnonymous]
 @rendermode InteractiveServer
 @using System.Globalization
+@using Microsoft.AspNetCore.Authorization
 @using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.Authorization
+@using AcademyAgain.Components.Pages.PublicPages
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider Auth
 
-<PageTitle>Панель управления</PageTitle>
+<PageTitle>Академия</PageTitle>
+
+@if (Redirecting)
+{
+    <div class="section-empty">Переход к панели абитуриента…</div>
+}
+else if (!IsAuthenticated)
+{
+    <LandingView />
+}
+else
+{
 
 <div class="page-header">
     <h1>Панель управления</h1>
@@ -205,7 +221,12 @@
     </div>
 }
 
+}
+
 @code {
+    private bool Redirecting;
+    private bool IsAuthenticated;
+
     private sealed record MonthPoint(DateTime Month, int Lessons, int Present, int Total)
     {
         public double Rate => Total == 0 ? 0 : 100.0 * Present / Total;
@@ -433,6 +454,26 @@ private static double IntAxisMax(double maxVal)
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await Auth.GetAuthenticationStateAsync();
+        IsAuthenticated = authState.User.Identity?.IsAuthenticated == true;
+        if (!IsAuthenticated)
+        {
+            return;
+        }
+
+        if (authState.User.IsInRole("candidate"))
+        {
+            Redirecting = true;
+            try
+            {
+                Navigation.NavigateTo("/candidate", forceLoad: true);
+            }
+            catch (InvalidOperationException)
+            {
+            }
+            return;
+        }
+
         await LoadChartsAsync();
 
         await using var context = DbFactory.CreateDbContext();

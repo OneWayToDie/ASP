@@ -1,4 +1,4 @@
-﻿@using System.Security.Claims
+@using System.Security.Claims
 @using Microsoft.AspNetCore.Components.Authorization
 @inject AuthenticationStateProvider Auth
 <div class="top-row ps-3 navbar navbar-dark">
@@ -12,9 +12,9 @@
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
     <nav class="nav flex-column">
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+            <NavLink class="nav-link" href="@(IsCandidate ? "candidate" : "")" Match="NavLinkMatch.All">
                 <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7.5 8 2.5l6 5V14a1 1 0 0 1-1 1H9v-4H7v4H3a1 1 0 0 1-1-1Z"/></svg>
-                <span class="nav-label">Панель</span>
+                <span class="nav-label">@(IsAuthenticated ? "Панель" : "Главная")</span>
             </NavLink>
         </div>
 
@@ -25,7 +25,42 @@
             </NavLink>
         </div>
 
-        @if (!IsCandidate)
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="news">
+                <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M4.5 5.5h7M4.5 8h7M4.5 10.5h4"/></svg>
+                <span class="nav-label">Новости</span>
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="about">
+                <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 7.5v4M8 5.2v.1"/></svg>
+                <span class="nav-label">О академии</span>
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="applicants">
+                <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2 1.5 5 8 8l6.5-3Z"/><path d="M3.5 6.8V11c0 .8 2 1.8 4.5 1.8s4.5-1 4.5-1.8V6.8"/></svg>
+                <span class="nav-label">Абитуриентам</span>
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="admission">
+                <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="2" width="10" height="12" rx="1.5"/><path d="M6 5.5h4M6 8h4M6 10.5h2.5"/></svg>
+                <span class="nav-label">Поступление</span>
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="contacts">
+                <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3.5" width="12" height="9" rx="1.5"/><path d="m3 5 5 3.5L13 5"/></svg>
+                <span class="nav-label">Контакты</span>
+            </NavLink>
+        </div>
+
+        @if (IsAuthenticated && !IsExternalUser)
         {
             <div class="nav-group px-3">
                 <input type="checkbox" class="group-toggle" id="grp-study" />
@@ -113,14 +148,34 @@
         <AuthorizeView Roles="admin,moderator">
             <div class="nav-group-title px-3">Администрирование</div>
             <div class="nav-item px-3">
-                <NavLink class="nav-link" href="admin/database">
-                    <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="8" cy="4" rx="6" ry="2.2"/><path d="M2 4v8c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2V4M2 8c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2"/></svg>
-                    <span class="nav-label">База данных</span>
+                <NavLink class="nav-link" href="admin/news">
+                    <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M4.5 5.5h7M4.5 8h7M4.5 10.5h4"/></svg>
+                    <span class="nav-label">Новости</span>
                 </NavLink>
             </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="admin/candidates">
+                    <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><path d="M5.5 6h5M5.5 8.5h3M5.5 11h2"/></svg>
+                    <span class="nav-label">Заявки</span>
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="admin/users">
+                    <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="5" r="2"/><path d="M2.5 13c.3-2.2 1.9-3.4 3.5-3.4S9.2 10.8 9.5 13"/><path d="M11 6.5h3M12.5 5v3"/></svg>
+                    <span class="nav-label">Пользователи</span>
+                </NavLink>
+            </div>
+            <AuthorizeView Roles="admin" Context="adminOnly">
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="admin/database">
+                        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="8" cy="4" rx="6" ry="2.2"/><path d="M2 4v8c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2V4M2 8c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2"/></svg>
+                        <span class="nav-label">База данных</span>
+                    </NavLink>
+                </div>
+            </AuthorizeView>
         </AuthorizeView>
 
-        @if (!IsCandidate)
+        @if (IsAuthenticated && !IsExternalUser)
         {
             <div class="nav-group px-3">
                 <input type="checkbox" class="group-toggle" id="grp-rel" />
@@ -154,19 +209,22 @@
         </div>
         }
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="profile">
-                <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="5" r="2.6"/><path d="M3 14c.4-3 2.6-4.6 5-4.6s4.6 1.6 5 4.6"/></svg>
-                <span class="nav-label">Профиль</span>
-            </NavLink>
-        </div>
+        @if (IsAuthenticated)
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="profile">
+                    <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="5" r="2.6"/><path d="M3 14c.4-3 2.6-4.6 5-4.6s4.6 1.6 5 4.6"/></svg>
+                    <span class="nav-label">Профиль</span>
+                </NavLink>
+            </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="portfolio">
-                <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3.5" width="12" height="9" rx="1.5"/><path d="M2 7h12"/></svg>
-                <span class="nav-label">Портфолио</span>
-            </NavLink>
-        </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="portfolio">
+                    <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3.5" width="12" height="9" rx="1.5"/><path d="M2 7h12"/></svg>
+                    <span class="nav-label">Портфолио</span>
+                </NavLink>
+            </div>
+        }
     </nav>
 </div>
 
@@ -182,11 +240,15 @@
 </AuthorizeView>
 
 @code {
+    private bool IsAuthenticated;
+    private bool IsExternalUser;
     private bool IsCandidate;
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await Auth.GetAuthenticationStateAsync();
+        IsAuthenticated = authState.User.Identity?.IsAuthenticated == true;
+        IsExternalUser = authState.User.IsInRole("candidate") || authState.User.IsInRole("teacher_candidate");
         IsCandidate = authState.User.IsInRole("candidate");
     }
 
@@ -197,6 +259,7 @@
         "teacher" => "Преподаватель",
         "student" => "Студент",
         "candidate" => "Абитуриент",
+        "teacher_candidate" => "Соискатель",
         _ => role ?? string.Empty
     };
 
@@ -207,6 +270,7 @@
         "teacher" => "text-bg-primary",
         "student" => "text-bg-success",
         "candidate" => "text-bg-warning",
+        "teacher_candidate" => "text-bg-secondary",
         _ => "text-bg-secondary"
     };
 }
