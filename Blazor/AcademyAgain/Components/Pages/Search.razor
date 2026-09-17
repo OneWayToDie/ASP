@@ -134,17 +134,19 @@
                 $"students/details?stud_id={s.stud_id}"))
             .ToList();
 
-        Teachers = (await context.Teachers
-            .Where(t => (t.last_name != null && t.last_name.Contains(query))
-                || (t.first_name != null && t.first_name.Contains(query))
-                || (t.middle_name != null && t.middle_name.Contains(query)))
-            .OrderBy(t => t.last_name).ThenBy(t => t.first_name)
+        Teachers = (await (from t in context.Teachers
+                    join u in context.Users on t.teacher_id equals u.linked_id
+                    where u.role_id == 2 && ((t.last_name != null && t.last_name.Contains(query))
+                        || (t.first_name != null && t.first_name.Contains(query))
+                        || (t.middle_name != null && t.middle_name.Contains(query)))
+                    orderby t.last_name, t.first_name
+                    select new { t.last_name, t.first_name, t.middle_name, u.username })
             .Take(20)
-            .Select(t => new { t.teacher_id, t.last_name, t.first_name, t.middle_name })
             .ToListAsync())
             .Select(t => new SearchHit(
                 string.Join(' ', new[] { t.last_name, t.first_name, t.middle_name }).Trim(),
-                $"teachers/details?teacher_id={t.teacher_id}"))
+                $"u/{t.username}",
+                "нажмите, чтобы посмотреть визитку"))
             .ToList();
 
         Groups = (await context.Groups

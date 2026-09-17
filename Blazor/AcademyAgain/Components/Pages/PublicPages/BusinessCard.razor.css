@@ -1,0 +1,199 @@
+.vis
+{
+    max-width: 860px;
+    margin: 1.5rem auto;
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.vis-banner
+{
+    height: 120px;
+}
+
+.vis-banner-admin
+{
+    background: linear-gradient(135deg, #3b0d63, #a5123a 55%, #e0553e);
+}
+
+.vis-banner-moderator
+{
+    background: linear-gradient(135deg, #04343f, #086a83 55%, #0a58ca);
+}
+
+.vis-banner-teacher
+{
+    background: linear-gradient(135deg, #0a1f4a, #114e9b 55%, #66a3ff);
+}
+
+.vis-banner-student
+{
+    background: linear-gradient(135deg, #052e21, #126b45 55%, #38c172);
+}
+
+.vis-banner-candidate
+{
+    background: linear-gradient(135deg, #3a2e04, #92500a 55%, #ffca7a);
+}
+
+.vis-banner-default
+{
+    background: linear-gradient(135deg, #1c2333, #37425c);
+}
+
+.vis-head
+{
+    position: relative;
+    display: flex;
+    gap: 1.25rem;
+    align-items: center;
+    padding: 0 1.5rem 1rem;
+    margin-top: -2.5rem;
+}
+
+.vis-head.has-banner
+{
+    margin-top: 0;
+    padding: 1.5rem;
+}
+
+.vis-head.has-banner .vis-head-info h1,
+.vis-head.has-banner .vis-tagline
+{
+    color: #fff;
+}
+
+.vis-avatar
+{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 128px;
+    height: 128px;
+    flex: 0 0 128px;
+    border-radius: 50%;
+    background: var(--app-surface);
+    border: 3px solid var(--app-accent);
+    overflow: hidden;
+}
+
+.vis-avatar-img
+{
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.vis-initials
+{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    font-size: 2.4rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.05em;
+}
+
+.vis-initials-admin
+{
+    background: var(--bs-danger);
+}
+
+.vis-initials-moderator
+{
+    background: var(--bs-info);
+    color: #000;
+}
+
+.vis-initials-teacher
+{
+    background: var(--bs-primary);
+}
+
+.vis-initials-student
+{
+    background: var(--bs-success);
+}
+
+.vis-initials-candidate
+{
+    background: var(--bs-warning);
+    color: #181a1f;
+}
+
+.vis-initials-default
+{
+    background: var(--bs-secondary);
+}
+
+.vis-head-info
+{
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+    padding-top: 2.6rem;
+}
+
+.vis-head-info h1
+{
+    margin: 0;
+    font-size: 1.7rem;
+}
+
+.vis-tagline
+{
+    margin: 0;
+    color: var(--app-accent);
+    font-style: italic;
+}
+
+.vis-achievements
+{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.vis-pill
+{
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    background: var(--app-surface-muted);
+    border: 1px solid var(--app-border);
+    font-size: 0.85rem;
+}
+
+.vis-qr
+{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 1rem 1.5rem 1.5rem;
+}
+
+.vis-qr img
+{
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+    padding: 4px;
+}
+
+.vis-qr-hint
+{
+    color: var(--app-muted);
+    font-size: 0.8rem;
+}
+
+.vis-footer
+{
+    padding: 0 1.5rem 1.5rem;
+}

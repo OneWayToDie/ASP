@@ -53,6 +53,103 @@
     text-transform: uppercase;           /* всё прописными */
 }
 
+/* ===== Группы-аккордеоны в меню ===== */
+.nav-group 
+{
+    font-size: 0.9rem;          /* размер текста группы */
+    padding-bottom: 0.35rem;    /* зазор между группами */
+}
+
+/* Скрытый чекбокс — управляет раскрытием панели (чистый CSS, без JS) */
+.group-toggle 
+{
+    display: none;
+}
+
+/* Кнопка-заголовок группы (закруглённый прямоугольник) */
+.nav-group-btn 
+{
+    display: flex;                          /* иконка + текст + шеврон в ряд */
+    align-items: center;
+    width: 100%;                            /* на всю ширину меню */
+    min-height: 2.15rem;
+    margin: 0;
+    padding: 0.35rem 0.75rem;
+    border: 1px solid var(--app-border);
+    border-radius: 0.6rem;                  /* закругление */
+    background-color: var(--app-surface-2); /* лёгкая подложка — заголовок отличается от таблиц */
+    color: var(--app-nav-link);
+    line-height: 1.35;
+    cursor: pointer;                        /* кликабельная кнопка */
+    user-select: none;
+}
+
+.nav-group-btn:hover 
+{
+    background-color: var(--app-nav-hover-bg);
+    color: var(--app-nav-link-hover);
+}
+
+/* Шеврон справа; при раскрытии поворачивается вниз */
+.nav-group-btn .chev 
+{
+    width: 0.85rem;
+    height: 0.85rem;
+    margin-left: auto;      /* прижимаем к правому краю */
+    opacity: 0.7;
+    transition: transform 0.15s ease;
+}
+
+.group-toggle:checked ~ .nav-group-btn .chev 
+{
+    transform: rotate(90deg);
+}
+
+/* Панель с кнопками таблиц: скрыта, пока чекбокс не отмечен */
+.group-panel 
+{
+    display: none;
+    grid-template-columns: 1fr;
+    gap: 0.3rem;
+    margin-top: 0.35rem;
+}
+
+.group-toggle:checked ~ .group-panel 
+{
+    display: grid;          /* раскрываем: кнопки таблиц в столбик */
+}
+
+/* Кнопки таблиц — закруглённые прямоугольники */
+.nav-group ::deep .group-btn 
+{
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 2.15rem;
+    padding: 0.4rem 0.75rem;
+    border: 1px solid var(--app-border);
+    border-radius: 0.6rem;
+    background: none;
+    color: var(--app-nav-link);
+    line-height: 1.35;
+    text-decoration: none;
+}
+
+.nav-group ::deep .group-btn:hover 
+{
+    background-color: var(--app-nav-hover-bg);
+    color: var(--app-nav-link-hover);
+}
+
+/* Активная таблица — жёлтая подложка, как у прочих пунктов меню */
+.nav-group ::deep .group-btn.active 
+{
+    background-color: var(--app-nav-active-bg);
+    color: var(--app-nav-active-text);
+    border-color: transparent;
+    font-weight: 600;
+}
+
 /* ===== Пункты меню ===== */
 .nav-item 
 {
@@ -178,4 +275,50 @@
     {
         margin-bottom: 1.5rem;
     }
+
+    /* Запас снизу, чтобы пункты не прятались под футером пользователя */
+    .nav-scrollable 
+    {
+        padding-bottom: 6rem;
+    }
+
+    /* Футер сайдбара закреплён внизу */
+    .sidebar-user 
+    {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+    }
 }
+
+/* ===== Футер сайдбара: пользователь, роль, профиль ===== */
+.sidebar-user 
+{
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0.75rem 1rem;
+    background-color: var(--app-sidebar-top);
+    border-top: 1px solid var(--app-border);
+}
+
+.sidebar-user-name 
+{
+    font-weight: 600;
+    font-size: 0.9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--app-nav-link);
+}
+
+.sidebar-user-role 
+{
+    font-size: 0.8rem;
+}
+
+    .sidebar-user-role ::deep .badge 
+    {
+        font-size: 0.72rem;
+    }

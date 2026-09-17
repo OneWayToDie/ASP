@@ -1,0 +1,117 @@
+@page "/register"
+@attribute [AllowAnonymous]
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@using AcademyAgain.Helpers
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+
+<PageTitle>Регистрация</PageTitle>
+
+@if (Success is not null)
+{
+    <div class="alert alert-success">@Success</div>
+}
+@if (Error is not null)
+{
+    <div class="alert alert-danger">@Error</div>
+}
+
+<div class="d-flex justify-content-center">
+    <div class="auth-card" style="width: 100%; max-width: 380px">
+        <h1 class="mb-4">Регистрация</h1>
+
+        @if (Success is null)
+        {
+            <EditForm Model="Model" OnValidSubmit="SubmitAsync" FormName="RegisterForm">
+                <DataAnnotationsValidator />
+                <div class="mb-3">
+                    <label class="form-label" for="register_username">Логин:</label>
+                    <InputText id="register_username" @bind-Value="Model.Username" class="form-control" autocomplete="username" />
+                    <ValidationMessage For="() => Model.Username" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="register_password">Пароль:</label>
+                    <InputText id="register_password" type="password" @bind-Value="Model.Password" class="form-control" autocomplete="new-password" />
+                    <ValidationMessage For="() => Model.Password" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="register_confirm">Подтверждение пароля:</label>
+                    <InputText id="register_confirm" type="password" @bind-Value="Model.ConfirmPassword" class="form-control" autocomplete="new-password" />
+                    <ValidationMessage For="() => Model.ConfirmPassword" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="register_role">Роль:</label>
+                    <InputSelect id="register_role" @bind-Value="Model.RoleId" class="form-select">
+                        <option value="5">Абитуриент (хочу начать учиться)</option>
+                        <option value="3">Студент</option>
+                        <option value="2">Преподаватель</option>
+                    </InputSelect>
+                    <ValidationMessage For="() => Model.RoleId" class="text-danger" />
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Зарегистрироваться</button>
+            </EditForm>
+            <div class="mt-3 text-center">
+                <a href="login">Уже есть аккаунт? Войти</a>
+            </div>
+        }
+        else
+        {
+            <a class="btn btn-outline-secondary w-100" href="login">Перейти ко входу</a>
+        }
+    </div>
+</div>
+
+@code {
+    private sealed class RegisterModel
+    {
+        [Required(ErrorMessage = "Введите логин")]
+        [StringLength(50, ErrorMessage = "Логин должен быть не длиннее 50 символов")]
+        public string Username { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Введите пароль")]
+        [MinLength(6, ErrorMessage = "Пароль должен быть не короче 6 символов")]
+        public string Password { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Подтвердите пароль")]
+        [Compare(nameof(Password), ErrorMessage = "Пароли не совпадают")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Выберите роль")]
+        public int RoleId { get; set; } = 5;
+    }
+
+    [SupplyParameterFromForm]
+    private RegisterModel Model { get; set; } = new();
+    private string? Error;
+    private string? Success;
+
+    private async Task SubmitAsync()
+    {
+        Error = null;
+        if (Model.RoleId != 2 && Model.RoleId != 3 && Model.RoleId != 5)
+        {
+            Error = "Недопустимая роль.";
+            return;
+        }
+        await using var context = await DbFactory.CreateDbContextAsync();
+        if (await context.Users.AsNoTracking().AnyAsync(u => u.username == Model.Username.Trim()))
+        {
+            Error = "Пользователь с таким логином уже существует.";
+            return;
+        }
+        context.Users.Add(new User
+        {
+            username = Model.Username.Trim(),
+            password_hash = AuthStore.HashPassword(Model.Password),
+            role_id = Model.RoleId,
+            status = Model.RoleId == 5 ? 1 : 0
+        });
+        await context.SaveChangesAsync();
+        Success = Model.RoleId == 5
+            ? "Аккаунт создан. Добро пожаловать!"
+            : "Аккаунт создан. Дождитесь подтверждения модератором.";
+    }
+}

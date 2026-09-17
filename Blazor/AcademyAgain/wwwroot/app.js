@@ -64,6 +64,17 @@
         },
     };
 
+    window.AcademyScroll = {
+        to(id) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                el.classList.add('profile-flash-active');
+                setTimeout(() => el.classList.remove('profile-flash-active'), 1200);
+            }
+        },
+    };
+
     window.downloadTextFile = function (filename, text) {
         const blob = new Blob([text], { type: 'text/csv;charset=utf-8' });
         downloadBlob(filename, blob);

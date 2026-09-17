@@ -1,0 +1,121 @@
+@page "/teachers/catalog"
+@attribute [AllowAnonymous]
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@using AcademyAgain.Helpers
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+
+<PageTitle>Преподаватели академии</PageTitle>
+
+<div class="page-header">
+    <h2>Преподаватели академии</h2>
+    <p class="text-secondary mb-0">Выберите преподавателя и посмотрите его визитную карточку с достижениями и портфолио.</p>
+</div>
+
+@if (Teachers.Count == 0)
+{
+    <div class="section-empty">Преподаватели пока не добавлены.</div>
+}
+else
+{
+    <div class="portfolio-grid">
+        @foreach (var t in Teachers)
+        {
+            <a class="catalog-card" href="u/@t.Username">
+                <div class="catalog-avatar">
+                    @if (Photo.DataSrc(t.Photo) is string photoSrc)
+                    {
+                        <img src="@photoSrc" alt="@t.FullName" />
+                    }
+                    else
+                    {
+                        <span class="catalog-initials">@t.Initials</span>
+                    }
+                </div>
+                <h3>@t.FullName</h3>
+                @if (!string.IsNullOrWhiteSpace(t.Tagline))
+                {
+                    <p class="catalog-tagline">@t.Tagline</p>
+                }
+                <div class="catalog-meta">
+                    <span>@t.DisciplineCount шт. дисциплин</span>
+                    <span>@t.ProjectCount проектов</span>
+                </div>
+                <span class="catalog-open">Открыть визитку →</span>
+            </a>
+        }
+    </div>
+}
+
+@code {
+    private sealed class TeacherCard
+    {
+        public string Username = string.Empty;
+        public string FullName = string.Empty;
+        public string Initials = "?";
+        public byte[]? Photo;
+        public string Tagline = string.Empty;
+        public int DisciplineCount;
+        public int ProjectCount;
+    }
+
+    private List<TeacherCard> Teachers = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var context = DbFactory.CreateDbContext();
+
+        var users = await context.Users.AsNoTracking()
+            .Where(u => u.role_id == 2 && u.linked_id != null)
+            .ToListAsync();
+        if (users.Count == 0)
+        {
+            return;
+        }
+
+        var teacherIds = users.Select(u => u.linked_id!.Value).ToList();
+        var teachers = await context.Teachers.AsNoTracking()
+            .Where(t => teacherIds.Contains(t.teacher_id))
+            .ToListAsync();
+
+        var disciplineCounts = await context.TeachersDisciplinesRelation.AsNoTracking()
+            .Where(r => teacherIds.Contains(r.teacher))
+            .GroupBy(r => r.teacher)
+            .Select(g => new { Id = g.Key, Count = g.Count() })
+            .ToListAsync();
+
+        var projectCounts = await context.Projects.AsNoTracking()
+            .Where(p => users.Select(u => u.user_id).Contains(p.user_id))
+            .GroupBy(p => p.user_id)
+            .Select(g => new { Id = g.Key, Count = g.Count() })
+            .ToListAsync();
+
+        var pCountByUser = projectCounts.ToDictionary(x => x.Id, x => x.Count);
+
+        foreach (var user in users.OrderBy(u => u.username))
+        {
+            var teacher = teachers.FirstOrDefault(t => t.teacher_id == user.linked_id);
+            var fullName = teacher is null
+                ? user.username
+                : string.Join(" ", new[] { teacher.last_name, teacher.first_name, teacher.middle_name }
+                    .Where(x => !string.IsNullOrWhiteSpace(x)));
+            var initials = MakeInitials(fullName);
+            Teachers.Add(new TeacherCard
+            {
+                Username = user.username,
+                FullName = fullName,
+                Initials = initials,
+                Photo = user.photo is { Length: > 0 } ? user.photo : teacher?.photo,
+                Tagline = (user.tagline ?? string.Empty).Trim(),
+                DisciplineCount = disciplineCounts.FirstOrDefault(d => d.Id == user.linked_id)?.Count ?? 0,
+                ProjectCount = pCountByUser.GetValueOrDefault(user.user_id)
+            });
+        }
+    }
+
+    private static string MakeInitials(string name)
+    {
+        var parts = name.Split(new[] { ' ', '-', '.' }, StringSplitOptions.RemoveEmptyEntries).Take(2).ToList();
+        return parts.Count == 0 ? "?" : string.Concat(parts.Select(p => char.ToUpperInvariant(p[0])));
+    }
+}

@@ -1,0 +1,1712 @@
+@page "/profile"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using System.IO
+@using System.Security.Claims
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.Cookies
+@using Microsoft.Data.SqlClient
+@using AcademyAgain.Models
+@using AcademyAgain.Helpers
+@inject IJSRuntime JS
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject AuthenticationStateProvider Auth
+@inject NavigationManager Navigation
+
+<PageTitle>Профиль</PageTitle>
+
+<div class="list-header">
+    <h1>Профиль</h1>
+    <div class="list-actions">
+        <a class="btn btn-outline-secondary" href="">Панель</a>
+    </div>
+</div>
+
+@if (user is null)
+{
+    <p class="text-muted">Загрузка…</p>
+}
+else
+{
+    <div class="profile">
+        <div class="profile-banner @BannerCss"></div>
+        <div class="profile-head @(HasUserBanner ? "has-banner" : null)" style="@BannerStyle">
+            <div class="banner-actions">
+                <label class="btn btn-sm banner-btn profile-photo-label">
+                    <span>Сменить баннер</span>
+                    <InputFile OnChange="OnBannerSelectedAsync" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" />
+                </label>
+                @if (HasUserBanner)
+                {
+                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="RemoveBannerAsync">Удалить баннер</button>
+                }
+                @if (BannerError is not null)
+                {
+                    <div class="banner-msg text-warning">@BannerError</div>
+                }
+                @if (BannerOk is not null)
+                {
+                    <div class="banner-msg text-white">@BannerOk</div>
+                }
+            </div>
+            <div class="profile-avatar-area">
+                <div class="profile-avatar-ring @RingCss">
+                    @if (AvatarSrc is not null)
+                    {
+                        <img class="photo-large" src="@AvatarSrc" alt="Аватар" />
+                    }
+                    else
+                    {
+                        <div class="photo-empty-large profile-initials @InitialsCss">@Initials</div>
+                    }
+                </div>
+                <div class="profile-photo-actions">
+                    <label class="btn btn-sm btn-outline-secondary profile-photo-label">
+                        <span>Сменить фото</span>
+                        <InputFile OnChange="OnAvatarSelectedAsync" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" />
+                    </label>
+                    @if (HasUserPhoto)
+                    {
+                        <button type="button" class="btn btn-sm btn-outline-danger" @onclick="RemovePhotoAsync">Удалить фото</button>
+                    }
+                </div>
+                @if (PhotoError is not null)
+                {
+                    <div class="text-danger small mt-2">@PhotoError</div>
+                }
+                @if (PhotoOk is not null)
+                {
+                    <div class="text-success small mt-2">@PhotoOk</div>
+                }
+            </div>
+            <div class="profile-head-info">
+                <h1>@DisplayName</h1>
+                @if (!string.IsNullOrWhiteSpace(user.tagline))
+                {
+                    <p class="profile-head-tagline">@user.tagline</p>
+                }
+                <p class="profile-head-sub">
+                    <span class="badge @RoleCss">@RoleText</span>
+                    <span class="badge @(user.status == 1 ? "text-bg-success" : "text-bg-secondary")">@(user.status == 1 ? "Активен" : "Ожидает подтверждения")</span>
+                </p>
+                <p class="profile-head-contacts">
+                    @if (string.IsNullOrWhiteSpace(ContactEmail) && string.IsNullOrWhiteSpace(ContactPhone))
+                    {
+                        <span>контакты не указаны</span>
+                    }
+                    else
+                    {
+                        @ContactEmail @if (!string.IsNullOrWhiteSpace(ContactEmail) && !string.IsNullOrWhiteSpace(ContactPhone)) { <span>·</span> } @ContactPhone
+                    }
+                </p>
+                <p class="profile-head-contacts">Логин: @user.username · ID: @user.user_id</p>
+            </div>
+        </div>
+
+        <div class="profile-body">
+            <div class="profile-stats">
+                @if (RoleText == "Студент")
+                {
+                    <div class="stat-card">
+                        <div class="stat-value">@AverageGradeText</div>
+                        <div class="stat-label">Средний балл</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">@AttendedPercentText</div>
+                        <div class="stat-label">Посещаемость</div>
+                        @if (AttendanceTotal > 0)
+                        {
+                            <div class="stat-label">посещено @AttendedCount из @AttendanceTotal</div>
+                        }
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">@ExamsTaken</div>
+                        <div class="stat-label">Экзаменов сдано</div>
+                    </div>
+                    @if (GradeRankCount > 0 && GradeRankText != "—")
+                    {
+                        <div class="stat-card">
+                            <div class="stat-value">@GradeRankText</div>
+                            <div class="stat-label">Место в группе</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">@GradeRankPercent</div>
+                            <div class="stat-label">Относительно группы</div>
+                        </div>
+                    }
+                }
+                else if (RoleText == "Преподаватель")
+                {
+                    <div class="stat-card">
+                        <div class="stat-value">@DisciplinesCount</div>
+                        <div class="stat-label">Ведёт дисциплин</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">@SalaryTotal.ToString("N2")</div>
+                        <div class="stat-label">Начислено всего</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">@SalaryPaid.ToString("N2")</div>
+                        <div class="stat-label">Выплачено</div>
+                    </div>
+                }
+                else
+                {
+                    <div class="stat-card">
+                        <div class="stat-value">@UsersCount</div>
+                        <div class="stat-label">Пользователей</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">@PendingCount</div>
+                        <div class="stat-label">Ожидают подтверждения</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">@StudentsCount</div>
+                        <div class="stat-label">Студентов</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">@TeachersCount</div>
+                        <div class="stat-label">Преподавателей</div>
+                    </div>
+                }
+            </div>
+
+            <div class="profile-facts">
+                <div class="profile-fact">
+                    <span class="profile-fact-label">Логин</span>
+                    <span class="profile-fact-value">@user.username</span>
+                </div>
+                <div class="profile-fact">
+                    <span class="profile-fact-label">Роль</span>
+                    <span class="profile-fact-value">@RoleText</span>
+                </div>
+                <div class="profile-fact">
+                    <span class="profile-fact-label">Статус</span>
+                    <span class="profile-fact-value">@(user.status == 1 ? "Активен" : "Ожидает подтверждения")</span>
+                </div>
+                <div class="profile-fact">
+                    <span class="profile-fact-label">ID учётной записи</span>
+                    <span class="profile-fact-value">@user.user_id</span>
+                </div>
+                @if (LinkedStudent is not null)
+                {
+                    <div class="profile-fact">
+                        <span class="profile-fact-label">Дата рождения</span>
+                        <span class="profile-fact-value">@LinkedStudent.birth_date.ToString("dd.MM.yyyy")</span>
+                    </div>
+                    <div class="profile-fact">
+                        <span class="profile-fact-label">Группа</span>
+                        <span class="profile-fact-value">@GroupName</span>
+                    </div>
+                    <div class="profile-fact">
+                        <span class="profile-fact-label">Направление</span>
+                        <span class="profile-fact-value">@DirectionName</span>
+                    </div>
+                    <div class="profile-fact">
+                        <span class="profile-fact-label">Средний по группе</span>
+                        <span class="profile-fact-value">@GroupAvgText</span>
+                    </div>
+                }
+                else if (LinkedTeacher is not null)
+                {
+                    <div class="profile-fact">
+                        <span class="profile-fact-label">Дата рождения</span>
+                        <span class="profile-fact-value">@(LinkedTeacher.birth_date?.ToString("dd.MM.yyyy") ?? "—")</span>
+                    </div>
+                    <div class="profile-fact">
+                        <span class="profile-fact-label">Работает с</span>
+                        <span class="profile-fact-value">@(LinkedTeacher.work_since?.ToString("dd.MM.yyyy") ?? "—")</span>
+                    </div>
+                    <div class="profile-fact">
+                        <span class="profile-fact-label">Ставка</span>
+                        <span class="profile-fact-value">@(LinkedTeacher.rate?.ToString("C") ?? "—")</span>
+                    </div>
+                }
+            </div>
+
+<div class="profile-anchorbar">
+                <button type="button" class="profile-chip" @onclick="@(() => ScrollToSection(Sec.Bio))">О себе</button>
+                <button type="button" class="profile-chip" @onclick="@(() => ScrollToSection(Sec.Ach))">Достижения</button>
+                <button type="button" class="profile-chip" @onclick="@(() => ScrollToSection(Sec.Portfolio))">Портфолио</button>
+                @if (LinkedStudent is not null)
+                {
+                    <button type="button" class="profile-chip" @onclick="@(() => ScrollToSection(Sec.Study))">Успеваемость</button>
+                    <button type="button" class="profile-chip" @onclick="@(() => ScrollToSection(Sec.Active))">Активность</button>
+                    <button type="button" class="profile-chip" @onclick="@(() => ScrollToSection(Sec.Next))">Ближайшее</button>
+                }
+                else if (LinkedTeacher is not null)
+                {
+                    <button type="button" class="profile-chip" @onclick="@(() => ScrollToSection(Sec.Disc))">Дисциплины</button>
+                    <button type="button" class="profile-chip" @onclick="@(() => ScrollToSection(Sec.Less))">Занятия</button>
+                }
+                else if (RoleText is "Админ" or "Модератор")
+                {
+                    <button type="button" class="profile-chip" @onclick="@(() => ScrollToSection(Sec.Links))">Ссылки</button>
+                }
+                <button type="button" class="profile-chip" @onclick="@(() => ScrollToSection(Sec.Password))">Пароль</button>
+            </div>
+
+            <div class="profile-sections">
+                <div class="profile-section" id="p-bio">
+                    <h3>О себе и девиз</h3>
+                    @if (BioError is not null)
+                    {
+                        <div class="alert alert-danger py-2">@BioError</div>
+                    }
+                    @if (BioOk is not null)
+                    {
+                        <div class="alert alert-success py-2">@BioOk</div>
+                    }
+                    <div class="mb-2">
+                        <label class="form-label">Девиз / статус</label>
+                        <input class="form-control" maxlength="80" @bind="TaglineText" placeholder="Например: «Учу алгоритмы и пишу код»" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">О себе</label>
+                        <textarea class="form-control" rows="3" maxlength="300" @bind="BioText" placeholder="Расскажите о себе, своих интересах и целях…"></textarea>
+                    </div>
+                    <button type="button" class="btn btn-primary" @onclick="SaveBioAsync">Сохранить</button>
+                </div>
+
+<div class="profile-section" id="p-ach">
+                    <h3>Достижения</h3>
+                    @if (Achievements.Count == 0)
+                    {
+                        <div class="section-empty">Достижений пока нет</div>
+                    }
+                    else
+                    {
+                        <div class="achievements-grid">
+                            @foreach (var a in Achievements)
+                            {
+                                <span class="achievement-pill @a.Css" title="@a.Detail"><span class="achievement-star">★</span>@a.Title</span>
+                            }
+                        </div>
+                    }
+</div>
+
+                <div class="profile-section" id="p-portfolio">
+                    <h3>Портфолио <a class="btn btn-sm btn-outline-secondary" href="portfolio">Управлять</a></h3>
+                    @if (Projects.Count == 0)
+                    {
+                        <div class="section-empty">Проектов пока нет. <a href="portfolio/create">Добавить первый проект</a></div>
+                    }
+                    else
+                    {
+                        <div class="portfolio-grid">
+                            @foreach (var p in Projects)
+                            {
+                                <div class="project-card @(p.pinned ? "project-pinned" : "")">
+                                    <div class="project-cover">
+                                        @if (Photo.DataSrc(p.cover) is string cover)
+                                        {
+                                            <img src="@cover" alt="@p.title" />
+                                        }
+                                        else
+                                        {
+                                            <div class="project-cover-empty">нет обложки</div>
+                                        }
+                                        @if (p.pinned)
+                                        {
+                                            <span class="project-pin" title="Закреплено">★</span>
+                                        }
+                                    </div>
+                                    <div class="project-body">
+                                        <div class="project-title-line">
+                                            <h3>@p.title</h3>
+                                            <span class="project-status status-@p.status">@StatusText(p.status)</span>
+                                        </div>
+                                        @if (!string.IsNullOrWhiteSpace(p.description))
+                                        {
+                                            <p class="project-desc">@p.description</p>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(p.tags))
+                                        {
+                                            <div class="project-tags">
+                                                @foreach (var t in p.tags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                                                {
+                                                    <span class="project-tag">@t</span>
+                                                }
+                                            </div>
+                                        }
+                                        <div class="project-meta">
+                                            <span>@(p.created_at?.ToString("dd.MM.yyyy") ?? "—")</span>
+                                            @if (!string.IsNullOrWhiteSpace(p.url))
+                                            {
+                                                <a href="@p.url" target="_blank" rel="noopener" title="Открыть сайт">Сайт ↗</a>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+
+                @if ((RoleText is "Студент" or "Преподаватель") && LinkedStudent is null && LinkedTeacher is null)
+                {
+                    <div class="profile-section">
+                        <h3>Привязка к записи</h3>
+                        @if (LinkError is not null)
+                        {
+                            <div class="alert alert-danger py-2">@LinkError</div>
+                        }
+                        <p class="text-secondary small">
+                            Найдите себя по фамилии, имени или отчеству и привяжите учётную запись к своей записи
+                            @(RoleText == "Студент" ? "студента" : "преподавателя").
+                        </p>
+                        <div class="d-flex gap-2">
+                            <input class="form-control" @bind="SearchText" placeholder="ФИО" @onkeydown="EnterSearch" />
+                            <button type="button" class="btn btn-primary" @onclick="SearchAsync">Найти</button>
+                        </div>
+                        @if (searched)
+                        {
+                            if (RoleText == "Студент")
+                            {
+                                if (SearchStudents.Count == 0)
+                                {
+                                    <div class="text-muted mt-3">Ничего не найдено.</div>
+                                }
+                                else
+                                {
+                                    <ul class="list-group mt-3">
+                                        @foreach (var s in SearchStudents)
+                                        {
+                                            <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                                <span>
+                                                    @FullName(s.last_name, s.first_name, s.middle_name)
+                                                    <span class="text-muted small">(группа @s.group.ToString())</span>
+                                                </span>
+                                                <button type="button" class="btn btn-sm btn-outline-success" @onclick="() => LinkStudentAsync(s.stud_id)">Привязать</button>
+                                            </li>
+                                        }
+                                    </ul>
+                                }
+                            }
+                            else
+                            {
+                                if (SearchTeachers.Count == 0)
+                                {
+                                    <div class="text-muted mt-3">Ничего не найдено.</div>
+                                }
+                                else
+                                {
+                                    <ul class="list-group mt-3">
+                                        @foreach (var t in SearchTeachers)
+                                        {
+                                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                <span>@FullName(t.last_name, t.first_name, t.middle_name)</span>
+                                                <button type="button" class="btn btn-sm btn-outline-success" @onclick="() => LinkTeacherAsync(t.teacher_id)">Привязать</button>
+                                            </li>
+                                        }
+                                    </ul>
+                                }
+                            }
+                        }
+                    </div>
+                }
+
+                @if (LinkedStudent is not null)
+                {
+<div class="profile-section" id="p-study">
+                        <h3>Успеваемость</h3>
+                        @if (Grades.Count == 0)
+                        {
+                            <div class="section-empty">Оценок пока нет</div>
+                        }
+                        else
+                        {
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr><th>Занятие</th><th class="text-end">Оценка 1</th><th class="text-end">Оценка 2</th></tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var g in Grades)
+                                    {
+                                        <tr>
+                                            <td>@g.Lesson</td>
+                                            <td class="text-end">@(g.Grade1?.ToString() ?? "—")</td>
+                                            <td class="text-end">@(g.Grade2?.ToString() ?? "—")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                    </div>
+<div class="profile-section" id="p-att">
+                        <h3>Посещаемость</h3>
+                        @if (AttendanceRows.Count == 0)
+                        {
+                            <div class="section-empty">Занятий не посещал</div>
+                        }
+                        else
+                        {
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr><th>Занятие</th><th class="text-end">Присутствовал</th></tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var a in AttendanceRows)
+                                    {
+                                        <tr>
+                                            <td>@a.Lesson</td>
+                                            <td class="text-end">@(a.Present ? "Да" : "Нет")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                    </div>
+                }
+
+                @if (LinkedStudent is not null)
+                {
+<div class="profile-section" id="p-exam">
+                        <h3>Экзамены</h3>
+                        @if (Exams.Count == 0)
+                        {
+                            <div class="section-empty">Экзаменов нет</div>
+                        }
+                        else
+                        {
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr><th>Дисциплина</th><th>Дата</th><th class="text-end">Оценка</th></tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var e in Exams)
+                                    {
+                                        <tr>
+                                            <td>@e.Discipline</td>
+                                            <td>@e.Date</td>
+                                            <td class="text-end">@(e.Grade?.ToString() ?? "—")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                    </div>
+<div class="profile-section" id="p-debts">
+                        <h3>Пройденные дисциплины</h3>
+                        @if (CompletedDisciplines.Count == 0)
+                        {
+                            <div class="section-empty">Пройденных нет</div>
+                        }
+                        else
+                        {
+                            <ul class="mb-0">
+                                @foreach (var d in CompletedDisciplines)
+                                {
+                                    <li>@d</li>
+                                }
+                            </ul>
+                        }
+                        <h3 class="mt-3">Долги по дисциплинам</h3>
+                        @if (DebtsDisciplines.Count == 0)
+                        {
+                            <div class="section-empty">Долгов нет</div>
+                        }
+                        else
+                        {
+                            <ul class="mb-0">
+                                @foreach (var d in DebtsDisciplines)
+                                {
+                                    <li>@d</li>
+                                }
+                            </ul>
+                        }
+                    </div>
+                }
+
+                @if (LinkedStudent is not null)
+                {
+<div class="profile-section" id="p-prog">
+                        <h3>Прогресс занятий</h3>
+                        <p class="mb-2">Проведено @LessonsSpent из @LessonsTotal занятий группы</p>
+                        <div class="progress" style="height: 0.6rem;">
+                            <div class="progress-bar" role="progressbar"
+                                 style="width: @(LessonsTotal == 0 ? 0 : LessonsSpent * 100 / LessonsTotal)%"></div>
+                        </div>
+                    </div>
+<div class="profile-section" id="p-best">
+                        <h3>Лучшие дисциплины</h3>
+                        @if (BestDisciplines.Count == 0)
+                        {
+                            <div class="section-empty">Оценок по дисциплинам пока нет</div>
+                        }
+                        else
+                        {
+                            <div class="skill-list">
+                                @foreach (var d in BestDisciplines)
+                                {
+                                    <div class="skill-row">
+                                        <span class="skill-name" title="@d.Name">@d.Name</span>
+                                        <div class="progress">
+                                            <div class="progress-bar" role="progressbar" style="width: @d.Percent%"></div>
+                                        </div>
+                                        <span class="skill-pct">@d.Avg @d.Percent%</span>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+<div class="profile-section" id="p-active">
+                        <h3>Активность за год</h3>
+                        @if (Heatmap.Count == 0)
+                        {
+                            <div class="section-empty">Данных посещаемости нет</div>
+                        }
+                        else
+                        {
+                            <div class="heatmap">
+                                @foreach (var h in Heatmap)
+                                {
+                                    <div class="heatmap-cell lvl@(h.Level)" title="@h.Date.ToString("dd.MM.yyyy") — @h.Count"></div>
+                                }
+                            </div>
+                            <div class="heatmap-legend">
+                                <span>Меньше</span>
+                                <span class="heatmap-cell lvl0" style="display:inline-block;"></span>
+                                <span class="heatmap-cell lvl1" style="display:inline-block;"></span>
+                                <span class="heatmap-cell lvl2" style="display:inline-block;"></span>
+                                <span class="heatmap-cell lvl3" style="display:inline-block;"></span>
+                                <span class="heatmap-cell lvl4" style="display:inline-block;"></span>
+                                <span>Больше</span>
+                            </div>
+                        }
+                    </div>
+<div class="profile-section" id="p-next">
+                        <h3>Ближайшее</h3>
+                        @if (UpcomingLessons.Count == 0 && UpcomingExams.Count == 0)
+                        {
+                            <div class="section-empty">Ближайших занятий и экзаменов нет</div>
+                        }
+                        else
+                        {
+                            @if (UpcomingLessons.Count > 0)
+                            {
+                                <h4 class="profile-subhead">Занятия</h4>
+                                <ul class="mb-0 upcoming-list">
+                                    @foreach (var l in UpcomingLessons)
+                                    {
+                                        <li>@l.Discipline — <span class="text-muted">@l.Date</span></li>
+                                    }
+                                </ul>
+                            }
+                            @if (UpcomingExams.Count > 0)
+                            {
+                                <h4 class="profile-subhead">Экзамены</h4>
+                                <ul class="mb-0 upcoming-list">
+                                    @foreach (var e in UpcomingExams)
+                                    {
+                                        <li>@e.Discipline — <span class="text-muted">@e.Date</span></li>
+                                    }
+                                </ul>
+                            }
+                        }
+                    </div>
+                }
+
+                @if (LinkedTeacher is not null)
+                {
+<div class="profile-section" id="p-disc">
+                        <h3>Дисциплины</h3>
+                        @if (Disciplines.Count == 0)
+                        {
+                            <div class="section-empty">Дисциплин нет</div>
+                        }
+                        else
+                        {
+                            <ul class="mb-0">
+                                @foreach (var d in Disciplines)
+                                {
+                                    <li><a href="@($"/disciplines/details?discipline_id={d.Id}")">@d.Name</a></li>
+                                }
+                            </ul>
+                        }
+                    </div>
+<div class="profile-section" id="p-less">
+                        <h3>Занятия</h3>
+                        @if (Lessons.Count == 0)
+                        {
+                            <div class="section-empty">Занятий нет</div>
+                        }
+                        else
+                        {
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr><th>Группа</th><th>Дисциплина</th><th>Дата</th></tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var l in Lessons)
+                                    {
+                                        <tr>
+                                            <td>@l.Group</td>
+                                            <td>@l.Discipline</td>
+                                            <td>@l.Date</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                    </div>
+                    <div class="profile-section">
+                        <h3>Ближайшие занятия</h3>
+                        @if (UpcomingLessons.Count == 0)
+                        {
+                            <div class="section-empty">Ближайших занятий нет</div>
+                        }
+                        else
+                        {
+                            <ul class="mb-0 upcoming-list">
+                                @foreach (var l in UpcomingLessons)
+                                {
+                                    <li>@l.Group — @l.Discipline — <span class="text-muted">@l.Date</span></li>
+                                }
+                            </ul>
+                        }
+                    </div>
+<div class="profile-section" id="p-salary">
+                        <h3>Зарплата</h3>
+                        @if (Salaries.Count == 0)
+                        {
+                            <div class="section-empty">Выплат нет</div>
+                        }
+                        else
+                        {
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr><th>№ платежа</th><th>Начислено</th><th>Выплачено</th></tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var s in Salaries)
+                                    {
+                                        <tr>
+                                            <td>@s.Id</td>
+                                            <td>@s.Accrued.ToString("N2")</td>
+                                            <td>@(s.Received ? "да" : "нет")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                    </div>
+                }
+
+                @if (RoleText is "Админ" or "Модератор")
+                {
+<div class="profile-section" id="p-links">
+                        <h3>Быстрые ссылки</h3>
+                        <ul class="mb-0">
+                            <li><a href="admin/database">База данных — пользователи и резервная копия</a></li>
+                            <li><a href="register">Регистрация нового пользователя</a></li>
+                        </ul>
+                    </div>
+                }
+
+@if (LinkedStudent is not null || LinkedTeacher is not null)
+                {
+<div class="profile-section password-box" id="p-contacts">
+                        <h3>Контактные данные</h3>
+                        @if (SaveError is not null)
+                        {
+                            <div class="alert alert-danger py-2">@SaveError</div>
+                        }
+                        @if (SaveOk is not null)
+                        {
+                            <div class="alert alert-success py-2">@SaveOk</div>
+                        }
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input class="form-control form-control-lg" @bind="ContactEmail" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Телефон</label>
+                            <input class="form-control form-control-lg" @bind="ContactPhone" />
+                        </div>
+                        <button type="button" class="btn btn-primary mt-1" @onclick="SaveContactsAsync">Сохранить</button>
+                    </div>
+                }
+
+<div class="profile-section password-box" id="p-login">
+                    <h3>Смена логина</h3>
+                    @if (LoginError is not null)
+                    {
+                        <div class="alert alert-danger py-2">@LoginError</div>
+                    }
+                    @if (LoginOk is not null)
+                    {
+                        <div class="alert alert-success py-2">@LoginOk</div>
+                    }
+                    <div class="mb-3">
+                        <label class="form-label">Текущий пароль</label>
+                        <input type="password" class="form-control form-control-lg" @bind="LoginCurPassword" autocomplete="current-password" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Новый логин</label>
+                        <input class="form-control form-control-lg" @bind="NewLogin" autocomplete="username" />
+                    </div>
+                    <button type="button" class="btn btn-primary mt-1" @onclick="ChangeLoginAsync">Сменить логин</button>
+                </div>
+
+<div class="profile-section password-box" id="p-password">
+                    <h3>Смена пароля</h3>
+                    @if (PasswordError is not null)
+                    {
+                        <div class="alert alert-danger py-2">@PasswordError</div>
+                    }
+                    @if (PasswordOk is not null)
+                    {
+                        <div class="alert alert-success py-2">@PasswordOk</div>
+                    }
+                    <div class="mb-3">
+                        <label class="form-label">Текущий пароль</label>
+                        <input type="password" class="form-control form-control-lg" @bind="CurPassword" autocomplete="current-password" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Новый пароль</label>
+                        <input type="password" class="form-control form-control-lg" @bind="NewPassword" autocomplete="new-password" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Повторите новый</label>
+                        <input type="password" class="form-control form-control-lg" @bind="ConfirmPassword" autocomplete="new-password" />
+                    </div>
+                    <button type="button" class="btn btn-primary mt-1" @onclick="ChangePasswordAsync">Сменить пароль</button>
+                </div>
+            </div>
+
+            <div class="profile-actions">
+                <a class="btn btn-outline-secondary" href="">На панель</a>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private static class Sec
+    {
+        public const string Bio = "p-bio";
+        public const string Ach = "p-ach";
+        public const string Portfolio = "p-portfolio";
+        public const string Study = "p-study";
+        public const string Active = "p-active";
+        public const string Next = "p-next";
+        public const string Disc = "p-disc";
+        public const string Less = "p-less";
+        public const string Links = "p-links";
+        public const string Password = "p-password";
+    }
+
+    private static string StatusText(int status) => status switch
+    {
+        1 => "Завершён",
+        2 => "Заморожен",
+        _ => "В разработке"
+    };
+
+    private sealed record GradeRow(string Lesson, int? Grade1, int? Grade2);
+    private sealed record AttendanceRow(string Lesson, bool Present);
+    private sealed record ExamRow(string Discipline, string Date, int? Grade);
+    private sealed record LessonRow(string Group, string Discipline, string Date);
+    private sealed record SalaryRow(long Id, decimal Accrued, bool Received);
+    private sealed record HeatCell(DateTime Date, int Level, int Count);
+    private sealed record Achievement(string Title, string Detail, string Css);
+    private sealed record Skill(string Name, double Avg, int Percent);
+
+    private User? user;
+    private string RoleText = string.Empty;
+    private string RoleCss = string.Empty;
+    private string DisplayName = string.Empty;
+    private string Initials = string.Empty;
+    private string InitialsCss = string.Empty;
+    private string BannerCss = string.Empty;
+    private string RingCss = string.Empty;
+    private string? AvatarSrc;
+    private bool HasUserPhoto;
+    private string? BannerSrc;
+    private bool HasUserBanner;
+    private string? BannerError;
+    private string? BannerOk;
+
+    private string? BannerStyle => BannerSrc is null
+        ? null
+        : $"background-image:linear-gradient(rgba(0,0,0,.5),rgba(0,0,0,.5)),url('{BannerSrc}');background-size:cover;background-position:center";
+    private Student? LinkedStudent;
+    private Teacher? LinkedTeacher;
+
+private string ContactEmail = string.Empty;
+    private string ContactPhone = string.Empty;
+    private string? SaveError;
+    private string? SaveOk;
+
+    private string NewLogin = string.Empty;
+    private string LoginCurPassword = string.Empty;
+    private string? LoginError;
+    private string? LoginOk;
+
+    private string GroupName = "—";
+    private string DirectionName = "—";
+    private string AverageGradeText = "—";
+    private int AttendedCount;
+    private int AttendanceTotal;
+    private string AttendedPercentText = "—";
+    private int ExamsTaken;
+    private int DisciplinesCount;
+    private decimal SalaryTotal;
+    private decimal SalaryPaid;
+    private int UsersCount;
+    private int PendingCount;
+    private int StudentsCount;
+    private int TeachersCount;
+
+    private List<GradeRow> Grades = new();
+    private List<AttendanceRow> AttendanceRows = new();
+    private List<ExamRow> Exams = new();
+    private List<string> CompletedDisciplines = new();
+    private List<string> DebtsDisciplines = new();
+    private List<(int Id, string Name)> Disciplines = new();
+    private List<LessonRow> Lessons = new();
+    private List<SalaryRow> Salaries = new();
+
+    private string SearchText = string.Empty;
+    private bool searched;
+    private List<Student> SearchStudents = new();
+    private List<Teacher> SearchTeachers = new();
+    private string? LinkError;
+
+    private string? PhotoError;
+    private string? PhotoOk;
+
+    private string TaglineText = string.Empty;
+    private string BioText = string.Empty;
+    private string? BioError;
+    private string? BioOk;
+
+    private int LessonsTotal;
+    private int LessonsSpent;
+    private string GroupAvgText = "—";
+    private int GradeRankPlace;
+    private int GradeRankCount;
+    private string GradeRankText = "";
+    private string GradeRankPercent = "";
+    private List<Skill> BestDisciplines = new();
+    private List<HeatCell> Heatmap = new();
+    private List<LessonRow> UpcomingLessons = new();
+    private List<ExamRow> UpcomingExams = new();
+    private List<Achievement> Achievements = new();
+    private List<Project> Projects = new();
+
+    private string CurPassword = string.Empty;
+    private string NewPassword = string.Empty;
+    private string ConfirmPassword = string.Empty;
+    private string? PasswordError;
+    private string? PasswordOk;
+
+[CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    protected override async Task OnInitializedAsync()
+        => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var name = authState.User.Identity?.Name;
+        await using var context = DbFactory.CreateDbContext();
+        user = await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.username == name);
+        if (user is null)
+        {
+            return;
+        }
+
+RoleText = user.role_id switch
+        {
+            1 => "Админ", 4 => "Модератор",
+            2 => "Преподаватель", 3 => "Студент", 5 => "Абитуриент",
+            _ => user.role_id.ToString()
+        };
+        RoleCss = user.role_id switch
+        {
+            1 => "text-bg-danger", 4 => "text-bg-info",
+            2 => "text-bg-primary", 3 => "text-bg-success", 5 => "text-bg-warning",
+            _ => "text-bg-secondary"
+        };
+        InitialsCss = user.role_id switch
+        {
+            1 => "profile-initials-admin", 4 => "profile-initials-moderator",
+            2 => "profile-initials-teacher", 3 => "profile-initials-student", 5 => "profile-initials-candidate",
+            _ => "profile-initials-default"
+        };
+        BannerCss = user.role_id switch
+        {
+            1 => "profile-banner-admin", 4 => "profile-banner-moderator",
+            2 => "profile-banner-teacher", 3 => "profile-banner-student", 5 => "profile-banner-candidate",
+            _ => "profile-banner-default"
+        };
+        RingCss = user.role_id switch
+        {
+            1 => "profile-ring-admin", 4 => "profile-ring-moderator",
+            2 => "profile-ring-teacher", 3 => "profile-ring-student", 5 => "profile-ring-candidate",
+            _ => "profile-ring-default"
+        };
+
+        TaglineText = user.tagline?.Trim() ?? string.Empty;
+        BioText = user.bio?.Trim() ?? string.Empty;
+
+        if (user.role_id == 3 && user.linked_id is int sid)
+        {
+            LinkedStudent = await context.Students.AsNoTracking().FirstOrDefaultAsync(s => s.stud_id == sid);
+            if (LinkedStudent is not null)
+            {
+                LinkedStudent.email = LinkedStudent.email?.Trim();
+                LinkedStudent.phone = LinkedStudent.phone?.Trim();
+            }
+        }
+        else if (user.role_id == 2 && user.linked_id is int tid)
+        {
+            LinkedTeacher = await context.Teachers.AsNoTracking().FirstOrDefaultAsync(t => t.teacher_id == tid);
+            if (LinkedTeacher is not null)
+            {
+                LinkedTeacher.email = LinkedTeacher.email?.Trim();
+                LinkedTeacher.phone = LinkedTeacher.phone?.Trim();
+            }
+        }
+
+        string rawName = LinkedStudent is not null
+            ? FullName(LinkedStudent.last_name, LinkedStudent.first_name, LinkedStudent.middle_name)
+            : LinkedTeacher is not null
+                ? FullName(LinkedTeacher.last_name, LinkedTeacher.first_name, LinkedTeacher.middle_name)
+                : user.username;
+        DisplayName = string.IsNullOrWhiteSpace(rawName) ? user.username : rawName;
+        Initials = MakeInitials(DisplayName);
+
+        AvatarSrc = null;
+        HasUserPhoto = false;
+        if (user.photo is { Length: > 0 })
+        {
+            AvatarSrc = Photo.DataSrc(user.photo);
+            HasUserPhoto = AvatarSrc is not null;
+        }
+        else if (LinkedStudent?.photo is { Length: > 0 })
+        {
+            AvatarSrc = Photo.DataSrc(LinkedStudent.photo);
+        }
+        else if (LinkedTeacher?.photo is { Length: > 0 })
+        {
+            AvatarSrc = Photo.DataSrc(LinkedTeacher.photo);
+        }
+
+        BannerSrc = user.banner is { Length: > 0 } ? Photo.DataSrc(user.banner) : null;
+        HasUserBanner = BannerSrc is not null;
+
+
+        ContactEmail = LinkedStudent?.email ?? LinkedTeacher?.email ?? string.Empty;
+        ContactPhone = LinkedStudent?.phone ?? LinkedTeacher?.phone ?? string.Empty;
+
+await LoadStatsAsync(context);
+
+        Projects = await context.Projects.AsNoTracking()
+            .Where(p => p.user_id == user.user_id)
+            .OrderBy(p => !p.pinned)
+            .ThenByDescending(p => p.created_at)
+            .ToListAsync();
+    }
+
+    private async Task LoadStatsAsync(AcademyAgainContext context)
+    {
+        if (RoleText == "Студент" && LinkedStudent is not null)
+        {
+            var group = await context.Groups.AsNoTracking().FirstOrDefaultAsync(g => g.group_id == LinkedStudent.group);
+            if (group is not null)
+            {
+                GroupName = group.group_name ?? "—";
+                DirectionName = await context.Directions.AsNoTracking()
+                    .Where(d => d.direction_id == group.direction)
+                    .Select(d => d.direction_name)
+                    .FirstOrDefaultAsync() ?? "—";
+            }
+
+            var schedules = await context.Schedule.AsNoTracking().ToListAsync();
+            var scheduleById = schedules.ToDictionary(s => s.lesson_id);
+            var disciplines = await context.Disciplines.AsNoTracking().ToDictionaryAsync(d => d.discipline_id);
+
+            string LessonLabel(long lesson)
+            {
+                if (scheduleById.TryGetValue(lesson, out var s))
+                {
+                    var disc = disciplines.TryGetValue(s.discipline, out var d) ? d.discipline_name : null;
+                    var label = string.IsNullOrWhiteSpace(disc) ? $"№{s.discipline}" : disc;
+                    return s.date.HasValue ? $"{label} ({s.date:d.MM.yyyy})" : label;
+                }
+                return $"№{lesson}";
+            }
+
+            var gradeList = await context.Grades.AsNoTracking()
+                .Where(g => g.student == LinkedStudent.stud_id)
+                .OrderBy(g => g.lesson)
+                .Take(50)
+                .ToListAsync();
+            Grades = gradeList
+                .Select(g => new GradeRow(LessonLabel(g.lesson), g.grade_1, g.grade_2))
+                .ToList();
+
+            var gradeValues = (await context.Grades.AsNoTracking()
+                    .Where(g => g.student == LinkedStudent.stud_id)
+                    .Select(g => new[] { (int?)g.grade_1, (int?)g.grade_2 })
+                    .ToListAsync())
+                .SelectMany(v => v)
+                .Where(v => v.HasValue)
+                .Select(v => v!.Value)
+                .ToList();
+            AverageGradeText = gradeValues.Count == 0 ? "—" : $"{gradeValues.Average():0.00}";
+
+            var attendanceList = await context.Attendance.AsNoTracking()
+                .Where(a => a.student == LinkedStudent.stud_id)
+                .OrderBy(a => a.lesson)
+                .ToListAsync();
+            AttendanceRows = attendanceList
+                .Select(a => new AttendanceRow(LessonLabel(a.lesson), a.present))
+                .ToList();
+            AttendedCount = attendanceList.Count(a => a.present);
+            AttendanceTotal = attendanceList.Count;
+            AttendedPercentText = AttendanceTotal == 0 ? "—" : $"{AttendedCount * 100.0 / AttendanceTotal:0.#}%";
+
+            var examList = await context.Exams.AsNoTracking()
+                .Where(e => e.student == LinkedStudent.stud_id)
+                .OrderBy(e => e.discipline)
+                .ToListAsync();
+            Exams = examList
+                .Select(e => new ExamRow(
+                    disciplines.TryGetValue(e.discipline, out var disc) && !string.IsNullOrWhiteSpace(disc.discipline_name)
+                        ? disc.discipline_name!
+                        : $"№{e.discipline}",
+                    e.date?.ToString("dd.MM.yyyy") ?? "—",
+                    e.grade))
+                .ToList();
+            ExamsTaken = examList.Count(e => e.grade.HasValue);
+
+            if (LinkedStudent.group.HasValue)
+            {
+                var completedSet = (await context.CompleteDisciplines.AsNoTracking()
+                        .Where(c => c.group == LinkedStudent.group.Value)
+                        .Select(c => c.discipline)
+                        .ToListAsync())
+                    .ToHashSet();
+                CompletedDisciplines = completedSet
+                    .Select(id => DisciplineName(disciplines, id))
+                    .Where(n => n is not null)
+                    .Select(n => n!)
+                    .OrderBy(x => x)
+                    .ToList();
+
+                var programIds = new List<int>();
+                if (group?.direction.HasValue == true)
+                {
+                    programIds = await context.DisciplinesDirectionsRelation.AsNoTracking()
+                        .Where(r => r.direction == group.direction)
+                        .Select(r => r.discipline)
+                        .ToListAsync();
+                }
+                if (programIds.Count == 0)
+                {
+                    programIds = await context.Schedule.AsNoTracking()
+                        .Where(s => s.group == LinkedStudent.group.Value)
+                        .Select(s => s.discipline)
+                        .Distinct()
+                        .ToListAsync();
+                }
+                DebtsDisciplines = programIds
+                    .Where(id => !completedSet.Contains(id))
+                    .Select(id => DisciplineName(disciplines, id))
+                    .Where(n => n is not null)
+                    .Select(n => n!)
+                    .OrderBy(x => x)
+                    .ToList();
+            }
+
+            var today = DateTime.Today;
+            var groupSchedules = await context.Schedule.AsNoTracking()
+                .Where(s => s.group == LinkedStudent.group)
+                .ToListAsync();
+            LessonsTotal = groupSchedules.Count;
+            LessonsSpent = groupSchedules.Count(s => s.spent);
+            var lessonDisc = groupSchedules.ToDictionary(s => s.lesson_id);
+
+            var groupIds = await context.Students.AsNoTracking()
+                .Where(x => x.group == LinkedStudent.group)
+                .Select(x => x.stud_id)
+                .ToListAsync();
+            var groupGradeRows = await context.Grades.AsNoTracking()
+                .Where(g => groupIds.Contains(g.student))
+                .Select(g => new { g.student, g.grade_1, g.grade_2 })
+                .ToListAsync();
+            var perStudentVals = groupGradeRows
+                .GroupBy(g => g.student)
+                .ToDictionary(gr => gr.Key, gr => gr.SelectMany(x => new[] { (int?)x.grade_1, (int?)x.grade_2 }).Where(v => v.HasValue).Select(v => v!.Value).ToList());
+            var studentAvg = perStudentVals.ToDictionary(kv => kv.Key, kv => kv.Value.Average());
+            GradeRankCount = perStudentVals.Count;
+            if (GradeRankCount > 0)
+            {
+                if (studentAvg.TryGetValue(LinkedStudent.stud_id, out var myAvgForRank))
+                {
+                    GradeRankPlace = studentAvg.Values.OrderByDescending(v => v).ToList().IndexOf(myAvgForRank) + 1;
+                    GradeRankText = $"{GradeRankPlace} из {GradeRankCount}";
+                    var better = GradeRankCount <= 1 ? 100 : 100 * (GradeRankCount - GradeRankPlace) / (GradeRankCount - 1);
+                    GradeRankPercent = $"Лучше {better}% группы";
+                    GroupAvgText = $"{studentAvg.Values.Average():0.00}";
+                }
+                else
+                {
+                    GradeRankText = "—";
+                    GradeRankPercent = "—";
+                    GroupAvgText = $"{studentAvg.Values.Average():0.00}";
+                }
+            }
+
+            var allMyGrades = await context.Grades.AsNoTracking()
+                .Where(g => g.student == LinkedStudent.stud_id)
+                .Select(g => new { g.lesson, g.grade_1, g.grade_2 })
+                .ToListAsync();
+            BestDisciplines = allMyGrades
+                .Where(g => lessonDisc.TryGetValue(g.lesson, out _))
+                .GroupBy(g => lessonDisc[g.lesson].discipline)
+                .Select(gr => new
+                {
+                    Disc = gr.Key,
+                    Vals = gr.SelectMany(x => new[] { (int?)x.grade_1, (int?)x.grade_2 }).Where(v => v.HasValue).Select(v => v!.Value).ToList()
+                })
+                .Where(x => x.Vals.Count > 0)
+                .OrderByDescending(x => x.Vals.Average())
+                .Take(5)
+                .Select(x => new Skill(
+                    disciplines.TryGetValue(x.Disc, out var d) && !string.IsNullOrWhiteSpace(d.discipline_name) ? d.discipline_name! : $"№{x.Disc}",
+                    Math.Round(x.Vals.Average(), 2),
+                    (int)Math.Min(100, Math.Round(x.Vals.Average() / 5 * 100))))
+                .ToList();
+
+            var heatRows = await context.Attendance.AsNoTracking()
+                .Where(a => a.student == LinkedStudent.stud_id)
+                .Join(context.Schedule.AsNoTracking(), a => a.lesson, s => s.lesson_id, (a, s) => new { s.date, a.present })
+                .ToListAsync();
+            var heatByDay = heatRows
+                .Where(h => h.date.HasValue && h.present)
+                .GroupBy(h => h.date!.Value.Date)
+                .ToDictionary(g => g.Key, g => g.Count());
+            var first = today.AddDays(-363);
+            while (first.DayOfWeek != DayOfWeek.Monday)
+            {
+                first = first.AddDays(-1);
+            }
+            Heatmap = new List<HeatCell>();
+            for (var d = first; d <= today; d = d.AddDays(1))
+            {
+                heatByDay.TryGetValue(d, out var cnt);
+                var lvl = cnt == 0 ? 0 : cnt <= 1 ? 1 : cnt <= 2 ? 2 : cnt <= 3 ? 3 : 4;
+                Heatmap.Add(new HeatCell(d, lvl, cnt));
+            }
+
+            var upcomingSchedules = await context.Schedule.AsNoTracking()
+                .Where(s => s.group == LinkedStudent.group && s.spent == false && s.date >= today)
+                .OrderBy(s => s.date)
+                .ThenBy(s => s.time)
+                .Take(5)
+                .ToListAsync();
+            UpcomingLessons = upcomingSchedules
+                .Select(s => new LessonRow(
+                    GroupName,
+                    disciplines.TryGetValue(s.discipline, out var d2) && !string.IsNullOrWhiteSpace(d2.discipline_name) ? d2.discipline_name! : $"№{s.discipline}",
+                    (s.date?.ToString("dd.MM.yyyy") ?? "—") + (s.time.HasValue ? " " + s.time.Value.ToString(@"hh\:mm") : "")))
+                .ToList();
+
+            var upcomingExams = await context.Exams.AsNoTracking()
+                .Where(e => e.student == LinkedStudent.stud_id && e.grade == null && e.date >= today)
+                .OrderBy(e => e.date)
+                .Take(5)
+                .ToListAsync();
+            UpcomingExams = upcomingExams
+                .Select(e => new ExamRow(
+                    disciplines.TryGetValue(e.discipline, out var d3) && !string.IsNullOrWhiteSpace(d3.discipline_name) ? d3.discipline_name! : $"№{e.discipline}",
+                    e.date?.ToString("dd.MM.yyyy") ?? "—",
+                    e.grade))
+                .ToList();
+
+            Achievements = new List<Achievement>();
+            if (allMyGrades.Count > 0)
+            {
+                Achievements.Add(new Achievement("Первые оценки", $"Записей оценок: {allMyGrades.Count}", "achievement-info"));
+            }
+            if (gradeValues.Count > 0 && gradeValues.Average() >= 4.5)
+            {
+                Achievements.Add(new Achievement("Отличник", $"Средний балл {gradeValues.Average():0.00}", "achievement-gold"));
+            }
+            if (AttendanceTotal > 0 && AttendedCount == AttendanceTotal)
+            {
+                Achievements.Add(new Achievement("Посещаемость 100%", $"Присутствие на всех {AttendanceTotal} занятиях", "achievement-success"));
+            }
+            if (group?.direction.HasValue == true && DebtsDisciplines.Count == 0)
+            {
+                Achievements.Add(new Achievement("Нет долгов", "Вся программа обучения пройдена", "achievement-success"));
+            }
+            if (examList.Count > 0 && examList.All(e => e.grade.HasValue))
+            {
+                Achievements.Add(new Achievement("Все экзамены сданы", $"Сдано {examList.Count} из {examList.Count}", "achievement-gold"));
+            }
+        }
+        else if (RoleText == "Преподаватель" && LinkedTeacher is not null)
+        {
+            var disciplines = await context.Disciplines.AsNoTracking().ToDictionaryAsync(d => d.discipline_id);
+            var relations = await context.TeachersDisciplinesRelation.AsNoTracking()
+                .Where(r => r.teacher == LinkedTeacher.teacher_id)
+                .OrderBy(r => r.discipline)
+                .ToListAsync();
+            Disciplines = relations
+                .Select(r => (
+                    Id: r.discipline,
+                    Name: disciplines.TryGetValue(r.discipline, out var disc) && !string.IsNullOrWhiteSpace(disc.discipline_name)
+                        ? disc.discipline_name!
+                        : $"№{r.discipline}"))
+                .ToList();
+            DisciplinesCount = Disciplines.Count;
+
+            var groups = await context.Groups.AsNoTracking().ToDictionaryAsync(g => g.group_id);
+            var scheduleList = await context.Schedule.AsNoTracking()
+                .Where(s => s.teacher == LinkedTeacher.teacher_id)
+                .OrderBy(s => s.date)
+                .ToListAsync();
+            Lessons = scheduleList
+                .Select(s => new LessonRow(
+                    groups.TryGetValue(s.group, out var g) && !string.IsNullOrWhiteSpace(g.group_name) ? g.group_name! : $"№{s.group}",
+                    disciplines.TryGetValue(s.discipline, out var disc) && !string.IsNullOrWhiteSpace(disc.discipline_name)
+                        ? disc.discipline_name!
+                        : $"№{s.discipline}",
+                    s.date?.ToString("dd.MM.yyyy") ?? "—"))
+                .ToList();
+
+            var salaryList = await context.Salary.AsNoTracking()
+                .Where(s => s.teacher == LinkedTeacher.teacher_id)
+                .OrderBy(s => s.payment_id)
+                .ToListAsync();
+            Salaries = salaryList
+                .Select(s => new SalaryRow(s.payment_id, s.accrued, s.received))
+                .ToList();
+            SalaryTotal = salaryList.Sum(s => s.accrued);
+            SalaryPaid = salaryList.Where(s => s.received).Sum(s => s.accrued);
+
+            var today = DateTime.Today;
+            var upcomingSchedules = await context.Schedule.AsNoTracking()
+                .Where(s => s.teacher == LinkedTeacher.teacher_id && s.spent == false && s.date >= today)
+                .OrderBy(s => s.date)
+                .ThenBy(s => s.time)
+                .Take(5)
+                .ToListAsync();
+            UpcomingLessons = upcomingSchedules
+                .Select(s => new LessonRow(
+                    groups.TryGetValue(s.group, out var g) && !string.IsNullOrWhiteSpace(g.group_name) ? g.group_name! : $"№{s.group}",
+                    disciplines.TryGetValue(s.discipline, out var disc) && !string.IsNullOrWhiteSpace(disc.discipline_name) ? disc.discipline_name! : $"№{s.discipline}",
+                    (s.date?.ToString("dd.MM.yyyy") ?? "—") + (s.time.HasValue ? " " + s.time.Value.ToString(@"hh\:mm") : "")))
+                .ToList();
+
+            Achievements = new List<Achievement>();
+            if (DisciplinesCount > 0)
+            {
+                Achievements.Add(new Achievement("Педагог", $"Преподаёт дисциплин: {DisciplinesCount}", "achievement-info"));
+            }
+            if (DisciplinesCount >= 5)
+            {
+                Achievements.Add(new Achievement("Эрудит", "Ведёт 5 и более дисциплин", "achievement-gold"));
+            }
+            if (salaryList.Count > 0 && salaryList.All(s => s.received))
+            {
+                Achievements.Add(new Achievement("Все выплаты получены", $"Выплачено за {salaryList.Count} период(ов)", "achievement-success"));
+            }
+            if (Lessons.Count > 0 && Lessons.All(l => l.Date != "—"))
+            {
+                Achievements.Add(new Achievement("План занятий", $"Сформировано занятий: {Lessons.Count}", "achievement-silver"));
+            }
+        }
+        else if (RoleText is "Админ" or "Модератор")
+        {
+            UsersCount = await context.Users.AsNoTracking().CountAsync();
+            PendingCount = await context.Users.AsNoTracking().CountAsync(u => u.status == 0);
+            StudentsCount = await context.Users.AsNoTracking().CountAsync(u => u.role_id == 3);
+            TeachersCount = await context.Users.AsNoTracking().CountAsync(u => u.role_id == 2);
+Achievements = new List<Achievement>
+            {
+                new(RoleText == "Админ" ? "Администратор системы" : "Модератор",
+                    RoleText == "Админ" ? "Полный доступ к базе данных и пользователям" : "Контроль качества данных",
+                    "achievement-gold")
+            };
+        }
+        else if (RoleText is "Абитуриент")
+        {
+            UsersCount = await context.CandidateRequests.AsNoTracking().CountAsync(r => r.candidate_user_id == user!.user_id);
+            Achievements = new List<Achievement>
+            {
+                new("Новичок", "Начал путь в академию", "achievement-info")
+            };
+            if (UsersCount > 0)
+            {
+                Achievements.Add(new Achievement("Сделал выбор", $"Отправлено заявок преподавателям: {UsersCount}", "achievement-success"));
+            }
+        }
+    }
+
+    private static string? DisciplineName(Dictionary<int, Discipline> map, int id)
+        => map.TryGetValue(id, out var d) && !string.IsNullOrWhiteSpace(d.discipline_name) ? d.discipline_name! : null;
+
+    private static string FullName(string? last, string? first, string? middle)
+        => string.Join(" ", new[] { last, first, middle }.Where(x => !string.IsNullOrWhiteSpace(x)));
+
+    private static string MakeInitials(string name)
+    {
+        var parts = name.Split(new[] { ' ', '-', '.' }, StringSplitOptions.RemoveEmptyEntries).Take(2).ToList();
+        return parts.Count == 0 ? "?" : string.Concat(parts.Select(p => char.ToUpperInvariant(p[0])));
+    }
+
+    private async Task OnAvatarSelectedAsync(InputFileChangeEventArgs e)
+    {
+        PhotoError = null;
+        PhotoOk = null;
+        var file = e.File;
+        if (file is null)
+        {
+            return;
+        }
+        if (file.Size > 5_000_000)
+        {
+            PhotoError = "Файл слишком большой (максимум 5 МБ).";
+            return;
+        }
+        byte[] bytes;
+        await using (var ms = new MemoryStream())
+        {
+            await file.OpenReadStream(5_000_000).CopyToAsync(ms);
+            bytes = ms.ToArray();
+        }
+        if (Photo.DataSrc(bytes) is null)
+        {
+            PhotoError = "Неподдерживаемый формат изображения.";
+            return;
+        }
+        await using var context = DbFactory.CreateDbContext();
+        var u = await context.Users.FirstOrDefaultAsync(x => x.username == user!.username);
+        if (u is null)
+        {
+            PhotoError = "Пользователь не найден.";
+            return;
+        }
+        u.photo = bytes;
+        await context.SaveChangesAsync();
+        PhotoOk = "Фото сохранено.";
+        await LoadAsync();
+    }
+
+    private async Task RemovePhotoAsync()
+    {
+        PhotoError = null;
+        PhotoOk = null;
+        await using var context = DbFactory.CreateDbContext();
+        var u = await context.Users.FirstOrDefaultAsync(x => x.username == user!.username);
+        if (u is null)
+        {
+            return;
+        }
+        u.photo = null;
+        await context.SaveChangesAsync();
+        PhotoOk = "Фото удалено.";
+        await LoadAsync();
+    }
+
+    private async Task OnBannerSelectedAsync(InputFileChangeEventArgs e)
+    {
+        BannerError = null;
+        BannerOk = null;
+        var file = e.File;
+        if (file is null)
+        {
+            return;
+        }
+        if (file.Size > 5_000_000)
+        {
+            BannerError = "Файл слишком большой (максимум 5 МБ).";
+            return;
+        }
+        byte[] bytes;
+        await using (var ms = new MemoryStream())
+        {
+            await file.OpenReadStream(5_000_000).CopyToAsync(ms);
+            bytes = ms.ToArray();
+        }
+        if (Photo.DataSrc(bytes) is null)
+        {
+            BannerError = "Неподдерживаемый формат изображения.";
+            return;
+        }
+        await using var context = DbFactory.CreateDbContext();
+        var u = await context.Users.FirstOrDefaultAsync(x => x.username == user!.username);
+        if (u is null)
+        {
+            BannerError = "Пользователь не найден.";
+            return;
+        }
+        u.banner = bytes;
+        await context.SaveChangesAsync();
+        await LoadAsync();
+        BannerOk = "Баннер сохранён.";
+    }
+
+    private async Task RemoveBannerAsync()
+    {
+        BannerError = null;
+        BannerOk = null;
+        await using var context = DbFactory.CreateDbContext();
+        var u = await context.Users.FirstOrDefaultAsync(x => x.username == user!.username);
+        if (u is null)
+        {
+            return;
+        }
+        u.banner = null;
+        await context.SaveChangesAsync();
+        await LoadAsync();
+        BannerOk = "Баннер удалён.";
+    }
+
+
+private Task EnterSearch(KeyboardEventArgs e)
+        => e.Key is "Enter" ? SearchAsync() : Task.CompletedTask;
+
+    private async Task ScrollToSection(string id)
+    {
+        if (JS is not null)
+        {
+            await JS.InvokeVoidAsync("AcademyScroll.to", id);
+        }
+    }
+
+    private async Task SearchAsync()
+    {
+        searched = true;
+        SearchStudents.Clear();
+        SearchTeachers.Clear();
+        LinkError = null;
+        if (string.IsNullOrWhiteSpace(SearchText))
+        {
+            LinkError = "Введите ФИО для поиска.";
+            return;
+        }
+        await using var context = DbFactory.CreateDbContext();
+        if (RoleText == "Студент")
+        {
+            SearchStudents = await context.Students.AsNoTracking()
+                .Where(s => s.last_name.Contains(SearchText.Trim()) ||
+                            s.first_name.Contains(SearchText.Trim()) ||
+                            (s.middle_name != null && s.middle_name.Contains(SearchText.Trim())))
+                .OrderBy(s => s.last_name).ThenBy(s => s.first_name)
+                .Take(30).ToListAsync();
+        }
+        else if (RoleText == "Преподаватель")
+        {
+            SearchTeachers = await context.Teachers.AsNoTracking()
+                .Where(t => (t.last_name != null && t.last_name.Contains(SearchText.Trim())) ||
+                            (t.first_name != null && t.first_name.Contains(SearchText.Trim())) ||
+                            (t.middle_name != null && t.middle_name.Contains(SearchText.Trim())))
+                .OrderBy(t => t.last_name)
+                .Take(30).ToListAsync();
+        }
+    }
+
+    private async Task LinkStudentAsync(int studId)
+    {
+        await using var context = DbFactory.CreateDbContext();
+        var u = await context.Users.FirstOrDefaultAsync(x => x.username == user!.username);
+        if (u is null)
+        {
+            return;
+        }
+        u.linked_id = studId;
+        await context.SaveChangesAsync();
+        await LoadAsync();
+    }
+
+    private async Task LinkTeacherAsync(int teacherId)
+    {
+        await using var context = DbFactory.CreateDbContext();
+        var u = await context.Users.FirstOrDefaultAsync(x => x.username == user!.username);
+        if (u is null)
+        {
+            return;
+        }
+        u.linked_id = teacherId;
+        await context.SaveChangesAsync();
+        await LoadAsync();
+    }
+
+    private async Task SaveBioAsync()
+    {
+        BioError = null;
+        BioOk = null;
+        if (user is null)
+        {
+            return;
+        }
+        var bio = Limit(BioText?.Trim(), 300);
+        var tagline = Limit(TaglineText?.Trim(), 80);
+        await using var context = DbFactory.CreateDbContext();
+        var u = await context.Users.FirstOrDefaultAsync(x => x.username == user.username);
+        if (u is null)
+        {
+            BioError = "Пользователь не найден.";
+            return;
+        }
+        u.bio = string.IsNullOrWhiteSpace(bio) ? null : bio;
+        u.tagline = string.IsNullOrWhiteSpace(tagline) ? null : tagline;
+        await context.SaveChangesAsync();
+        BioOk = "Сохранено.";
+        await LoadAsync();
+    }
+
+    private async Task SaveContactsAsync()
+    {
+        SaveError = null;
+        SaveOk = null;
+        var email = Limit(ContactEmail?.Trim(), 50);
+        var phone = Limit(ContactPhone?.Trim(), 16);
+        await using var context = DbFactory.CreateDbContext();
+        if (LinkedStudent is not null)
+        {
+            var s = await context.Students.FindAsync(LinkedStudent.stud_id);
+            if (s is null)
+            {
+                SaveError = "Запись студента не найдена.";
+                return;
+            }
+            s.email = email;
+            s.phone = phone;
+        }
+        else if (LinkedTeacher is not null)
+        {
+            var t = await context.Teachers.FindAsync(LinkedTeacher.teacher_id);
+            if (t is null)
+            {
+                SaveError = "Запись преподавателя не найдена.";
+                return;
+            }
+            t.email = email;
+            t.phone = phone;
+        }
+        else
+        {
+            return;
+        }
+        await context.SaveChangesAsync();
+        SaveOk = "Данные сохранены.";
+        await LoadAsync();
+    }
+
+    private static string? Limit(string? value, int max)
+        => value is null ? null : value.Length <= max ? value : value[..max];
+
+    private async Task ChangeLoginAsync()
+    {
+        LoginError = null;
+        LoginOk = null;
+        if (user is null)
+        {
+            return;
+        }
+        var newLogin = NewLogin?.Trim() ?? string.Empty;
+        if (newLogin.Length == 0)
+        {
+            LoginError = "Введите новый логин.";
+            return;
+        }
+        if (newLogin.Length > 50)
+        {
+            LoginError = "Логин должен быть не длиннее 50 символов.";
+            return;
+        }
+        if (newLogin == user.username)
+        {
+            LoginError = "Новый логин совпадает с текущим.";
+            return;
+        }
+        await using var context = DbFactory.CreateDbContext();
+        var u = await context.Users.FirstOrDefaultAsync(x => x.username == user.username);
+        if (u is null)
+        {
+            LoginError = "Пользователь не найден.";
+            return;
+        }
+        if (!AuthStore.VerifyPassword(LoginCurPassword, u.password_hash))
+        {
+            LoginError = "Текущий пароль введён неверно.";
+            return;
+        }
+        if (await context.Users.AsNoTracking().AnyAsync(x => x.username == newLogin && x.user_id != u.user_id))
+        {
+            LoginError = "Пользователь с таким логином уже существует.";
+            return;
+        }
+        u.username = newLogin;
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is SqlException { Number: 2601 or 2627 })
+        {
+            LoginError = "Пользователь с таким логином уже существует.";
+            return;
+        }
+
+        var role = await context.Roles.AsNoTracking()
+            .FirstOrDefaultAsync(r => r.role_id == u.role_id);
+        role ??= new Role { role_id = u.role_id, role_name = u.role_id.ToString() };
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.Name, newLogin),
+            new Claim(ClaimTypes.Role, role.role_name)
+        };
+        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        var authResult = await HttpContext!.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        var isPersistent = authResult.Properties?.IsPersistent ?? true;
+        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity), new AuthenticationProperties { IsPersistent = isPersistent });
+        Navigation.NavigateTo("/profile", forceLoad: true);
+    }
+
+    private async Task ChangePasswordAsync()
+    {
+        PasswordError = null;
+        PasswordOk = null;
+        if (user is null)
+        {
+            return;
+        }
+        await using var context = DbFactory.CreateDbContext();
+        var u = await context.Users.FirstOrDefaultAsync(x => x.username == user.username);
+        if (u is null)
+        {
+            PasswordError = "Пользователь не найден.";
+            return;
+        }
+        if (!AuthStore.VerifyPassword(CurPassword, u.password_hash))
+        {
+            PasswordError = "Текущий пароль введён неверно.";
+            return;
+        }
+        if (NewPassword.Length < 6)
+        {
+            PasswordError = "Новый пароль должен быть не короче 6 символов.";
+            return;
+        }
+        if (NewPassword != ConfirmPassword)
+        {
+            PasswordError = "Пароли не совпадают.";
+            return;
+        }
+        u.password_hash = AuthStore.HashPassword(NewPassword);
+        await context.SaveChangesAsync();
+        PasswordOk = "Пароль изменён.";
+        CurPassword = NewPassword = ConfirmPassword = string.Empty;
+    }
+}

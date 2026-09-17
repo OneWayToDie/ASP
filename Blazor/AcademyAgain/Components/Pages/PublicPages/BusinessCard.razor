@@ -1,0 +1,505 @@
+@page "/u/{login}"
+@attribute [AllowAnonymous]
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@using AcademyAgain.Helpers
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider Auth
+
+<PageTitle>@DisplayName — визитная карточка</PageTitle>
+
+@if (NotFound)
+{
+    <div class="section-empty">Пользователь не найден.</div>
+}
+else if (loaded)
+{
+    <div class="vis">
+        <div class="vis-banner @BannerCss"></div>
+
+        <div class="vis-head @(BannerSrc is not null ? "has-banner" : null)" style="@BannerStyle">
+            <div class="vis-avatar">
+                @if (Photo.DataSrc(AvatarBytes) is string avatarSrc)
+                {
+                    <img class="vis-avatar-img" src="@avatarSrc" alt="@DisplayName" />
+                }
+                else
+                {
+                    <span class="vis-initials @InitialsCss">@Initials</span>
+                }
+            </div>
+            <div class="vis-head-info">
+                <h1>@DisplayName</h1>
+                <span class="badge @RoleCss">@RoleText</span>
+                @if (!string.IsNullOrWhiteSpace(Tagline))
+                {
+                    <p class="vis-tagline">@Tagline</p>
+                }
+            </div>
+        </div>
+
+        <div class="profile-sections">
+            <div class="profile-section">
+                <h3>О себе</h3>
+                @if (string.IsNullOrWhiteSpace(Bio))
+                {
+                    <div class="section-empty">Пока ничего не рассказано.</div>
+                }
+                else
+                {
+                    <p class="mb-0">@Bio</p>
+                }
+            </div>
+
+            <div class="profile-section">
+                <h3>Достижения</h3>
+                @if (Achievements.Count == 0)
+                {
+                    <div class="section-empty">Достижений пока нет</div>
+                }
+                else
+                {
+                    <div class="vis-achievements">
+                        @foreach (var a in Achievements)
+                        {
+                            <span class="vis-pill" title="@a.Detail">★ @a.Title</span>
+                        }
+                    </div>
+                }
+            </div>
+
+            <div class="profile-section">
+                <h3>Портфолио</h3>
+                @if (Projects.Count == 0)
+                {
+                    <div class="section-empty">Проектов пока нет</div>
+                }
+                else
+                {
+                    <div class="portfolio-grid">
+                        @foreach (var p in Projects)
+                        {
+                            <div class="project-card @(p.pinned ? "project-pinned" : "")">
+                                <div class="project-cover">
+                                    @if (Photo.DataSrc(p.cover) is string coverSrc)
+                                    {
+                                        <img src="@coverSrc" alt="@p.title" />
+                                    }
+                                    else
+                                    {
+                                        <div class="project-cover-empty">нет обложки</div>
+                                    }
+                                    @if (p.pinned)
+                                    {
+                                        <span class="project-pin" title="Закреплено">★</span>
+                                    }
+                                </div>
+                                <div class="project-body">
+                                    <div class="project-title-line">
+                                        <h3>@p.title</h3>
+                                        <span class="project-status status-@p.status">@StatusText(p.status)</span>
+                                    </div>
+                                    @if (!string.IsNullOrWhiteSpace(p.description))
+                                    {
+                                        <p class="project-desc">@p.description</p>
+                                    }
+                                    <div class="project-meta">
+                                        <span>@(p.created_at?.ToString("dd.MM.yyyy") ?? "—")</span>
+                                        @if (!string.IsNullOrWhiteSpace(p.url))
+                                        {
+                                            <a href="@p.url" target="_blank" rel="noopener">Сайт ↗</a>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            @if (CanApply)
+            {
+                <div class="profile-section">
+                    <h3>Записаться к преподавателю</h3>
+                    @if (AlreadyApplied)
+                    {
+                        <div class="alert alert-info py-2">Вы уже отправили заявку этому преподавателю.</div>
+                    }
+                    else
+                    {
+                        <EditForm method="post" Model="applyModel" OnValidSubmit="ApplyAsync" FormName="visApply" Enhance>
+                            <p class="mb-2">Хотите начать учиться у @DisplayName? Оставьте заявку — преподаватель сможет рассмотреть её.</p>
+                            <button type="submit" class="btn btn-primary">Записаться</button>
+                        </EditForm>
+                    }
+                </div>
+            }
+
+            @if (Requests is not null)
+            {
+                <div class="profile-section">
+                    <h3>Заявки абитуриентов (@Requests.Count)</h3>
+                    @if (Requests.Count == 0)
+                    {
+                        <div class="section-empty">Заявок пока нет</div>
+                    }
+                    else
+                    {
+                        <table class="table table-sm">
+                            <thead>
+                                <tr><th>Абитуриент</th><th>Дата</th><th>Статус</th><th>Действия</th></tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var r in Requests)
+                                {
+                                    <tr>
+                                        <td>@r.Candidate</td>
+                                        <td>@r.Date</td>
+                                        <td>@StatusText(r.Status)</td>
+                                        <td>
+                                            @if (r.Status == 0)
+                                            {
+                                                <EditForm method="post" Model="reqModel" OnValidSubmit="AcceptAsync" FormName="reqAccept" Enhance class="d-inline">
+                                                    <input type="hidden" name="Accept.id" value="@r.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-success">Принять</button>
+                                                </EditForm>
+                                                <EditForm method="post" Model="reqModel" OnValidSubmit="RejectAsync" FormName="reqReject" Enhance class="d-inline">
+                                                    <input type="hidden" name="Reject.id" value="@r.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger">Отклонить</button>
+                                                </EditForm>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="vis-footer">
+            @if (IsMyself)
+            {
+                <a class="btn btn-primary" href="profile">В свой профиль</a>
+            }
+        </div>
+
+        @if (QrSrc is not null)
+        {
+            <div class="vis-qr">
+                <img src="@QrSrc" alt="QR-код визитки" width="140" height="140" />
+                <div class="vis-qr-hint">Ссылка на визитку</div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string? login { get; set; }
+
+    private sealed record AchievementRow(string Title, string Detail);
+    private sealed record RequestRow(int Id, string Candidate, string Date, int Status);
+    private sealed class ApplyModel { }
+    private sealed class RequestAction { public int id { get; set; } }
+
+    private ApplyModel applyModel = new();
+    private RequestAction reqModel = new();
+
+    private bool loaded;
+    private bool NotFound;
+
+    private string DisplayName = string.Empty;
+    private string RoleText = string.Empty;
+    private string RoleCss = string.Empty;
+    private string BannerCss = "vis-banner-default";
+    private string? BannerSrc;
+
+    private string? BannerStyle => BannerSrc is null
+        ? null
+        : $"background-image:linear-gradient(rgba(0,0,0,.5),rgba(0,0,0,.5)),url('{BannerSrc}');background-size:cover;background-position:center";
+    private string Initials = "?";
+    private string InitialsCss = "vis-initials-default";
+    private byte[]? AvatarBytes;
+    private string Tagline = string.Empty;
+    private string Bio = string.Empty;
+    private string? QrSrc;
+    private bool IsMyself;
+    private bool IsCandidate;
+    private bool IsAdminMod;
+    private bool CanApply;
+    private bool AlreadyApplied;
+    private List<AchievementRow> Achievements = new();
+    private List<Project> Projects = new();
+    private List<RequestRow>? Requests;
+
+    [SupplyParameterFromForm]
+    private ApplyModel? Post { get; set; }
+
+    [SupplyParameterFromForm]
+    private RequestAction? Accept { get; set; }
+
+    [SupplyParameterFromForm]
+    private RequestAction? Reject { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var context = DbFactory.CreateDbContext();
+
+        var user = await context.Users.AsNoTracking()
+            .FirstOrDefaultAsync(u => u.username == login);
+        if (user is null)
+        {
+            NotFound = true;
+            loaded = true;
+            return;
+        }
+
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var currentName = authState.User.Identity?.Name;
+        IsMyself = currentName == user.username;
+        IsCandidate = authState.User.IsInRole("candidate");
+        IsAdminMod = authState.User.IsInRole("admin") || authState.User.IsInRole("moderator");
+
+        RoleText = user.role_id switch
+        {
+            1 => "Админ", 4 => "Модератор",
+            2 => "Преподаватель", 3 => "Студент", 5 => "Абитуриент",
+            _ => user.role_id.ToString()
+        };
+        RoleCss = user.role_id switch
+        {
+            1 => "text-bg-danger", 4 => "text-bg-info",
+            2 => "text-bg-primary", 3 => "text-bg-success", 5 => "text-bg-warning",
+            _ => "text-bg-secondary"
+        };
+        BannerCss = user.role_id switch
+        {
+            1 => "vis-banner-admin", 4 => "vis-banner-moderator",
+            2 => "vis-banner-teacher", 3 => "vis-banner-student", 5 => "vis-banner-candidate",
+            _ => "vis-banner-default"
+        };
+        InitialsCss = user.role_id switch
+        {
+            1 => "vis-initials-admin", 4 => "vis-initials-moderator",
+            2 => "vis-initials-teacher", 3 => "vis-initials-student", 5 => "vis-initials-candidate",
+            _ => "vis-initials-default"
+        };
+
+        BannerSrc = user.banner is { Length: > 0 } ? Photo.DataSrc(user.banner) : null;
+
+        Tagline = user.tagline?.Trim() ?? string.Empty;
+        Bio = user.bio?.Trim() ?? string.Empty;
+
+        string? fullName = null;
+        Student? linkedStudent = null;
+        Teacher? linkedTeacher = null;
+        if (user.role_id == 3 && user.linked_id is int sid)
+        {
+            linkedStudent = await context.Students.AsNoTracking().FirstOrDefaultAsync(s => s.stud_id == sid);
+            if (linkedStudent is not null)
+            {
+                fullName = FullName(linkedStudent.last_name, linkedStudent.first_name, linkedStudent.middle_name);
+                AvatarBytes = linkedStudent.photo;
+            }
+        }
+        else if (user.role_id == 2 && user.linked_id is int tid)
+        {
+            linkedTeacher = await context.Teachers.AsNoTracking().FirstOrDefaultAsync(t => t.teacher_id == tid);
+            if (linkedTeacher is not null)
+            {
+                fullName = FullName(linkedTeacher.last_name, linkedTeacher.first_name, linkedTeacher.middle_name);
+                AvatarBytes = linkedTeacher.photo;
+            }
+        }
+        DisplayName = string.IsNullOrWhiteSpace(fullName) ? user.username : fullName;
+        Initials = MakeInitials(DisplayName);
+        if (user.photo is { Length: > 0 })
+        {
+            AvatarBytes = user.photo;
+        }
+        if (AvatarBytes is not null && Photo.DataSrc(AvatarBytes) is null)
+        {
+            AvatarBytes = null;
+        }
+
+        Projects = await context.Projects.AsNoTracking()
+            .Where(p => p.user_id == user.user_id)
+            .OrderBy(p => !p.pinned).ThenByDescending(p => p.created_at)
+            .ToListAsync();
+
+        await LoadAchievementsAsync(context, user, linkedStudent, linkedTeacher);
+
+        int? teacherId = linkedTeacher?.teacher_id;
+        if (user.role_id == 2)
+        {
+            teacherId = user.linked_id;
+        }
+
+        if (IsCandidate && teacherId is not null)
+        {
+            var me = await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.username == currentName);
+            if (me is not null)
+            {
+                AlreadyApplied = await context.CandidateRequests.AsNoTracking()
+                    .AnyAsync(r => r.candidate_user_id == me.user_id && r.teacher_id == teacherId && r.status != 2);
+                CanApply = !AlreadyApplied;
+            }
+        }
+
+        if (teacherId is not null && (IsMyself || IsAdminMod))
+        {
+            var rows = await context.CandidateRequests.AsNoTracking()
+                .Where(r => r.teacher_id == teacherId)
+                .OrderByDescending(r => r.created_at)
+                .ToListAsync();
+            var users = await context.Users.AsNoTracking().ToDictionaryAsync(u => u.user_id);
+            Requests = rows
+                .Select(r => new RequestRow(
+                    r.id,
+                    users.TryGetValue(r.candidate_user_id, out var cu) ? cu.username : $"uid{r.candidate_user_id}",
+                    r.created_at?.ToString("dd.MM.yyyy") ?? "—",
+                    r.status))
+                .ToList();
+        }
+
+        QrSrc = Qr.PngDataUri(Navigation.ToAbsoluteUri($"/u/{user.username}").ToString());
+
+        loaded = true;
+    }
+
+    private async Task LoadAchievementsAsync(AcademyAgainContext context, User user, Student? s, Teacher? t)
+    {
+        Achievements = new List<AchievementRow>();
+        if (user.role_id == 3 && s is not null)
+        {
+            var avg = await context.Grades.AsNoTracking()
+                .Where(g => g.student == s.stud_id && g.grade_1 != null)
+                .Select(g => g.grade_1)
+                .ToListAsync();
+            var attendance = await context.Attendance.AsNoTracking()
+                .Where(a => a.student == s.stud_id)
+                .Select(a => a.present)
+                .ToListAsync();
+            var pastExams = await context.Exams.AsNoTracking()
+                .Where(e => e.student == s.stud_id && e.grade != null)
+                .CountAsync();
+            if (avg.Count > 0)
+            {
+                Achievements.Add(new AchievementRow("Успеваемость", $"Средний балл: {avg.Average(a => a!.Value):0.00}"));
+            }
+            if (attendance.Count > 0)
+            {
+                Achievements.Add(new AchievementRow("Посещаемость", $"Присутствовал на {attendance.Count(a => a)} из {attendance.Count} занятий"));
+            }
+            if (pastExams > 0)
+            {
+                Achievements.Add(new AchievementRow("Экзамены", $"Сдано экзаменов: {pastExams}"));
+            }
+        }
+        else if (user.role_id == 2 && t is not null)
+        {
+            var discCount = await context.TeachersDisciplinesRelation.AsNoTracking()
+                .CountAsync(r => r.teacher == t.teacher_id);
+            var lessonCount = await context.Schedule.AsNoTracking()
+                .CountAsync(ls => ls.teacher == t.teacher_id);
+            if (discCount > 0)
+            {
+                Achievements.Add(new AchievementRow("Педагог", $"Ведёт дисциплин: {discCount}"));
+            }
+            if (lessonCount > 0)
+            {
+                Achievements.Add(new AchievementRow("Занятия", $"Проведено занятий: {lessonCount}"));
+            }
+        }
+        else if (user.role_id is 1 or 4)
+        {
+            Achievements.Add(new AchievementRow(user.role_id == 1 ? "Администратор" : "Модератор",
+                user.role_id == 1 ? "Обеспечивает работу академии" : "Следит за качеством данных"));
+        }
+        else if (user.role_id == 5)
+        {
+            Achievements.Add(new AchievementRow("Новичок", "Начинает путь в академию"));
+        }
+
+        if (Achievements.Count == 0)
+        {
+            Achievements.Add(new AchievementRow("Участник", "Пользуется возможностями академии"));
+        }
+    }
+
+    private async Task ApplyAsync()
+    {
+        await using var context = DbFactory.CreateDbContext();
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var currentName = authState.User.Identity?.Name;
+        var me = await context.Users.FirstOrDefaultAsync(u => u.username == currentName);
+        var target = await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.username == login);
+        if (me is null || target is null || target.role_id != 2 || target.linked_id is not int tid)
+        {
+            return;
+        }
+        if (await context.CandidateRequests.AsNoTracking()
+                .AnyAsync(r => r.candidate_user_id == me.user_id && r.teacher_id == tid && r.status != 2))
+        {
+            return;
+        }
+        context.CandidateRequests.Add(new CandidateRequest
+        {
+            candidate_user_id = me.user_id,
+            teacher_id = tid,
+            status = 0,
+            created_at = DateTime.Now
+        });
+        await context.SaveChangesAsync();
+        Navigation.NavigateTo($"/u/{login}", forceLoad: true);
+    }
+
+    private async Task AcceptAsync()
+    {
+        await using var context = DbFactory.CreateDbContext();
+        if (Accept?.id is int id)
+        {
+            var row = await context.CandidateRequests.FirstOrDefaultAsync(r => r.id == id);
+            if (row is not null && row.status == 0)
+            {
+                row.status = 1;
+                await context.SaveChangesAsync();
+            }
+        }
+        Navigation.NavigateTo($"/u/{login}", forceLoad: true);
+    }
+
+    private async Task RejectAsync()
+    {
+        await using var context = DbFactory.CreateDbContext();
+        if (Reject?.id is int id)
+        {
+            var row = await context.CandidateRequests.FirstOrDefaultAsync(r => r.id == id);
+            if (row is not null && row.status == 0)
+            {
+                row.status = 2;
+                await context.SaveChangesAsync();
+            }
+        }
+        Navigation.NavigateTo($"/u/{login}", forceLoad: true);
+    }
+
+    private static string StatusText(int status) => status switch
+    {
+        1 => "Завершён",
+        2 => "Заморожен",
+        _ => "В разработке"
+    };
+
+    private static string FullName(string? last, string? first, string? middle)
+        => string.Join(" ", new[] { last, first, middle }.Where(x => !string.IsNullOrWhiteSpace(x)));
+
+    private static string MakeInitials(string name)
+    {
+        var parts = name.Split(new[] { ' ', '-', '.' }, StringSplitOptions.RemoveEmptyEntries).Take(2).ToList();
+        return parts.Count == 0 ? "?" : string.Concat(parts.Select(p => char.ToUpperInvariant(p[0])));
+    }
+}

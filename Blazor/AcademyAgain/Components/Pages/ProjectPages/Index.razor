@@ -1,0 +1,114 @@
+@page "/portfolio"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@using AcademyAgain.Helpers
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider Auth
+
+<PageTitle>Портфолио</PageTitle>
+
+<div class="portfolio-header">
+    <h1>Портфолио</h1>
+    <div class="portfolio-header-actions">
+        <a class="btn btn-outline-secondary" href="profile">Профиль</a>
+        <a class="btn btn-primary" href="portfolio/create">Добавить проект</a>
+    </div>
+</div>
+
+@if (loading)
+{
+    <p><em>Загрузка...</em></p>
+}
+else if (items.Count == 0)
+{
+    <div class="section-empty">
+        Проектов пока нет.
+        <a href="portfolio/create">Добавить первый проект</a>
+    </div>
+}
+else
+{
+    <div class="portfolio-grid">
+        @foreach (var p in items)
+        {
+            <div class="project-card @(p.pinned ? "project-pinned" : "")">
+                <div class="project-cover">
+                    @if (Photo.DataSrc(p.cover) is string cover)
+                    {
+                        <img src="@cover" alt="@p.title" />
+                    }
+                    else
+                    {
+                        <div class="project-cover-empty">нет обложки</div>
+                    }
+                    @if (p.pinned)
+                    {
+                        <span class="project-pin" title="Закреплено">★</span>
+                    }
+                </div>
+                <div class="project-body">
+                    <div class="project-title-line">
+                        <h3>@p.title</h3>
+                        <span class="project-status status-@p.status">@StatusText(p.status)</span>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(p.description))
+                    {
+                        <p class="project-desc">@p.description</p>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(p.tags))
+                    {
+                        <div class="project-tags">
+                            @foreach (var t in p.tags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                            {
+                                <span class="project-tag">@t</span>
+                            }
+                        </div>
+                    }
+                    <div class="project-meta">
+                        <span>@(p.created_at?.ToString("dd.MM.yyyy") ?? "—")</span>
+                        @if (!string.IsNullOrWhiteSpace(p.url))
+                        {
+                            <a href="@p.url" target="_blank" rel="noopener" title="Открыть сайт">Сайт ↗</a>
+                        }
+                    </div>
+                    <div class="project-actions">
+                        <a class="btn btn-sm btn-outline-primary" href="portfolio/edit/@p.project_id">Изменить</a>
+                        <a class="btn btn-sm btn-outline-danger" href="portfolio/delete?id=@p.project_id">Удалить</a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<Project> items = new();
+    private bool loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var name = authState.User.Identity?.Name;
+        await using var context = DbFactory.CreateDbContext();
+        var owner = await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.username == name);
+        if (owner is not null)
+        {
+            items = await context.Projects.AsNoTracking()
+                .Where(p => p.user_id == owner.user_id)
+                .OrderBy(p => !p.pinned)
+                .ThenByDescending(p => p.created_at)
+                .ToListAsync();
+        }
+        loading = false;
+    }
+
+    private static string StatusText(int status) => status switch
+    {
+        1 => "Завершён",
+        2 => "Заморожен",
+        _ => "В разработке"
+    };
+}

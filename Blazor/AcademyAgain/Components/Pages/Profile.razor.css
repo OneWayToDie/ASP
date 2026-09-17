@@ -1,0 +1,526 @@
+@media (min-width: 641px)
+{
+    .profile-avatar-area
+    {
+        width: 16.5rem;
+    }
+}
+
+/* ===== Баннер в шапке профиля (градиент по роли) ===== */
+.profile-banner
+{
+    height: 130px;
+    border-radius: 16px 16px 0 0;
+}
+
+.banner-actions
+{
+    position: absolute;
+    top: 0.7rem;
+    right: 0.8rem;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.35rem;
+}
+
+.banner-actions .banner-btn
+{
+    color: #fff;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(3px);
+}
+
+.banner-actions .banner-btn:hover
+{
+    color: #fff;
+    background: rgba(0, 0, 0, 0.65);
+}
+
+.banner-actions .banner-msg
+{
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.profile-banner-admin
+{
+    background: linear-gradient(135deg, #3b0d63, #a5123a 55%, #e0553e);
+}
+
+.profile-banner-moderator
+{
+    background: linear-gradient(135deg, #04343f, #086a83 55%, #0a58ca);
+}
+
+.profile-banner-teacher
+{
+    background: linear-gradient(135deg, #0a1f4a, #114e9b 55%, #66a3ff);
+}
+
+.profile-banner-student
+{
+    background: linear-gradient(135deg, #052e21, #126b45 55%, #38c172);
+}
+
+.profile-banner-candidate
+{
+    background: linear-gradient(135deg, #3a2e04, #92500a 55%, #ffca7a);
+}
+
+.profile-banner-default
+{
+    background: linear-gradient(135deg, #1c2333, #37425c);
+}
+
+/* ===== Кольцо вокруг аватара (цвет по роли) ===== */
+.profile-avatar-ring
+{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 140px;
+    height: 140px;
+    padding: 3px;
+    border-radius: 50%;
+    background: var(--app-surface);
+}
+
+.profile-ring-admin
+{
+    border: 3px solid #dc3545;
+}
+
+.profile-ring-moderator
+{
+    border: 3px solid #0dcaf0;
+}
+
+.profile-ring-teacher
+{
+    border: 3px solid #0d6efd;
+}
+
+.profile-ring-student
+{
+    border: 3px solid #198754;
+}
+
+.profile-ring-candidate
+{
+    border: 3px solid #ffca7a;
+}
+
+.profile-ring-default
+{
+    border: 3px solid #6c757d;
+}
+
+/* ===== Девиз под именем ===== */
+.profile-head-tagline
+{
+    margin: 0 0 0.4rem;
+    color: var(--app-accent);
+    font-size: 1.05rem;
+    font-style: italic;
+}
+
+.profile-avatar-area
+{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.profile-photo-actions
+{
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.4rem;
+    width: 128px;
+    margin-top: 0.6rem;
+}
+
+.profile-photo-actions .btn
+{
+    margin: 0;
+    width: 100%;
+    white-space: nowrap;
+}
+
+.profile-photo-label
+{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    margin: 0;
+}
+
+.profile-photo-label ::deep input[type="file"]
+{
+    display: none;
+}
+
+.profile-initials
+{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.6rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.05em;
+}
+
+.profile-initials-admin
+{
+    background: var(--bs-danger);
+}
+
+.profile-initials-moderator
+{
+    background: var(--bs-info);
+    color: #000;
+}
+
+.profile-initials-teacher
+{
+    background: var(--bs-primary);
+}
+
+.profile-initials-student
+{
+    background: var(--bs-success);
+}
+
+.profile-initials-candidate
+{
+    background: var(--bs-warning);
+    color: #181a1f;
+}
+
+.profile-initials-default
+{
+    background: var(--bs-secondary);
+}
+
+/* ===== Достижения ===== */
+.achievements-grid
+{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.achievement-pill
+{
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.7rem;
+    background: var(--app-surface-2);
+    border: 1px solid var(--app-border);
+    border-radius: 999px;
+    font-size: 0.85rem;
+    color: var(--app-text);
+}
+
+.achievement-star
+{
+    color: #f0ad4e;
+}
+
+.achievement-gold
+{
+    border-color: #f0ad4e;
+}
+
+.achievement-silver
+{
+    border-color: #c0c0c0;
+}
+
+.achievement-success
+{
+    border-color: #198754;
+}
+
+.achievement-info
+{
+    border-color: #0dcaf0;
+}
+
+/* ===== Лучшие дисциплины ===== */
+.skill-list
+{
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.skill-row
+{
+    display: grid;
+    grid-template-columns: 1fr 130px 70px;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.85rem;
+}
+
+.skill-name
+{
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.skill-row .progress
+{
+    height: 0.5rem;
+    margin: 0;
+}
+
+.skill-pct
+{
+    text-align: right;
+    color: var(--app-text-secondary);
+    white-space: nowrap;
+}
+
+/* ===== Тепловая карта посещаемости ===== */
+.heatmap
+{
+    display: grid;
+    grid-template-columns: repeat(53, 11px);
+    grid-auto-rows: 11px;
+    gap: 3px;
+    overflow-x: auto;
+    padding-bottom: 0.3rem;
+}
+
+.heatmap-cell
+{
+    width: 11px;
+    height: 11px;
+    border-radius: 3px;
+    background: var(--app-border);
+}
+
+.heatmap-cell.lvl1
+{
+    background: #1a5c3a;
+}
+
+.heatmap-cell.lvl2
+{
+    background: #0f8f4e;
+}
+
+.heatmap-cell.lvl3
+{
+    background: #2ab96b;
+}
+
+.heatmap-cell.lvl4
+{
+    background: #63e39a;
+}
+
+.heatmap-legend
+{
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-top: 0.6rem;
+    font-size: 0.75rem;
+    color: var(--app-text-secondary);
+}
+
+/* ===== Ближайшее ===== */
+.profile-subhead
+{
+    font-size: 0.9rem;
+    color: var(--app-text-secondary);
+    margin: 0.4rem 0 0.25rem;
+}
+
+.upcoming-list li
+{
+    margin-bottom: 0.25rem;
+}
+
+/* ===== Шаг 4: визуальные украшения ===== */
+@keyframes profile-enter
+{
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes profile-flash
+{
+    0% { box-shadow: 0 0 0 10px color-mix(in srgb, var(--app-accent) 35%, transparent); }
+    100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--app-accent) 35%, transparent); }
+}
+
+.profile-head
+{
+    position: relative;
+    animation: profile-enter 0.4s ease both;
+}
+
+.profile-head.has-banner .profile-head-info h1,
+.profile-head.has-banner .profile-head-tagline,
+.profile-head.has-banner .profile-head-contacts
+{
+    color: #fff;
+}
+
+.profile-head.has-banner .profile-head-contacts
+{
+    opacity: 0.88;
+}
+
+.profile-section
+{
+    padding: 0.85rem 1rem;
+    border-left: 3px solid var(--app-accent);
+    border-radius: 12px;
+    scroll-margin-top: 5rem;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    animation: profile-enter 0.35s ease both;
+}
+
+.profile-section.password-box
+{
+    padding: 1.5rem 1.6rem;
+}
+
+.profile-section.password-box .form-label
+{
+    font-size: 1rem;
+    margin-bottom: 0.4rem;
+}
+
+.profile-section:nth-child(2) { animation-delay: 0.05s; }
+.profile-section:nth-child(3) { animation-delay: 0.1s; }
+.profile-section:nth-child(4) { animation-delay: 0.15s; }
+.profile-section:nth-child(5) { animation-delay: 0.2s; }
+.profile-section:nth-child(6) { animation-delay: 0.25s; }
+.profile-section:nth-child(7) { animation-delay: 0.3s; }
+.profile-section:nth-child(8) { animation-delay: 0.35s; }
+.profile-section:nth-child(9) { animation-delay: 0.4s; }
+.profile-section:nth-child(10) { animation-delay: 0.45s; }
+.profile-section:nth-child(11) { animation-delay: 0.5s; }
+.profile-section:nth-child(12) { animation-delay: 0.55s; }
+
+.profile-section:hover
+{
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+    border-left-color: var(--app-accent-bright, var(--app-accent));
+}
+
+.profile-section:target
+{
+    outline: 2px solid var(--app-accent);
+    outline-offset: 3px;
+    animation: profile-enter 0.35s ease, profile-flash 1.2s ease;
+}
+
+.profile-section.profile-flash-active
+{
+    outline: 2px solid var(--app-accent);
+    outline-offset: 3px;
+    animation: profile-flash 1.2s ease;
+}
+
+.profile-section h3
+{
+    padding-bottom: 0.45rem;
+    border-bottom: 1px solid var(--app-border);
+    background: linear-gradient(90deg, var(--app-accent), transparent) left bottom / 40% 2px no-repeat;
+}
+
+.stat-card
+{
+    animation: profile-enter 0.35s ease both;
+}
+
+.stat-card:nth-child(2) { animation-delay: 0.05s; }
+.stat-card:nth-child(3) { animation-delay: 0.1s; }
+.stat-card:nth-child(4) { animation-delay: 0.15s; }
+.stat-card:nth-child(5) { animation-delay: 0.2s; }
+.stat-card:nth-child(6) { animation-delay: 0.25s; }
+.stat-card:nth-child(7) { animation-delay: 0.3s; }
+.stat-card:nth-child(8) { animation-delay: 0.35s; }
+
+.profile-fact
+{
+    animation: profile-enter 0.35s ease both;
+    transition: transform 0.15s ease;
+}
+
+.profile-fact:hover
+{
+    transform: translateY(-1px);
+}
+
+.profile-fact:nth-child(2) { animation-delay: 0.04s; }
+.profile-fact:nth-child(3) { animation-delay: 0.08s; }
+.profile-fact:nth-child(4) { animation-delay: 0.12s; }
+.profile-fact:nth-child(5) { animation-delay: 0.16s; }
+.profile-fact:nth-child(6) { animation-delay: 0.2s; }
+.profile-fact:nth-child(7) { animation-delay: 0.24s; }
+.profile-fact:nth-child(8) { animation-delay: 0.28s; }
+.profile-fact:nth-child(9) { animation-delay: 0.32s; }
+
+.achievement-pill
+{
+    animation: profile-enter 0.3s ease both;
+}
+
+.achievement-pill:nth-child(2) { animation-delay: 0.04s; }
+.achievement-pill:nth-child(3) { animation-delay: 0.08s; }
+.achievement-pill:nth-child(4) { animation-delay: 0.12s; }
+.achievement-pill:nth-child(5) { animation-delay: 0.16s; }
+.achievement-pill:nth-child(6) { animation-delay: 0.2s; }
+.achievement-pill:nth-child(7) { animation-delay: 0.24s; }
+.achievement-pill:nth-child(8) { animation-delay: 0.28s; }
+
+/* ===== Навигация-маршрутизатор по разделам (якоря) ===== */
+.profile-anchorbar
+{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 1.25rem;
+}
+
+.profile-chip
+{
+    display: inline-flex;
+    align-items: center;
+    font-family: inherit;
+    line-height: inherit;
+    cursor: pointer;
+    padding: 0.25rem 0.6rem;
+    background: var(--app-surface-2);
+    border: 1px solid var(--app-border);
+    border-radius: 999px;
+    font-size: 0.8rem;
+    color: var(--app-text-secondary);
+    text-decoration: none;
+    transition: color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.profile-chip:hover
+{
+    color: var(--app-accent);
+    border-color: var(--app-accent);
+    transform: translateY(-1px);
+}

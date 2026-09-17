@@ -50,7 +50,7 @@ namespace AcademyAgain.Components
         private async Task RefreshAuthAsync()
         {
             var user = (await Auth.GetAuthenticationStateAsync()).User;
-            CanWrite = user.IsInRole("admin") || user.IsInRole("teacher");
+            CanWrite = user.IsInRole("admin") || user.IsInRole("teacher") || user.IsInRole("moderator");
             CanAdmin = user.IsInRole("admin");
         }
 

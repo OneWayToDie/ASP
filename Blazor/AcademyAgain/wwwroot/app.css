@@ -1198,7 +1198,7 @@ table.context-table tbody > tr > td:first-child::before
 /* ===== Глобальный поиск в шапке ===== */
 .global-search 
 {
-    margin-left: auto; /* прижимаем поле к правому краю шапки */
+    margin-left: 1.5rem; /* поле поиска держим рядом с названием (слева), не у правого края */
     display: flex;
     align-items: center;
 }
@@ -2244,4 +2244,210 @@ html[data-theme="dark"] .cal-holiday-col
     {
         background: transparent !important;
     }
+}
+
+/* ===== Портфолио ===== */
+
+.portfolio-header
+{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.portfolio-header h1
+{
+    margin: 0;
+}
+
+.portfolio-header-actions
+{
+    display: flex;
+    gap: 0.5rem;
+}
+
+.portfolio-grid
+{
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+    gap: 1.1rem;
+}
+
+.project-card
+{
+    display: flex;
+    flex-direction: column;
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    border-radius: 14px;
+    overflow: hidden;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.project-card:hover
+{
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+}
+
+.project-card.project-pinned
+{
+    border-color: var(--app-accent-warn);
+}
+
+.project-cover
+{
+    position: relative;
+    height: 150px;
+    background: var(--app-form-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.project-cover img
+{
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.project-cover-empty
+{
+    color: var(--app-text-secondary);
+    font-size: 0.85rem;
+}
+
+.project-pin
+{
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: var(--app-accent-warn);
+    color: #181a1f;
+    font-size: 0.85rem;
+    line-height: 1;
+    padding: 0.28rem 0.4rem 0.32rem;
+    border-radius: 999px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.project-body
+{
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.9rem 1rem 1rem;
+    flex: 1;
+}
+
+.project-title-line
+{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.project-title-line h3
+{
+    margin: 0;
+    font-size: 1.05rem;
+    line-height: 1.3;
+}
+
+.project-status
+{
+    font-size: 0.75rem;
+    line-height: 1;
+    padding: 0.28rem 0.5rem;
+    border-radius: 999px;
+    color: #fff;
+    white-space: nowrap;
+}
+
+.project-status.status-0
+{
+    background: #d97706;
+}
+
+.project-status.status-1
+{
+    background: #16a34a;
+}
+
+.project-status.status-2
+{
+    background: #6b7280;
+}
+
+.project-desc
+{
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--app-text-secondary);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.project-tags
+{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+}
+
+.project-tag
+{
+    font-size: 0.75rem;
+    padding: 0.12rem 0.5rem;
+    background: var(--app-form-bg);
+    border: 1px solid var(--app-border);
+    border-radius: 999px;
+    color: var(--app-text-secondary);
+}
+
+.project-meta
+{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--app-text-secondary);
+}
+
+.project-meta a
+{
+    color: var(--app-link);
+    text-decoration: none;
+}
+
+.project-meta a:hover
+{
+    color: var(--app-link-hover);
+}
+
+.project-actions
+{
+    display: flex;
+    gap: 0.5rem;
+    margin-top: auto;
+    padding-top: 0.5rem;
+}
+
+.cover-preview
+{
+    max-width: 100%;
+    max-height: 220px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1px solid var(--app-border);
 }

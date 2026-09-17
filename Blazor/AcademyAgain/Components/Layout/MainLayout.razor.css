@@ -29,6 +29,11 @@ main {
     color: var(--app-accent-warn);    /* и в фирменном жёлтом цвете */
 }
 
+/* Распорка: прижимает «Тема» и «Выйти» к правому краю шапки */
+.top-row-spacer {
+    margin-left: auto;
+}
+
     /* Ссылки в верхней строке не переносятся */
     .top-row ::deep a, .top-row ::deep .btn-link {
         white-space: nowrap;
@@ -55,6 +60,10 @@ main {
 
     .top-row ::deep a, .top-row ::deep .btn-link {
         margin-left: 0; /* убираем зазоры между ссылками */
+    }
+
+    .top-row-spacer {
+        display: none; /* на узких экранах работает space-between */
     }
 }
 

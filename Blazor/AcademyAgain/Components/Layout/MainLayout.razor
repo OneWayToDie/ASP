@@ -8,17 +8,17 @@
     <main>
         <div class="top-row px-4">
             <span class="app-title">Учёт успеваемости</span>
+            <GlobalSearch />
+            <div class="top-row-spacer"></div>
+            <ThemeToggle />
             <AuthorizeView>
                 <Authorized>
-                    <span class="auth-user" title="@context.User.Identity?.Name">@context.User.Identity?.Name</span>
                     <a class="btn btn-outline-secondary btn-sm" href="logout">Выйти</a>
                 </Authorized>
                 <NotAuthorized>
                     <a class="btn btn-outline-secondary btn-sm" href="login">Войти</a>
                 </NotAuthorized>
             </AuthorizeView>
-            <ThemeToggle />
-            <GlobalSearch />
         </div>
 
         <article class="content px-4">

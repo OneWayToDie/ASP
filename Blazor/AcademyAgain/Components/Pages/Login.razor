@@ -35,8 +35,15 @@
                 <InputText id="login_password" type="password" @bind-Value="Model.Password" class="form-control" autocomplete="current-password" />
                 <ValidationMessage For="() => Model.Password" class="text-danger" />
             </div>
+            <div class="form-check mb-3">
+                <InputCheckbox id="login_remember" class="form-check-input" @bind-Value="Model.RememberMe" />
+                <label class="form-check-label" for="login_remember">Запомнить меня</label>
+            </div>
             <button type="submit" class="btn btn-primary w-100">Войти</button>
         </EditForm>
+        <div class="mt-3 text-center">
+            <a href="register">Нет аккаунта? Зарегистрироваться</a>
+        </div>
     </div>
 </div>
 
@@ -48,6 +55,8 @@
 
         [Required(ErrorMessage = "Введите пароль")]
         public string Password { get; set; } = string.Empty;
+
+        public bool RememberMe { get; set; }
     }
 
     [SupplyParameterFromQuery]
@@ -71,6 +80,11 @@
             Error = "Неверный логин или пароль.";
             return;
         }
+        if (user.status == 0)
+        {
+            Error = "Учётная запись ожидает подтверждения модератором.";
+            return;
+        }
         var role = await context.Roles.AsNoTracking()
             .FirstOrDefaultAsync(r => r.role_id == user.role_id);
         role ??= new Role { role_id = user.role_id, role_name = user.role_id.ToString() };
@@ -82,7 +96,7 @@
         };
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
 
-        await HttpContext!.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
+        await HttpContext!.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity), new AuthenticationProperties { IsPersistent = Model.RememberMe });
         var target = returnUrl is { Length: > 1 } && returnUrl.StartsWith('/') && !returnUrl.StartsWith("//")
             ? returnUrl
             : "/";

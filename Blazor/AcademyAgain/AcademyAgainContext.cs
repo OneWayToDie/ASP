@@ -40,6 +40,10 @@ public class AcademyAgainContext(DbContextOptions<AcademyAgainContext> options) 
     { get; set; } = default!;
     public DbSet<AcademyAgain.Models.Role> Roles
     { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.Project> Projects
+    { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.CandidateRequest> CandidateRequests
+    { get; set; } = default!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

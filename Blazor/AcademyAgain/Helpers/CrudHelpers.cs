@@ -67,4 +67,23 @@ namespace AcademyAgain.Helpers
             return mime is null ? null : $"data:{mime};base64,{Convert.ToBase64String(bytes)}";
         }
     }
+
+    public static class Qr
+    {
+        public static string? PngDataUri(string content, int pixelsPerModule = 8)
+        {
+            try
+            {
+                using var generator = new QRCoder.QRCodeGenerator();
+                using var qrData = generator.CreateQrCode(content, QRCoder.QRCodeGenerator.ECCLevel.Q);
+                using var png = new QRCoder.PngByteQRCode(qrData);
+                var bytes = png.GetGraphic(pixelsPerModule);
+                return $"data:image/png;base64,{Convert.ToBase64String(bytes)}";
+            }
+            catch
+            {
+                return null;
+            }
+        }
+    }
 }

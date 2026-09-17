@@ -1,0 +1,113 @@
+@page "/portfolio/delete"
+@attribute [Authorize]
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@using AcademyAgain.Helpers
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider Auth
+
+<PageTitle>Удаление проекта</PageTitle>
+
+<h1>Удаление проекта</h1>
+
+<hr />
+
+@if (!loaded)
+{
+    <p><em>Загрузка...</em></p>
+}
+else
+{
+    <div class="alert alert-danger">
+        <strong>Вы уверены, что хотите удалить проект «@project!.title»?</strong>
+        Действие необратимо.
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <dl class="row">
+                <dt class="col-sm-4">Название</dt>
+                <dd class="col-sm-8">@project!.title</dd>
+
+                <dt class="col-sm-4">Статус</dt>
+                <dd class="col-sm-8">@StatusText(project!.status)</dd>
+
+                <dt class="col-sm-4">Закреплён</dt>
+                <dd class="col-sm-8">@(project!.pinned ? "да" : "нет")</dd>
+
+                <dt class="col-sm-4">Добавлен</dt>
+                <dd class="col-sm-8">@(project!.created_at?.ToString("dd.MM.yyyy") ?? "—")</dd>
+            </dl>
+        </div>
+        <div class="col-md-4">
+            @if (Photo.DataSrc(project!.cover) is string cover)
+            {
+                <img class="img-fluid rounded border" src="@cover" alt="@project!.title" />
+            }
+        </div>
+    </div>
+
+    <EditForm method="post" Model="project" OnValidSubmit="DeleteProject" FormName="projectDelete" Enhance>
+        <input type="hidden" name="project.project_id" value="@project!.project_id" />
+        <button type="submit" class="btn btn-danger">Удалить</button>
+        <a class="btn btn-outline-secondary" href="portfolio">Отмена</a>
+    </EditForm>
+}
+
+@code {
+    [SupplyParameterFromQuery]
+    private int id { get; set; }
+
+    [SupplyParameterFromForm]
+    private Project? project { get; set; }
+
+    private bool loaded;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var context = DbFactory.CreateDbContext();
+        project ??= await context.Projects.FirstOrDefaultAsync(p => p.project_id == id);
+        if (project is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+            return;
+        }
+
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var name = authState.User.Identity?.Name;
+        var isAdmin = authState.User.IsInRole("admin");
+        if (isAdmin)
+        {
+            loaded = true;
+            return;
+        }
+
+        var owner = await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.username == name);
+        if (owner is null || owner.user_id != project.user_id)
+        {
+            NavigationManager.NavigateTo("notfound");
+            return;
+        }
+        loaded = true;
+    }
+
+    private async Task DeleteProject()
+    {
+        await using var context = DbFactory.CreateDbContext();
+        var target = await context.Projects.FirstOrDefaultAsync(p => p.project_id == project!.project_id);
+        if (target is not null)
+        {
+            context.Projects.Remove(target);
+            await context.SaveChangesAsync();
+        }
+        NavigationManager.NavigateTo("/portfolio");
+    }
+
+    private static string StatusText(int status) => status switch
+    {
+        1 => "Завершён",
+        2 => "Заморожен",
+        _ => "В разработке"
+    };
+}

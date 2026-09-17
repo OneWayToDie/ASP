@@ -1,0 +1,258 @@
+@page "/portfolio/create"
+@page "/portfolio/edit/{id:int?}"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@using AcademyAgain.Helpers
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider Auth
+
+<PageTitle>@(existing is null ? "Новый проект" : "Редактирование проекта")</PageTitle>
+
+<h1>@(existing is null ? "Новый проект" : "Редактирование проекта")</h1>
+
+<hr />
+
+@if (loading)
+{
+    <p><em>Загрузка...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-7 col-lg-6">
+            <EditForm Model="form" OnValidSubmit="SaveAsync">
+                <DataAnnotationsValidator />
+                <ValidationSummary role="alert" />
+                @if (SaveError is not null)
+                {
+                    <div class="alert alert-danger py-2">@SaveError</div>
+                }
+
+                <input type="hidden" value="@(existing?.project_id ?? 0)" />
+
+                <div class="mb-3">
+                    <label for="p_title" class="form-label">Название:</label>
+                    <InputText id="p_title" @bind-Value="form.title" class="form-control" maxlength="100" />
+                    <ValidationMessage For="() => form.title" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="p_desc" class="form-label">Описание:</label>
+                    <InputTextArea id="p_desc" @bind-Value="form.description" class="form-control" rows="3" maxlength="1000" />
+                </div>
+                <div class="mb-3">
+                    <label for="p_tags" class="form-label">Теги (через запятую):</label>
+                    <InputText id="p_tags" @bind-Value="form.tags" class="form-control" maxlength="200" placeholder="C#, Blazor, SQL" />
+                </div>
+                <div class="mb-3">
+                    <label for="p_url" class="form-label">Ссылка на сайт:</label>
+                    <InputText id="p_url" @bind-Value="form.url" class="form-control" maxlength="300" placeholder="https://..." />
+                </div>
+                <div class="mb-3">
+                    <label for="p_status" class="form-label">Статус:</label>
+                    <InputSelect id="p_status" @bind-Value="form.status" class="form-select">
+                        <option value="0">В разработке</option>
+                        <option value="1">Завершён</option>
+                        <option value="2">Заморожен</option>
+                    </InputSelect>
+                </div>
+                <div class="mb-3 form-check">
+                    <InputCheckbox id="p_pinned" @bind-Value="form.pinned" class="form-check-input" />
+                    <label for="p_pinned" class="form-check-label">Закрепить вверху списка</label>
+                </div>
+
+                <div class="mb-3">
+                    <label for="p_cover" class="form-label">Обложка (до 5 МБ):</label>
+                    <InputFile id="p_cover" accept="image/*" OnChange="OnCoverSelectedAsync" class="form-control" />
+                    @if (CoverError is not null)
+                    {
+                        <div class="text-danger mt-1">@CoverError</div>
+                    }
+                    @if (newCover is not null || existing is not null && existing.cover is { Length: > 0 })
+                    {
+                        <img class="cover-preview mt-2" src="@PreviewSrc" alt="Превью обложки" />
+                        @if (newCover is not null)
+                        {
+                            <button type="button" class="btn btn-sm btn-outline-secondary mt-2" @onclick="RemoveNewCover">Убрать обложку</button>
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-secondary mt-1">Обложки пока нет.</div>
+                    }
+                </div>
+
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+                <a class="btn btn-outline-secondary" href="portfolio">Отмена</a>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int? id { get; set; }
+
+    private sealed class ProjectForm
+    {
+        [Required(ErrorMessage = "Укажите название.")]
+        [StringLength(100, ErrorMessage = "Не более 100 символов.")]
+        public string title { get; set; } = string.Empty;
+
+        [StringLength(1000, ErrorMessage = "Не более 1000 символов.")]
+        public string? description { get; set; }
+
+        [StringLength(200, ErrorMessage = "Не более 200 символов.")]
+        public string? tags { get; set; }
+
+        [StringLength(300, ErrorMessage = "Не более 300 символов.")]
+        public string? url { get; set; }
+
+        public int status { get; set; }
+
+        public bool pinned { get; set; }
+    }
+
+    private ProjectForm form = new();
+    private Project? existing;
+    private byte[]? newCover;
+    private bool loading = true;
+    private string? CoverError;
+    private string? SaveError;
+
+    private string? PreviewSrc
+        => newCover is not null
+            ? Photo.DataSrc(newCover)
+            : Photo.DataSrc(existing?.cover);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var name = authState.User.Identity?.Name;
+        await using var context = DbFactory.CreateDbContext();
+        var owner = await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.username == name);
+        if (owner is null)
+        {
+            loading = false;
+            return;
+        }
+
+        if (id is int pid)
+        {
+            existing = await context.Projects.FirstOrDefaultAsync(p => p.project_id == pid);
+            if (existing is null || existing.user_id != owner.user_id)
+            {
+                NavigationManager.NavigateTo("notfound");
+                return;
+            }
+            form = new ProjectForm
+            {
+                title = existing.title,
+                description = existing.description,
+                tags = existing.tags,
+                url = existing.url,
+                status = existing.status,
+                pinned = existing.pinned
+            };
+        }
+        else
+        {
+            form = new ProjectForm { status = 0 };
+        }
+        loading = false;
+    }
+
+    private async Task OnCoverSelectedAsync(InputFileChangeEventArgs e)
+    {
+        CoverError = null;
+        SaveError = null;
+        var file = e.File;
+        if (file is null || file.Size == 0)
+        {
+            return;
+        }
+        if (file.Size > 5_000_000)
+        {
+            CoverError = "Файл слишком большой — максимум 5 МБ.";
+            return;
+        }
+        await using var ms = new MemoryStream();
+        await file.OpenReadStream(5_000_000).CopyToAsync(ms);
+        var bytes = ms.ToArray();
+        if (Photo.DataSrc(bytes) is null)
+        {
+            CoverError = "Неподдерживаемый формат изображения (JPEG, PNG, WebP, GIF, BMP, ICO).";
+            return;
+        }
+        newCover = bytes;
+    }
+
+    private void RemoveNewCover()
+    {
+        newCover = null;
+        if (existing is not null)
+        {
+            existing.cover = null;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        SaveError = null;
+        var url = form.url?.Trim();
+        if (!string.IsNullOrWhiteSpace(url) && !(url.StartsWith("http://") || url.StartsWith("https://")))
+        {
+            SaveError = "Ссылка должна начинаться с http:// или https://";
+            return;
+        }
+
+        await using var context = DbFactory.CreateDbContext();
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var name = authState.User.Identity?.Name;
+        var owner = await context.Users.FirstOrDefaultAsync(u => u.username == name);
+        if (owner is null)
+        {
+            return;
+        }
+
+        if (existing is null)
+        {
+            context.Projects.Add(new Project
+            {
+                user_id = owner.user_id,
+                title = form.title.Trim(),
+                description = string.IsNullOrWhiteSpace(form.description) ? null : form.description.Trim(),
+                tags = string.IsNullOrWhiteSpace(form.tags) ? null : form.tags.Trim(),
+                url = string.IsNullOrWhiteSpace(url) ? null : url,
+                status = form.status,
+                pinned = form.pinned,
+                cover = newCover,
+                created_at = DateTime.Now
+            });
+        }
+        else
+        {
+            if (existing.user_id != owner.user_id)
+            {
+                NavigationManager.NavigateTo("notfound");
+                return;
+            }
+            existing.title = form.title.Trim();
+            existing.description = string.IsNullOrWhiteSpace(form.description) ? null : form.description.Trim();
+            existing.tags = string.IsNullOrWhiteSpace(form.tags) ? null : form.tags.Trim();
+            existing.url = string.IsNullOrWhiteSpace(url) ? null : url;
+            existing.status = form.status;
+            existing.pinned = form.pinned;
+            if (newCover is not null || existing.cover is null)
+            {
+                existing.cover = newCover;
+            }
+        }
+
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/portfolio");
+    }
+}

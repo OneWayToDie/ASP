@@ -1,0 +1,294 @@
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@using AcademyAgain.Helpers
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject AuthenticationStateProvider Auth
+@inject IJSRuntime Js
+
+@if (IsAdmin)
+{
+    <div class="mb-3">
+        <h3 class="form-section-title">Новый пользователь</h3>
+        @if (NewError is not null)
+        {
+            <div class="alert alert-danger py-2">@NewError</div>
+        }
+        <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Логин</label>
+                <input class="form-control" @bind="NewUsername" placeholder="логин" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Пароль</label>
+                <input type="password" class="form-control" @bind="NewPassword" placeholder="мин. 6 символов" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Роль</label>
+                <select class="form-select" @bind="NewRole">
+                    @foreach (var role in Roles)
+                    {
+                        <option value="@role.role_id">@RoleInfo(role.role_id).Text</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button type="button" class="btn btn-primary" @onclick="AddAsync">Добавить</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (loaded && PendingRows.Count > 0)
+{
+    <h3 class="form-section-title">Ожидают подтверждения</h3>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Пользователь</th>
+                <th>Запрошенная роль</th>
+                <th>Роль</th>
+                <th style="width:220px"></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in PendingRows)
+            {
+                <tr>
+                    <td class="fw-semibold">@row.Username</td>
+                    <td><span class="badge @RoleInfo(row.RoleId).Css">@RoleInfo(row.RoleId).Text</span></td>
+                    <td>
+                        <div class="d-flex gap-2 align-items-center">
+                            <span class="badge @RoleInfo(row.RoleId).Css">@RoleInfo(row.RoleId).Text</span>
+                            <select class="form-select form-select-sm" style="width:auto" value="@row.RoleId" @onchange='e => RoleEdit[row.Id] = int.Parse(e.Value?.ToString() ?? "3")'>
+                                @foreach (var role in SelectableRoles)
+                                {
+                                    <option value="@role.role_id" selected="@(role.role_id == row.RoleId)">@RoleInfo(role.role_id).Text</option>
+                                }
+                            </select>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="d-flex gap-2 justify-content-end">
+                            <button type="button" class="btn btn-sm btn-success" @onclick="() => ApproveAsync(row.Id)">Подтвердить</button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(row.Id)">Отклонить</button>
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (loaded)
+{
+    <table class="table context-table">
+        <thead>
+            <tr>
+                <th>Пользователь</th>
+                <th>Роль</th>
+                <th>Статус</th>
+                <th>Новый пароль</th>
+                <th style="width:120px"></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in ActiveRows)
+            {
+                <tr>
+                    <td class="fw-semibold">@row.Username</td>
+                    <td>
+                        <div class="d-flex gap-2 align-items-center">
+                            <span class="badge @RoleInfo(row.RoleId).Css">@RoleInfo(row.RoleId).Text</span>
+                            <select class="form-select form-select-sm" style="width:auto" value="@row.RoleId" @onchange='e => RoleEdit[row.Id] = int.Parse(e.Value?.ToString() ?? "3")'>
+                                @foreach (var role in SelectableRoles)
+                                {
+                                    <option value="@role.role_id" selected="@(role.role_id == row.RoleId)">@RoleInfo(role.role_id).Text</option>
+                                }
+                            </select>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="badge @(row.Status == 1 ? "text-bg-success" : "text-bg-secondary")">@(row.Status == 1 ? "Активен" : "Ожидает")</span>
+                    </td>
+                    <td>
+                        <div class="d-flex gap-2">
+                            <input type="password" class="form-control form-control-sm" placeholder="••••••" @bind="PassEdit[row.Id]" />
+                        </div>
+                    </td>
+                    <td>
+                        <div class="d-flex gap-2 justify-content-end">
+                            <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => SaveRowAsync(row.Id)">Сохранить</button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(row.Id)">Удалить</button>
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private bool loaded;
+    private bool IsAdmin;
+    private List<UserRow> Rows = new();
+    private List<Role> Roles = new();
+
+    private string NewUsername = string.Empty;
+    private string NewPassword = string.Empty;
+    private int NewRole = 3;
+    private string? NewError;
+
+    private Dictionary<int, int> RoleEdit = new();
+    private Dictionary<int, string> PassEdit = new();
+
+    private IEnumerable<Role> SelectableRoles
+        => IsAdmin ? Roles : Roles.Where(r => r.role_id is 2 or 3);
+
+    private List<UserRow> PendingRows => Rows.Where(r => r.Status == 0).ToList();
+    private List<UserRow> ActiveRows => Rows.Where(r => r.Status == 1).ToList();
+
+    private sealed record UserRow(int Id, string Username, int RoleId, int Status);
+
+    private static (string Text, string Css) RoleInfo(int roleId) => roleId switch
+    {
+        1 => ("Админ", "text-bg-danger"),
+        4 => ("Модератор", "text-bg-info"),
+        2 => ("Преподаватель", "text-bg-primary"),
+        3 => ("Студент", "text-bg-success"),
+        _ => (roleId.ToString(), "text-bg-secondary")
+    };
+
+    protected override async Task OnInitializedAsync()
+        => await ReloadAsync();
+
+    private async Task ReloadAsync()
+    {
+        var authState = await Auth.GetAuthenticationStateAsync();
+        IsAdmin = authState.User.IsInRole("admin");
+
+        await using var context = DbFactory.CreateDbContext();
+        Roles = await context.Roles.OrderBy(r => r.role_id).ToListAsync();
+        Rows = (await context.Users.OrderBy(u => u.username).ToListAsync())
+            .Select(u => new UserRow(u.user_id, u.username, u.role_id, u.status))
+            .ToList();
+        PassEdit = Rows.ToDictionary(r => r.Id, _ => string.Empty);
+        loaded = true;
+        StateHasChanged();
+    }
+
+    private async Task AddAsync()
+    {
+        NewError = null;
+        if (string.IsNullOrWhiteSpace(NewUsername))
+        {
+            NewError = "Введите логин.";
+            return;
+        }
+        if (NewPassword.Length < 6)
+        {
+            NewError = "Пароль должен быть не короче 6 символов.";
+            return;
+        }
+        await using var context = DbFactory.CreateDbContext();
+        if (await context.Users.AnyAsync(u => u.username == NewUsername))
+        {
+            NewError = "Пользователь с таким логином уже существует.";
+            return;
+        }
+        context.Users.Add(new User
+        {
+            username = NewUsername,
+            password_hash = AuthStore.HashPassword(NewPassword),
+            role_id = NewRole,
+            status = 1
+        });
+        await context.SaveChangesAsync();
+        NewUsername = string.Empty;
+        NewPassword = string.Empty;
+        await ReloadAsync();
+    }
+
+    private async Task ApproveAsync(int id)
+    {
+        await using var context = DbFactory.CreateDbContext();
+        var user = await context.Users.FindAsync(id);
+        if (user is null)
+        {
+            await ReloadAsync();
+            return;
+        }
+        if (RoleEdit.TryGetValue(id, out var roleId))
+        {
+            user.role_id = roleId;
+        }
+        user.status = 1;
+        await context.SaveChangesAsync();
+        await ReloadAsync();
+    }
+
+    private async Task SaveRowAsync(int id)
+    {
+        await using var context = DbFactory.CreateDbContext();
+        var user = await context.Users.FindAsync(id);
+        if (user is null)
+        {
+            await ReloadAsync();
+            return;
+        }
+        if (RoleEdit.TryGetValue(id, out var roleId))
+        {
+            if (!IsAdmin && (roleId == 1 || user.role_id == 1))
+            {
+                await Js.InvokeVoidAsync("alert", "Недостаточно прав для изменения учётной записи администратора.");
+                await ReloadAsync();
+                return;
+            }
+            user.role_id = roleId;
+        }
+        if (PassEdit.TryGetValue(id, out var pass) && !string.IsNullOrWhiteSpace(pass))
+        {
+            if (!IsAdmin && user.role_id == 1)
+            {
+                await Js.InvokeVoidAsync("alert", "Недостаточно прав для изменения учётной записи администратора.");
+                await ReloadAsync();
+                return;
+            }
+            user.password_hash = AuthStore.HashPassword(pass);
+        }
+        await context.SaveChangesAsync();
+        await ReloadAsync();
+    }
+
+    private async Task DeleteAsync(int id)
+    {
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var currentName = authState.User.Identity?.Name;
+
+        await using var context = DbFactory.CreateDbContext();
+        var user = await context.Users.FindAsync(id);
+        if (user is null)
+        {
+            await ReloadAsync();
+            return;
+        }
+        if (user.username == currentName)
+        {
+            await Js.InvokeVoidAsync("alert", "Нельзя удалить собственную учётную запись.");
+            return;
+        }
+        if (!IsAdmin && user.role_id == 1)
+        {
+            await Js.InvokeVoidAsync("alert", "Недостаточно прав для удаления администратора.");
+            return;
+        }
+        var label = user.status == 0 ? "Отклонить регистрацию пользователя" : "Удалить пользователя";
+        if (!await Js.InvokeAsync<bool>("confirm", $"{label} «{user.username}»?"))
+        {
+            return;
+        }
+        context.Users.Remove(user);
+        await context.SaveChangesAsync();
+        await ReloadAsync();
+    }
+}
