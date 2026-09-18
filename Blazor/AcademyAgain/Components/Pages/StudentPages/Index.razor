@@ -1,4 +1,6 @@
 @page "/students"
+@rendermode InteractiveServer
+
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
@@ -18,10 +20,19 @@
     @* <PropertyColumn Property="student => student.last_name" />
     <PropertyColumn Property="student => student.first_name" />
     <PropertyColumn Property="student => student.middle_name" /> *@
-    <PropertyColumn Property="student => student.FullName" />
+
+   @*<PropertyColumn Property="student => student.FullName" Sortable="true"/> *@
+       <TemplateColumn Context="student" 
+           Title="Student" 
+           Sortable="true" 
+           InitialSortDirection="SortDirection.Ascending"
+           SortBy="sortBy">
+           @student.FullName
+       </TemplateColumn>
     <PropertyColumn Property="student => student.birth_date" />
+
     @* <PropertyColumn Property="student => student.email" />
-    <PropertyColumn Property="student => student.phone" /> *@
+       <PropertyColumn Property="student => student.phone" /> *@
     @* <PropertyColumn Property="student => student.photo" /> *@
     <PropertyColumn Property="student => student.Group.group_name" />
     <PropertyColumn Property="student => student.Group.Direction.direction_Name" />
@@ -36,6 +47,8 @@
 @code {
     private AcademyAgainContext context = default!;
     IQueryable<Student> students = default!;
+
+    GridSort<Student> sortBy = GridSort<Student>.ByAscending(s => s.last_name);
 
     protected override void OnInitialized()
     {
