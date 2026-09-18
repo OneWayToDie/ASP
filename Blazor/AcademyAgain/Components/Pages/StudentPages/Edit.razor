@@ -22,12 +22,7 @@ else
                 <DataAnnotationsValidator />
                 <ValidationSummary role="alert"/>
                 <input type="hidden" name="Student.stud_id" value="@Student.stud_id" />
-                <div class="mb-3">
-                <span class="text-danger">*</span>
-                    <label for="group" class="form-label">group:</label>
-                    <InputNumber id="group" @bind-Value="Student.group" class="form-control" aria-required="true"/>
-                    <ValidationMessage For="() => Student.group" class="text-danger" />
-                </div>
+                
                 <div class="mb-3">
                 <span class="text-danger">*</span>
                     <label for="last_name" class="form-label">last_name:</label>
@@ -60,6 +55,22 @@ else
                     <label for="phone" class="form-label">phone:</label>
                     <InputText id="phone" @bind-Value="Student.phone" class="form-control" />
                     <ValidationMessage For="() => Student.phone" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="group" class="form-label">group:</label>
+                    @* <InputNumber id="group" @bind-Value="Student.group" class="form-control" aria-required="true" /> *@
+                    <InputSelect id="group" class="form-control" @bind-Value="@Student.group">
+                        <option selected disabled>--- Выберите группу ---</option>
+                        @using (AcademyAgainContext context = DbFactory.CreateDbContext())
+                        {
+                            @foreach (Group group in context.Groups)
+                            {
+                                <option value="@group.group_Id">@group.group_name</option>
+                            }
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="() => Student.group" class="text-danger" />
                 </div>
                 @* <div class="mb-3">
                     <label for="photo" class="form-label">photo:</label>
