@@ -1,4 +1,9 @@
 @page "/students"
+@* Статический SSR не навешивает обработчики событий (кнопки пагинатора «мёртвые»).
+   InteractiveServer переводит страницу на серверную интерактивность (SignalR),
+   благодаря чему работают поиск, сортировка и перелистывание QuickGrid.
+   (Аналогично сделано в Counter.razor) *@
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
@@ -14,17 +19,33 @@
     <a href="students/create">Create New</a>
 </p>
 
-<QuickGrid Class="table" Items="students">
+@* Поле поиска: @bind обновляет searchString при каждом вводе, @bind:after вызывает OnSearch *@
+<input type="search" class="form-control mb-2" placeholder="Search..."
+       @bind="searchString" @bind:after="OnSearch" />
+
+@* filteredStudents — источник с учётом поиска; Pagination связывает сетку с состоянием пагинации.
+   Сортировку включает параметр Sortable на КОЛОНКАХ (у самого QuickGrid параметра Sortable нет). *@
+<QuickGrid Class="table" Items="filteredStudents" Pagination="paginator">
     @* <PropertyColumn Property="student => student.last_name" />
     <PropertyColumn Property="student => student.first_name" />
     <PropertyColumn Property="student => student.middle_name" /> *@
-    <PropertyColumn Property="student => student.FullName" />
-    <PropertyColumn Property="student => student.birth_date" />
+    @* TemplateColumn — единственный тип колонки, у которого SortBy является [Parameter]
+       (у PropertyColumn его нет). GridSort<Student>.ByAscending(s => s.last_name) задаёт
+       серверную сортировку по столбцу БД last_name, т.к. вычисляемое FullName в SQL не переводится. *@
+    <TemplateColumn Title="FullName" SortBy="@(GridSort<Student>.ByAscending(s => s.last_name))">
+        @context.FullName
+    </TemplateColumn>
+    @* Возраст — вычисляемое свойство (хранится только birth_date). ByDescending(birth_date):
+       при первом клике (по возрастанию) показываем самых молодых, как у обычной числовой колонки. *@
+    <TemplateColumn Title="Age" SortBy="@(GridSort<Student>.ByDescending(s => s.birth_date))">
+        @context.Age
+    </TemplateColumn>
     @* <PropertyColumn Property="student => student.email" />
     <PropertyColumn Property="student => student.phone" /> *@
     @* <PropertyColumn Property="student => student.photo" /> *@
-    <PropertyColumn Property="student => student.Group.group_name" />
-    <PropertyColumn Property="student => student.Group.Direction.direction_Name" />
+    @* PropertyColumn сортируется автоматически по своему Property, но только при Sortable=true *@
+    <PropertyColumn Property="student => student.Group.group_name" Sortable="true" />
+    <PropertyColumn Property="student => student.Group.Direction.direction_Name" Sortable="true" />
 
     <TemplateColumn Context="student">
         @* <a href="@($"students/edit?stud_id={student.stud_id}")">Edit</a> | *@
@@ -33,14 +54,38 @@
     </TemplateColumn>
 </QuickGrid>
 
+@* Пагинатор: навигация по страницам + выбор количества строк на странице *@
+<Paginator State="paginator" />
+
 @code {
     private AcademyAgainContext context = default!;
-    IQueryable<Student> students = default!;
+    IQueryable<Student> allStudents = default!;
+
+    // Текст из поля поиска (обновляется при каждом вводе символа).
+    private string searchString = "";
+
+    // Состояние пагинации: какая страница открыта и сколько строк показывать (10 по умолчанию).
+    private PaginationState paginator = new() { ItemsPerPage = 10 };
+
+    // Источник для сетки. Это геттер — при каждом обращении возвращает новый IQueryable,
+    // поэтому QuickGrid видит смену данных и перезапрашивает страницу из БД.
+    private IQueryable<Student> filteredStudents =>
+        string.IsNullOrWhiteSpace(searchString) // поиск пуст — берём всех
+            ? allStudents
+            : allStudents.Where(s => // иначе фильтруем в SQL (Contains -> LIKE '%...%')
+                s.last_name.Contains(searchString) ||
+                s.first_name.Contains(searchString) ||
+                (s.middle_name ?? "").Contains(searchString) || // ?? "" -> COALESCE, защита от null
+                s.Group.group_name.Contains(searchString) ||
+                s.Group.Direction.direction_Name.Contains(searchString));
+
+    // После ввода сбрасываем пагинацию на первую страницу (индекс 0), чтобы не застрять на несуществующей.
+    private async Task OnSearch() => await paginator.SetCurrentPageIndexAsync(0);
 
     protected override void OnInitialized()
     {
         context = DbFactory.CreateDbContext();
-        students = context
+        allStudents = context
                         .Students
                         .Include(s => s.Group)
                         .ThenInclude(g => g.Direction);

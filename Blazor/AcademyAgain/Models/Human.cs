@@ -30,6 +30,23 @@ namespace AcademyAgain.Models
 			get => $"{last_name} {first_name} {middle_name}";
 		}
 
+		// Возраст — вычисляемое свойство (хранится в БД только дата рождения).
+		// Get-only: значение не хранится, а считается на лету при каждом обращении.
+		public int Age
+		{
+			get
+			{
+				// Сегодняшняя дата как DateOnly (без времени), чтобы сравнивать с birth_date.
+				var today = DateOnly.FromDateTime(DateTime.Today);
+				// Начальная оценка возраста = разница календарных лет.
+				var age = today.Year - birth_date.Year;
+				// Если день рождения в этом году ещё не наступил (birth_date сдвинутое на age лет позже сегодня),
+				// разница лет завышена на единицу — отнимаем 1.
+				if (birth_date.AddYears(age) > today) age--;
+				return age;
+			}
+		}
+
 
 	}
 }

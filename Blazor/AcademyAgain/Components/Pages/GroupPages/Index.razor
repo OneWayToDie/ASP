@@ -1,4 +1,9 @@
 @page "/groups"
+@* Статический SSR не навешивает обработчики событий (кнопки пагинатора «мёртвые»).
+   InteractiveServer переводит страницу на серверную интерактивность (SignalR),
+   благодаря чему работают поиск, сортировка и перелистывание QuickGrid.
+   (Аналогично сделано в Counter.razor) *@
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
@@ -14,16 +19,26 @@
     <a href="groups/create">Create New</a>
 </p>
 
-<QuickGrid Class="table" Items="groups">
+@* Поле поиска: @bind обновляет searchString, @bind:after вызывает OnSearch (сброс на 1-ю страницу) *@
+<input type="search" class="form-control mb-2" placeholder="Search..."
+       @bind="searchString" @bind:after="OnSearch" />
+
+@* filteredGroups с учётом поиска; Pagination — пагинация.
+   Сортировку включаем параметром Sortable на самих колонках (у QuickGrid его нет). *@
+<QuickGrid Class="table" Items="filteredGroups" Pagination="paginator">
     @* <PropertyColumn Property="group => group.group_name" /> *@
 
-    <TemplateColumn Context="group">
+    @* Здесь отображается ссылка, а не значение, поэтому нужен TemplateColumn.
+       Title — текст кликабельного заголовка (без него колонка сортируема, но шапка пустая).
+       SortBy — [Parameter] только у TemplateColumn: сортировка по group_name через GridSort. *@
+    <TemplateColumn Title="group_name" SortBy="@(GridSort<Group>.ByAscending(g => g.group_name))" Context="group">
         <a href="@($"groups/details?group_id={group.group_Id}")">@group.group_name</a>
     </TemplateColumn>
-    <PropertyColumn Property="group => group.Direction == null ? null : group.Direction.direction_Name" />
-    <PropertyColumn Property="group => group.learning_days" />
-    <PropertyColumn Property="group => group.start_time" />
-    <PropertyColumn Property="group => group.start_date" />
+    @* PropertyColumn сортируется по своему свойству автоматически, но только при Sortable=true *@
+    <PropertyColumn Property="group => group.Direction == null ? null : group.Direction.direction_Name" Sortable="true" />
+    <PropertyColumn Property="group => group.learning_days" Sortable="true" />
+    <PropertyColumn Property="group => group.start_time" Sortable="true" />
+    <PropertyColumn Property="group => group.start_date" Sortable="true" />
 
     @* <TemplateColumn Context="group">
         <a href="@($"groups/edit?group_id={group.group_Id}")">Edit</a> |
@@ -32,14 +47,34 @@
     </TemplateColumn> *@
 </QuickGrid>
 
+@* Пагинатор: навигация по страницам + выбор количества строк *@
+<Paginator State="paginator" />
+
 @code {
     private AcademyAgainContext context = default!;
-    IQueryable<Group> groups = default!;
+    IQueryable<Group> allGroups = default!;
+
+    // Текст из поля поиска.
+    private string searchString = "";
+
+    // Состояние пагинации: текущая страница + сколько строк показывать (10).
+    private PaginationState paginator = new() { ItemsPerPage = 10 };
+
+    // Источник для сетки. Геттер возвращает новый IQueryable — сетка видит смену данных и перезапрашивает БД.
+    private IQueryable<Group> filteredGroups =>
+        string.IsNullOrWhiteSpace(searchString) // поиск пуст — все группы
+            ? allGroups
+            : allGroups.Where(g => // иначе фильтр в SQL (Contains -> LIKE '%...%')
+                g.group_name.Contains(searchString) ||
+                (g.Direction != null && g.Direction.direction_Name.Contains(searchString))); // Direction может быть null — проверяем
+
+    // После ввода возвращаемся на первую страницу (индекс 0).
+    private async Task OnSearch() => await paginator.SetCurrentPageIndexAsync(0);
 
     protected override void OnInitialized()
     {
         context = DbFactory.CreateDbContext();
-        groups = context.Groups.Include(g => g.Direction);
+        allGroups = context.Groups.Include(g => g.Direction);
     }
 
     public async ValueTask DisposeAsync() => await context.DisposeAsync();

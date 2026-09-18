@@ -1,4 +1,9 @@
 @page "/directions"
+@* Статический SSR не навешивает обработчики событий (кнопки пагинатора «мёртвые»).
+   InteractiveServer переводит страницу на серверную интерактивность (SignalR),
+   благодаря чему работают поиск, сортировка и перелистывание QuickGrid.
+   (Аналогично сделано в Counter.razor) *@
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
@@ -14,8 +19,15 @@
     <a href="directions/create">Create New</a>
 </p>
 
-<QuickGrid Class="table" Items="context.Directions">
-    <PropertyColumn Property="direction => direction.direction_Name" />
+@* Поле поиска: @bind обновляет searchString, @bind:after вызывает OnSearch (сброс на 1-ю страницу) *@
+<input type="search" class="form-control mb-2" placeholder="Search..."
+       @bind="searchString" @bind:after="OnSearch" />
+
+@* filteredDirections с учётом поиска; Pagination — пагинация.
+   Сортировку включаем параметром Sortable на самой колонке (у QuickGrid его нет). *@
+<QuickGrid Class="table" Items="filteredDirections" Pagination="paginator">
+    @* PropertyColumn сортируется по своему свойству автоматически, но только при Sortable=true *@
+    <PropertyColumn Property="direction => direction.direction_Name" Sortable="true" />
 
     <TemplateColumn Context="direction">
         <a href="@($"directions/edit?direction_id={direction.direction_Id}")">Edit</a> |
@@ -24,12 +36,32 @@
     </TemplateColumn>
 </QuickGrid>
 
+@* Пагинатор: навигация по страницам + выбор количества строк *@
+<Paginator State="paginator" />
+
 @code {
     private AcademyAgainContext context = default!;
+    IQueryable<Direction> allDirections = default!;
+
+    // Текст из поля поиска.
+    private string searchString = "";
+
+    // Состояние пагинации: текущая страница + сколько строк показывать (10).
+    private PaginationState paginator = new() { ItemsPerPage = 10 };
+
+    // Источник для сетки. Геттер возвращает новый IQueryable — сетка перезапрашивает БД при смене searchString.
+    private IQueryable<Direction> filteredDirections =>
+        string.IsNullOrWhiteSpace(searchString) // поиск пуст — все направления
+            ? allDirections
+            : allDirections.Where(d => d.direction_Name.Contains(searchString)); // фильтр в SQL (LIKE '%...%')
+
+    // После ввода возвращаемся на первую страницу (индекс 0).
+    private async Task OnSearch() => await paginator.SetCurrentPageIndexAsync(0);
 
     protected override void OnInitialized()
     {
         context = DbFactory.CreateDbContext();
+        allDirections = context.Directions;
     }
 
     public async ValueTask DisposeAsync() => await context.DisposeAsync();

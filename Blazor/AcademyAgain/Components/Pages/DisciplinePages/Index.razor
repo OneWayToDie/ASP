@@ -1,4 +1,8 @@
 @page "/disciplines"
+@* Статический SSR не навешивает обработчики событий (кнопки пагинатора «мёртвые»).
+   InteractiveServer переводит страницу на серверную интерактивность (SignalR),
+   благодаря чему работают поиск, сортировка и перелистывание QuickGrid.*@
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
@@ -14,9 +18,16 @@
     <a href="disciplines/create">Create New</a>
 </p>
 
-<QuickGrid Class="table" Items="context.Disciplines">
-    <PropertyColumn Property="discipline => discipline.discipline_name" />
-    <PropertyColumn Property="discipline => discipline.number_of_lessons" />
+@* Поле поиска: @bind обновляет searchString, @bind:after вызывает OnSearch (сброс на 1-ю страницу) *@
+<input type="search" class="form-control mb-2" placeholder="Search..."
+       @bind="searchString" @bind:after="OnSearch" />
+
+@* filteredDisciplines с учётом поиска; Pagination — пагинация.
+   Сортировку включаем параметром Sortable на самих колонках (у QuickGrid его нет). *@
+<QuickGrid Class="table" Items="filteredDisciplines" Pagination="paginator">
+    @* PropertyColumn сортируется по своему свойству автоматически, но только при Sortable=true *@
+    <PropertyColumn Property="discipline => discipline.discipline_name" Sortable="true" />
+    <PropertyColumn Property="discipline => discipline.number_of_lessons" Sortable="true" />
 
     <TemplateColumn Context="discipline">
         <a href="@($"disciplines/edit?discipline_id={discipline.discipline_id}")">Edit</a> |
@@ -25,12 +36,32 @@
     </TemplateColumn>
 </QuickGrid>
 
+@* Пагинатор: навигация по страницам + выбор количества строк *@
+<Paginator State="paginator" />
+
 @code {
     private AcademyAgainContext context = default!;
+    IQueryable<Discipline> allDisciplines = default!;
+
+    // Текст из поля поиска.
+    private string searchString = "";
+
+    // Состояние пагинации: текущая страница + сколько строк показывать (10).
+    private PaginationState paginator = new() { ItemsPerPage = 10 };
+
+    // Источник для сетки. Геттер возвращает новый IQueryable — сетка перезапрашивает БД при смене searchString.
+    private IQueryable<Discipline> filteredDisciplines =>
+        string.IsNullOrWhiteSpace(searchString) // поиск пуст — все дисциплины
+            ? allDisciplines
+            : allDisciplines.Where(d => d.discipline_name.Contains(searchString)); // фильтр в SQL (LIKE '%...%')
+
+    // После ввода возвращаемся на первую страницу (индекс 0).
+    private async Task OnSearch() => await paginator.SetCurrentPageIndexAsync(0);
 
     protected override void OnInitialized()
     {
         context = DbFactory.CreateDbContext();
+        allDisciplines = context.Disciplines;
     }
 
     public async ValueTask DisposeAsync() => await context.DisposeAsync();
