@@ -21,6 +21,10 @@
         <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="GoToday">Сегодня</button>
         <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="NextPeriod" title="Вперёд">▶</button>
         <span class="cal-period-title">@PeriodTitle()</span>
+        @if (view == "week" && ParityInfo is not null)
+        {
+            <span class="chip @(ParityInfo.Value.Even ? "chip-active" : "")">@ParityInfo.Value.Label неделя</span>
+        }
         <span class="filter-divider"></span>
         <button type="button" class='chip @(view == "week" ? "chip-active" : "")' @onclick='() => SetView("week")'>Неделя</button>
         <button type="button" class='chip @(view == "month" ? "chip-active" : "")' @onclick='() => SetView("month")'>Месяц</button>
@@ -173,6 +177,8 @@
     private List<DateTime> weekDays = new();
     private List<List<DateTime?>> monthWeeks = new();
     private List<LegendItem> legend = new();
+    private List<Semester> semesters = new();
+    private (bool Even, string Label)? ParityInfo;
 
     private sealed record LegendItem(string Name, string ColorClass);
 
@@ -188,6 +194,7 @@
             .ToDictionary(t => t.teacher_id, t => TeacherName(t));
         holidays = await context.Holidays.ToListAsync();
         holidayNames = holidays.ToDictionary(h => h.holiday_id, h => h.holiday_name);
+        semesters = await context.Semesters.AsNoTracking().OrderBy(m => m.start_date).ToListAsync();
         await ReloadAsync();
         loaded = true;
     }
@@ -338,6 +345,7 @@
     {
         if (view == "week")
         {
+            ParityInfo = BuildParity(anchor);
             var monday = Monday(anchor);
             var sunday = monday.AddDays(6);
             if (monday.Month == sunday.Month)
@@ -346,7 +354,20 @@
             }
             return $"{monday:dd.MM}–{sunday:dd.MM} {sunday:yyyy}";
         }
+        ParityInfo = null;
         return $"{Cap(new DateTime(anchor.Year, anchor.Month, 1).ToString("MMMM yyyy", ru))}";
+    }
+
+    private (bool Even, string Label)? BuildParity(DateTime marker)
+    {
+        var current = semesters.FirstOrDefault(m => m.is_current);
+        if (current is null || current.start_date is null)
+        {
+            return null;
+        }
+        var monday = Monday(marker);
+        bool even = AcademyAgain.Helpers.WeekParity.IsEvenWeek(monday, current.start_date.Value, current.is_even_week_start);
+        return (even, AcademyAgain.Helpers.WeekParity.ParityLabel(even));
     }
 
     private static string Cap(string value)

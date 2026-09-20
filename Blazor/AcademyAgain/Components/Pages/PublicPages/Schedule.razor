@@ -1,0 +1,199 @@
+@page "/schedule"
+@attribute [AllowAnonymous]
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+
+<PageTitle>Расписание занятий</PageTitle>
+
+<div class="page-header">
+    <h1>Расписание занятий</h1>
+    <p class="page-subtitle">Публичное расписание групп академии — выберите группу и период.</p>
+</div>
+
+<div class="filter-bar d-flex flex-wrap align-items-center gap-2 mb-3">
+    <span class="filter-label">Период:</span>
+    <button type="button" class='chip @(periodFilter == "all" ? "chip-active" : "")' @onclick='() => SetPeriod("all")'>Все</button>
+    <button type="button" class='chip @(periodFilter == "today" ? "chip-active" : "")' @onclick='() => SetPeriod("today")'>Сегодня</button>
+    <button type="button" class='chip @(periodFilter == "week" ? "chip-active" : "")' @onclick='() => SetPeriod("week")'>Неделя</button>
+    <span class="filter-divider"></span>
+    <select class="form-select form-select-sm filter-select" @bind="groupFilter" @bind:after="OnFilterChanged">
+        <option value="0">Все группы</option>
+        @foreach (var group in groups)
+        {
+            <option value="@group.Key">@group.Value</option>
+        }
+    </select>
+    <select class="form-select form-select-sm filter-select" @bind="teacherFilter" @bind:after="OnFilterChanged">
+        <option value="0">Все преподаватели</option>
+        @foreach (var teacher in teachers)
+        {
+            <option value="@teacher.Key">@teacher.Value</option>
+        }
+    </select>
+    <select class="form-select form-select-sm filter-select" @bind="semesterFilter" @bind:after="OnFilterChanged">
+        <option value="0">Все семестры</option>
+        @foreach (var semester in semesters)
+        {
+            <option value="@semester.semester_id">@semester.name</option>
+        }
+    </select>
+    <button type="button" class="btn btn-outline-secondary btn-sm ms-auto" onclick="window.print()">Печать</button>
+</div>
+
+<QuickGrid Class="table context-table" Items="query" ItemKey="schedule => schedule.lesson_id" Pagination="Pagination">
+    <TemplateColumn Title="Группа" Sortable="true" SortBy="GridSort<AcademyAgain.Models.Schedule>.ByAscending(s => GroupName(s.group))" Context="schedule">
+        @(GroupName(schedule.group))
+    </TemplateColumn>
+    <TemplateColumn Title="Дисциплина" Sortable="true" SortBy="GridSort<AcademyAgain.Models.Schedule>.ByAscending(s => DisciplineName(s.discipline))" Context="schedule">
+        @(DisciplineName(schedule.discipline))
+    </TemplateColumn>
+    <TemplateColumn Title="Преподаватель" Sortable="true" SortBy="GridSort<AcademyAgain.Models.Schedule>.ByAscending(s => TeacherName(s.teacher))" Context="schedule">
+        @(TeacherName(schedule.teacher))
+    </TemplateColumn>
+    <PropertyColumn Property="schedule => schedule.date" Title="Дата" Format="dd.MM.yyyy" Sortable="true" />
+    <PropertyColumn Property="schedule => schedule.time" Title="Время" Sortable="true" />
+    <TemplateColumn Title="Семестр / неделя" Sortable="true" SortBy="GridSort<AcademyAgain.Models.Schedule>.ByAscending(s => SemesterName(s.semester_id))" Context="schedule">
+        @SemesterCell(schedule)
+    </TemplateColumn>
+    <TemplateColumn Title="Проведено" Sortable="true" SortBy="GridSort<AcademyAgain.Models.Schedule>.ByAscending(s => s.spent)" Context="schedule">
+        @(schedule.spent ? "Да" : "Нет")
+    </TemplateColumn>
+</QuickGrid>
+
+<div class="paginator">
+    <span class="badge bg-secondary total-badge">Всего: @TotalCount</span>
+    <AppPaginator State="Pagination" OnPageSizeChanged="HandlePageSizeChanged" />
+</div>
+
+@code {
+    private readonly PaginationState Pagination = new() { ItemsPerPage = 25 };
+
+    private int TotalCount { get; set; }
+
+    private List<AcademyAgain.Models.Schedule> allItems = new();
+    private IQueryable<AcademyAgain.Models.Schedule> query = new List<AcademyAgain.Models.Schedule>().AsQueryable();
+    private List<AcademyAgain.Models.Schedule> filtered = new();
+    private Dictionary<int, string> groups = new();
+    private Dictionary<int, string> disciplines = new();
+    private Dictionary<int, string> teachers = new();
+    private Dictionary<int, Models.Semester> semesterMap = new();
+
+    private string periodFilter = "all";
+    private int groupFilter;
+    private int teacherFilter;
+    private int semesterFilter;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var context = DbFactory.CreateDbContext();
+        groups = (await context.Groups.OrderBy(g => g.group_name).ToListAsync())
+            .ToDictionary(g => g.group_id, g => g.group_name ?? "");
+        disciplines = (await context.Disciplines.OrderBy(d => d.discipline_name).ToListAsync())
+            .ToDictionary(d => d.discipline_id, d => d.discipline_name ?? "");
+        teachers = (await context.Teachers.OrderBy(t => t.last_name).ToListAsync())
+            .ToDictionary(t => t.teacher_id, t => TeacherName(t));
+        semesterMap = (await context.Semesters.AsNoTracking().ToListAsync()).ToDictionary(m => m.semester_id);
+        allItems = await context.Schedule.ToListAsync();
+
+        foreach (var groupId in groups.Keys)
+        {
+            groupFilter = groupId;
+            break;
+        }
+        ApplyFilter();
+    }
+
+    private IEnumerable<AcademyAgain.Models.Schedule> Filtered()
+    {
+        IEnumerable<AcademyAgain.Models.Schedule> list = allItems;
+        switch (periodFilter)
+        {
+            case "today":
+                list = list.Where(s => s.date.HasValue && s.date.Value.Date == DateTime.Today);
+                break;
+            case "week":
+                list = list.Where(s => s.date.HasValue && IsInCurrentWeek(s.date.Value));
+                break;
+        }
+        if (groupFilter != 0)
+        {
+            list = list.Where(s => s.group == groupFilter);
+        }
+        if (teacherFilter != 0)
+        {
+            list = list.Where(s => s.teacher == teacherFilter);
+        }
+        if (semesterFilter != 0)
+        {
+            list = list.Where(s => s.semester_id == semesterFilter);
+        }
+        return list;
+    }
+
+    private void ApplyFilter()
+    {
+        filtered = Filtered().ToList();
+        query = filtered.AsQueryable();
+        TotalCount = filtered.Count;
+    }
+
+    private async Task SetPeriod(string value)
+    {
+        periodFilter = value;
+        ApplyFilter();
+        await Pagination.SetCurrentPageIndexAsync(0);
+    }
+
+    private async Task OnFilterChanged()
+    {
+        ApplyFilter();
+        await Pagination.SetCurrentPageIndexAsync(0);
+    }
+
+    private async Task HandlePageSizeChanged(int newSize)
+    {
+        Pagination.ItemsPerPage = newSize;
+        await Pagination.SetCurrentPageIndexAsync(0);
+        StateHasChanged();
+    }
+
+    private static bool IsInCurrentWeek(DateTime date)
+    {
+        var today = DateTime.Today;
+        var monday = today.AddDays(-(((int)today.DayOfWeek + 6) % 7));
+        return date.Date >= monday && date.Date < monday.AddDays(7);
+    }
+
+    private string GroupName(int id)
+        => groups.TryGetValue(id, out var name) ? name : $"№{id}";
+
+    private List<Models.Semester> semesters
+        => semesterMap.Values.OrderBy(m => m.start_date).ToList();
+
+    private string SemesterName(int? id)
+        => id is int sid && semesterMap.TryGetValue(sid, out var m) ? m.name : "—";
+
+    private MarkupString SemesterCell(AcademyAgain.Models.Schedule schedule)
+    {
+        string name = SemesterName(schedule.semester_id);
+        if (schedule.date is null || schedule.semester_id is not int sid || !semesterMap.TryGetValue(sid, out var semester) || semester.start_date is not DateTime startDate)
+        {
+            return new MarkupString($"<span>{name}</span>");
+        }
+        bool even = AcademyAgain.Helpers.WeekParity.IsEvenWeek(schedule.date.Value, startDate, semester.is_even_week_start);
+        string parity = $" <span class=\"badge {(even ? "text-bg-primary" : "text-bg-secondary")}\">{AcademyAgain.Helpers.WeekParity.ParityLabel(even)}</span>";
+        return new MarkupString($"<span>{name}</span>{parity}");
+    }
+
+    private string DisciplineName(int id)
+        => disciplines.TryGetValue(id, out var name) ? name : $"№{id}";
+
+    private string TeacherName(int id)
+        => teachers.TryGetValue(id, out var name) ? name : $"№{id}";
+
+    private static string TeacherName(Teacher t)
+        => string.Join(" ", new[] { t.last_name, t.first_name, t.middle_name }.Where(p => !string.IsNullOrWhiteSpace(p)));
+}

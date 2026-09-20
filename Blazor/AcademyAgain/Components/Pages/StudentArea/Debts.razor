@@ -1,0 +1,163 @@
+@page "/student/debts"
+@attribute [Authorize(Roles = "student")]
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.Authorization
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject AuthenticationStateProvider Auth
+
+<PageTitle>Долги — кабинет студента</PageTitle>
+
+<div class="page-header">
+    <h1>Программа и долги</h1>
+    <p class="page-subtitle">Дисциплины программы вашего направления и количество пройденных занятий.</p>
+</div>
+
+@if (LinkedStudent is null)
+{
+    <div class="alert alert-warning">
+        К вашему аккаунту не привязана карточка студента. Обратитесь к администратору.
+    </div>
+}
+else if (ProgramItems.Count == 0)
+{
+    <div class="section-empty">По данным программы дисциплин не найдено. Обратитесь к администратору.</div>
+}
+else
+{
+    <div class="dashboard-stats">
+        <div class="stat-card">
+            <div class="stat-value">@DebtItems.Count</div>
+            <div class="stat-label">Долги</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">@ProgramItems.Count</div>
+            <div class="stat-label">Дисциплин в программе</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">@ProgressPercentText</div>
+            <div class="stat-label">Прогресс</div>
+        </div>
+    </div>
+
+    <h2 class="section-title">Пройденные</h2>
+    @if (Completed.Count == 0)
+    {
+        <div class="section-empty">Пройденных дисциплин пока нет</div>
+    }
+    else
+    {
+        <QuickGrid Class="table context-table" Items="completedGrid" ItemKey="d => d.DisciplineId">
+            <PropertyColumn Property="d => d.Name" Title="Дисциплина" Sortable="true" />
+            <PropertyColumn Property="d => d.LessonsSpent" Title="Проведено занятий" Sortable="true" />
+        </QuickGrid>
+    }
+
+    <h2 class="section-title">Долги</h2>
+    @if (DebtItems.Count == 0)
+    {
+        <div class="section-empty">Долгов нет — вся программа пройдена</div>
+    }
+    else
+    {
+        <QuickGrid Class="table context-table" Items="debtsGrid" ItemKey="d => d.DisciplineId">
+            <PropertyColumn Property="d => d.Name" Title="Дисциплина" Sortable="true" />
+            <PropertyColumn Property="d => d.LessonsSpent" Title="Проведено занятий" Sortable="true" />
+        </QuickGrid>
+    }
+}
+
+@code {
+    private sealed class ProgramItem
+    {
+        public int DisciplineId { get; init; }
+        public string Name { get; init; } = "";
+        public int LessonsSpent { get; init; }
+    }
+
+    private Student? LinkedStudent;
+    private List<ProgramItem> ProgramItems = new();
+    private IQueryable<ProgramItem> completedGrid = new List<ProgramItem>().AsQueryable();
+    private IQueryable<ProgramItem> debtsGrid = new List<ProgramItem>().AsQueryable();
+    private List<ProgramItem> Completed = new();
+    private List<ProgramItem> DebtItems = new();
+    private string ProgressPercentText = "—";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var name = authState.User.Identity?.Name;
+        await using var context = DbFactory.CreateDbContext();
+
+        var user = name is null
+            ? null
+            : await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.username == name);
+        if (user?.linked_id is not int studentId)
+        {
+            return;
+        }
+
+        LinkedStudent = await context.Students.AsNoTracking().FirstOrDefaultAsync(s => s.stud_id == studentId);
+        if (LinkedStudent?.group is not int groupId)
+        {
+            return;
+        }
+
+        var disciplines = await context.Disciplines.AsNoTracking().ToDictionaryAsync(d => d.discipline_id);
+        var lessonsSpent = await context.Schedule.AsNoTracking()
+            .Where(s => s.group == groupId)
+            .GroupBy(s => s.discipline)
+            .Select(g => new { Discipline = g.Key, Spent = g.Count(s => s.spent) })
+            .ToDictionaryAsync(x => x.Discipline, x => x.Spent);
+
+        var completedSet = (await context.CompleteDisciplines.AsNoTracking()
+                .Where(c => c.group == groupId)
+                .Select(c => c.discipline)
+                .ToListAsync())
+            .ToHashSet();
+
+        var programIds = new List<int>();
+        var group = await context.Groups.AsNoTracking().FirstOrDefaultAsync(g => g.group_id == groupId);
+        if (group?.direction.HasValue == true)
+        {
+            programIds = await context.DisciplinesDirectionsRelation.AsNoTracking()
+                .Where(r => r.direction == group.direction)
+                .Select(r => r.discipline)
+                .ToListAsync();
+        }
+        if (programIds.Count == 0)
+        {
+            programIds = await context.Schedule.AsNoTracking()
+                .Where(s => s.group == groupId)
+                .Select(s => s.discipline)
+                .Distinct()
+                .ToListAsync();
+        }
+
+        ProgramItems = programIds
+            .Distinct()
+            .OrderBy(id => DisciplineName(disciplines, id))
+            .Select(id => new ProgramItem
+            {
+                DisciplineId = id,
+                Name = DisciplineName(disciplines, id),
+                LessonsSpent = lessonsSpent.GetValueOrDefault(id)
+            })
+            .ToList();
+
+        Completed = ProgramItems.Where(p => completedSet.Contains(p.DisciplineId)).ToList();
+        DebtItems = ProgramItems.Where(p => !completedSet.Contains(p.DisciplineId)).ToList();
+        completedGrid = Completed.AsQueryable();
+        debtsGrid = DebtItems.AsQueryable();
+        ProgressPercentText = ProgramItems.Count == 0
+            ? "—"
+            : $"{ProgramItems.Count(p => completedSet.Contains(p.DisciplineId)) * 100.0 / ProgramItems.Count:0.#}%";
+    }
+
+    private static string DisciplineName(Dictionary<int, Discipline> map, int id)
+        => map.TryGetValue(id, out var d) && !string.IsNullOrWhiteSpace(d.discipline_name)
+            ? d.discipline_name!
+            : $"№{id}";
+}

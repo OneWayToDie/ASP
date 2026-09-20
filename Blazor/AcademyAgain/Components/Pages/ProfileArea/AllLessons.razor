@@ -1,0 +1,116 @@
+@page "/profile/lessons"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject AuthenticationStateProvider Auth
+@inject NavigationManager Navigation
+
+<PageTitle>Все занятия</PageTitle>
+
+<div class="list-header">
+    <h1>Все занятия</h1>
+    <div class="list-actions">
+        <a class="btn btn-outline-secondary" href="profile">Назад в профиль</a>
+    </div>
+</div>
+
+@if (!Loaded)
+{
+    <p class="text-muted">Загрузка…</p>
+}
+else if (!IsTeacher)
+{
+    <p class="text-muted">Список занятий доступен преподавателям.</p>
+    <a class="btn btn-outline-secondary" href="profile">Назад в профиль</a>
+}
+else if (Rows.Count == 0)
+{
+    <p class="text-muted">Занятий нет</p>
+}
+else
+{
+    <div class="mb-3">
+        <label class="form-label">Группа</label>
+        <select class="form-select" @bind="SelectedGroupId">
+            <option value="0">— выберите группу —</option>
+            @foreach (var g in GroupOptions)
+            {
+                <option value="@g.Id">@g.Name (@g.Lessons)</option>
+            }
+        </select>
+    </div>
+
+    @if (SelectedGroupId == 0)
+    {
+        <div class="section-empty">Выберите группу, чтобы увидеть занятия</div>
+    }
+    else
+    {
+        <div class="profile-section">
+            <table class="table table-sm">
+                <thead>
+                    <tr><th>Группа</th><th>Дисциплина</th><th>Дата</th><th>Время</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var l in Rows.Where(r => r.GroupId == SelectedGroupId))
+                    {
+                        <tr>
+                            <td>@l.Group</td>
+                            <td>@l.Discipline</td>
+                            <td>@l.Date</td>
+                            <td>@l.Time</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+@code {
+    private sealed record LessonRow(int GroupId, string Group, string Discipline, string Date, string Time);
+    private sealed record GroupOption(int Id, string Name, int Lessons);
+
+    private bool Loaded;
+    private bool IsTeacher;
+    private int SelectedGroupId;
+    private List<LessonRow> Rows = new();
+    private List<GroupOption> GroupOptions = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var name = authState.User.Identity?.Name;
+        await using var context = DbFactory.CreateDbContext();
+        var user = await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.username == name);
+        if (user is { role_id: 2, linked_id: int tid })
+        {
+            IsTeacher = true;
+            var disciplines = await context.Disciplines.AsNoTracking().ToDictionaryAsync(d => d.discipline_id);
+            var groups = await context.Groups.AsNoTracking().ToDictionaryAsync(g => g.group_id);
+            var scheduleList = await context.Schedule.AsNoTracking()
+                .Where(s => s.teacher == tid)
+                .OrderBy(s => s.date)
+                .ThenBy(s => s.time)
+                .ToListAsync();
+            Rows = scheduleList
+                .Select(s => new LessonRow(
+                    s.group,
+                    groups.TryGetValue(s.group, out var g) && !string.IsNullOrWhiteSpace(g.group_name) ? g.group_name! : $"№{s.group}",
+                    disciplines.TryGetValue(s.discipline, out var disc) && !string.IsNullOrWhiteSpace(disc.discipline_name)
+                        ? disc.discipline_name!
+                        : $"№{s.discipline}",
+                    s.date?.ToString("dd.MM.yyyy") ?? "—",
+                    s.time.HasValue ? s.time.Value.ToString(@"hh\:mm") : "—"))
+                .ToList();
+            GroupOptions = Rows
+                .GroupBy(r => new { r.GroupId, r.Group })
+                .Select(g => new GroupOption(g.Key.GroupId, g.Key.Group, g.Count()))
+                .OrderBy(g => g.Name)
+                .ToList();
+        }
+        Loaded = true;
+    }
+}

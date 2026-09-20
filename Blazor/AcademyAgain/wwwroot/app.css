@@ -2626,3 +2626,208 @@ html[data-theme="dark"] .cal-holiday-col
     color: var(--app-text-secondary);
     font-size: 0.9rem;
 }
+
+/* ===== Кабинет преподавателя ===== */
+.tdash-actions
+{
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.tdash-action
+{
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+    background: var(--app-surface);
+    color: inherit;
+    text-decoration: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.tdash-action:hover
+{
+    border-color: var(--app-accent);
+    box-shadow: 0 6px 18px rgba(110, 168, 254, 0.18);
+    color: inherit;
+    text-decoration: none;
+    transform: translateY(-2px);
+}
+
+.tdash-action-icon
+{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    flex: none;
+    border-radius: 8px;
+    background: var(--app-surface-2);
+    color: var(--app-accent);
+}
+
+.tdash-action-icon svg
+{
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+.tdash-action-title
+{
+    display: block;
+    font-weight: 600;
+}
+
+.tdash-action-desc
+{
+    display: block;
+    color: var(--app-text-secondary);
+    font-size: 0.85rem;
+}
+
+.tdash-lessons
+{
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin-bottom: 1.5rem;
+}
+
+.tdash-lesson
+{
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+    background: var(--app-surface);
+    color: inherit;
+    text-decoration: none;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.tdash-lesson:hover
+{
+    border-color: var(--app-accent);
+    background: var(--app-surface-2);
+    color: inherit;
+    text-decoration: none;
+}
+
+.tdash-lesson-time
+{
+    display: flex;
+    flex-direction: column;
+    flex: none;
+    min-width: 5.5rem;
+}
+
+.tdash-lesson-date
+{
+    color: var(--app-text-secondary);
+    font-size: 0.78rem;
+}
+
+.tdash-lesson-clock
+{
+    color: var(--app-accent);
+    font-weight: 700;
+    font-size: 1.05rem;
+}
+
+.tdash-lesson-main
+{
+    flex: 1;
+    min-width: 0;
+}
+
+.tdash-lesson-title
+{
+    display: block;
+    font-weight: 600;
+}
+
+.tdash-lesson-sub
+{
+    display: block;
+    color: var(--app-text-secondary);
+    font-size: 0.85rem;
+}
+
+.tdash-chip
+{
+    flex: none;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.tdash-chip-done
+{
+    background: rgba(40, 167, 69, 0.16);
+    color: #2bb64a;
+}
+
+.tdash-chip-todo
+{
+    background: rgba(255, 193, 7, 0.18);
+    color: #e6a700;
+}
+
+.tdash-lesson-go
+{
+    flex: none;
+    color: var(--app-accent);
+    font-size: 0.85rem;
+}
+
+.tdash-chips
+{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.tdash-chip-plain
+{
+    display: inline-block;
+    padding: 0.35rem 0.8rem;
+    border: 1px solid var(--app-border);
+    border-radius: 999px;
+    background: var(--app-surface-2);
+    color: var(--app-text);
+    font-size: 0.85rem;
+    text-decoration: none;
+}
+
+a.tdash-chip-plain:hover
+{
+    border-color: var(--app-accent);
+    color: var(--app-accent);
+    text-decoration: none;
+}
+
+.tdash-progress
+{
+    height: 0.6rem;
+    margin: 0.5rem 0 0.25rem;
+    background: var(--app-surface-2);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.tdash-progress-bar
+{
+    height: 100%;
+    background: var(--app-accent);
+    border-radius: 999px;
+}

@@ -639,7 +639,7 @@ else
                                     <tr><th>Группа</th><th>Дисциплина</th><th>Дата</th></tr>
                                 </thead>
                                 <tbody>
-                                    @foreach (var l in Lessons)
+                                    @foreach (var l in Lessons.TakeLast(5))
                                     {
                                         <tr>
                                             <td>@l.Group</td>
@@ -649,6 +649,10 @@ else
                                     }
                                 </tbody>
                             </table>
+                            @if (Lessons.Count > 5)
+                            {
+                                <button type="button" class="btn btn-outline-primary mt-2" @onclick="GoToAllLessons">Увидеть больше</button>
+                            }
                         }
                     </div>
                     <div class="profile-section">
@@ -908,6 +912,9 @@ private string ContactEmail = string.Empty;
 
     protected override async Task OnInitializedAsync()
         => await LoadAsync();
+
+    private void GoToAllLessons()
+        => Navigation.NavigateTo("/profile/lessons");
 
     private async Task LoadAsync()
     {

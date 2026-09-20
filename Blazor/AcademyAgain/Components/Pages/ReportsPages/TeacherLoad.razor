@@ -15,6 +15,15 @@
     <InputDate @bind-Value="fromDate" class="form-control filter-select" />
     <span class="filter-label">—</span>
     <InputDate @bind-Value="toDate" class="form-control filter-select" />
+    <span class="filter-divider"></span>
+    <span class="filter-label">Семестр:</span>
+    <select class="form-select filter-select" @bind="semesterFilter">
+        <option value="0">Все семестры</option>
+        @foreach (var semester in semesters)
+        {
+            <option value="@semester.semester_id">@semester.name</option>
+        }
+    </select>
     <select class="form-select filter-select" @bind="teacherFilter">
         <option value="0">Все преподаватели</option>
         @foreach (var teacher in teachers)
@@ -85,8 +94,10 @@ else
     private DateTime fromDate = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
     private DateTime toDate = DateTime.Today;
     private int teacherFilter;
+    private int semesterFilter;
 
     private Dictionary<int, string> teachers = new();
+    private List<Models.Semester> semesters = new();
     private List<TeacherLoadRow> rows = new();
 
     private int TotalLessons;
@@ -100,6 +111,7 @@ else
         await using var context = DbFactory.CreateDbContext();
         teachers = (await context.Teachers.OrderBy(t => t.last_name).ToListAsync())
             .ToDictionary(t => t.teacher_id, t => TeacherName(t.teacher_id));
+        semesters = await context.Semesters.AsNoTracking().OrderBy(m => m.start_date).ToListAsync();
         await Apply();
     }
 
@@ -111,6 +123,7 @@ else
         var to = toDate.Date;
         var schedule = await context.Schedule
             .Where(s => (teacherFilter == 0 || s.teacher == teacherFilter)
+                && (semesterFilter == 0 || s.semester_id == semesterFilter)
                 && s.date.HasValue
                 && s.date.Value.Date >= from
                 && s.date.Value.Date <= to)
@@ -133,6 +146,7 @@ else
                 Name = TeacherName(id),
                 Lessons = schedule.Count(s => s.teacher == id),
                 Spent = schedule.Count(s => s.teacher == id && s.spent),
+                Hours = schedule.Where(s => s.teacher == id).Sum(s => s.duration_min) / 60.0m,
                 Accrued = accrued.TryGetValue(id, out var total) ? total : 0
             });
         }
@@ -148,6 +162,7 @@ else
     private async Task Reset()
     {
         teacherFilter = 0;
+        semesterFilter = 0;
         fromDate = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
         toDate = DateTime.Today;
         await Apply();
@@ -186,7 +201,7 @@ else
         public string Name { get; set; } = "";
         public int Lessons { get; set; }
         public int Spent { get; set; }
-        public decimal Hours => Lessons * 1.5m;
+        public decimal Hours { get; set; }
         public decimal Accrued { get; set; }
         public string Percent => Lessons > 0 ? $"{Spent * 100.0d / Lessons:0.#}" : "—";
     }

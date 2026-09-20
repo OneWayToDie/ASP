@@ -1,0 +1,92 @@
+@page "/student/grades"
+@attribute [Authorize(Roles = "student")]
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.Authorization
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject AuthenticationStateProvider Auth
+
+<PageTitle>Оценки — кабинет студента</PageTitle>
+
+<div class="page-header">
+    <h1>Оценки</h1>
+    <p class="page-subtitle">Оценки по занятиям. Средний балл: <strong>@AverageGradeText</strong></p>
+</div>
+
+@if (Rows.Count == 0)
+{
+    <div class="section-empty">Оценок пока нет</div>
+}
+else
+{
+    <QuickGrid Class="table context-table" Items="gridRows" ItemKey="row => row.LessonId">
+        <PropertyColumn Property="row => row.Discipline" Title="Дисциплина" Sortable="true" />
+        <PropertyColumn Property="row => row.Date" Title="Дата" Sortable="true" />
+        <TemplateColumn Title="Оценка 1" Sortable="true" SortBy="GridSort<GradeRow>.ByAscending(r => r.Grade1)" Context="row">
+            @(row.Grade1 is int g1 ? g1.ToString() : "—")
+        </TemplateColumn>
+        <TemplateColumn Title="Оценка 2" Sortable="true" SortBy="GridSort<GradeRow>.ByAscending(r => r.Grade2)" Context="row">
+            @(row.Grade2 is int g2 ? g2.ToString() : "—")
+        </TemplateColumn>
+    </QuickGrid>
+}
+
+@code {
+    private sealed class GradeRow
+    {
+        public long LessonId { get; init; }
+        public string Discipline { get; init; } = "";
+        public string Date { get; init; } = "";
+        public int? Grade1 { get; init; }
+        public int? Grade2 { get; init; }
+    }
+
+    private List<GradeRow> Rows = new();
+    private IQueryable<GradeRow> gridRows = new List<GradeRow>().AsQueryable();
+    private string AverageGradeText = "—";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var name = authState.User.Identity?.Name;
+        await using var context = DbFactory.CreateDbContext();
+
+        var user = name is null
+            ? null
+            : await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.username == name);
+        if (user?.linked_id is not int studentId)
+        {
+            return;
+        }
+
+        var disciplines = await context.Disciplines.AsNoTracking().ToDictionaryAsync(d => d.discipline_id);
+        var lessons = await context.Schedule.AsNoTracking().ToDictionaryAsync(s => s.lesson_id);
+        var grades = await context.Grades.AsNoTracking()
+            .Where(g => g.student == studentId)
+            .ToListAsync();
+
+        Rows = grades
+            .OrderByDescending(g => lessons.GetValueOrDefault(g.lesson)?.date)
+            .Select(g =>
+            {
+                lessons.TryGetValue(g.lesson, out var lesson);
+                return new GradeRow
+                {
+                    LessonId = g.lesson,
+                    Discipline = lesson is not null && disciplines.TryGetValue(lesson.discipline, out var d) && !string.IsNullOrWhiteSpace(d.discipline_name)
+                        ? d.discipline_name
+                        : $"№{lesson?.discipline ?? 0}",
+                    Date = lesson?.date?.ToString("dd.MM.yyyy") ?? "—",
+                    Grade1 = g.grade_1,
+                    Grade2 = g.grade_2
+                };
+            })
+            .ToList();
+        gridRows = Rows.AsQueryable();
+
+        var values = Rows.SelectMany(r => new[] { r.Grade1, r.Grade2 }).Where(v => v.HasValue).Select(v => v!.Value).ToList();
+        AverageGradeText = values.Count == 0 ? "—" : $"{values.Average():0.00}";
+    }
+}

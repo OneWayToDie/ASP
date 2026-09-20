@@ -1,0 +1,133 @@
+@page "/reports/attendance"
+@attribute [Authorize(Policy = "Teaching")]
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+
+<PageTitle>Отчёт по посещаемости</PageTitle>
+
+<div class="list-header">
+    <h1>Отчёт по посещаемости</h1>
+    <div class="list-actions">
+        <button type="button" class="btn btn-outline-secondary" onclick="window.print()">Печать</button>
+        <ExportMenu RowBuilder="BuildRows" FileName="poseshchaemost" />
+    </div>
+</div>
+
+<div class="filter-bar d-flex flex-wrap align-items-center gap-2 mb-3">
+    <span class="filter-label">Группа:</span>
+    <select class="form-select form-select-sm filter-select" @bind="groupFilter" @bind:after="ReloadAsync">
+        <option value="0">— выберите группу —</option>
+        @foreach (var group in groups)
+        {
+            <option value="@group.Key">@group.Value</option>
+        }
+    </select>
+</div>
+
+@if (groupFilter == 0)
+{
+    <div class="alert alert-info">Выберите группу для отчёта.</div>
+}
+else if (Rows.Count == 0)
+{
+    <div class="alert alert-warning">По группе нет данных (нет проведённых занятий).</div>
+}
+else
+{
+    <table class="table context-table">
+        <thead>
+            <tr>
+                <th>Студент</th>
+                <th class="text-end">Проведено</th>
+                <th class="text-end">Присутств.</th>
+                <th class="text-end">Пропуски</th>
+                <th class="text-end">Посещаемость</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in Rows.OrderByDescending(r => r.Percent))
+            {
+                <tr>
+                    <td>@row.Student</td>
+                    <td class="text-end">@row.Total</td>
+                    <td class="text-end">@row.Present</td>
+                    <td class="text-end">@row.Missed</td>
+                    <td class="text-end">@row.Percent.ToString("0.#")%</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private sealed record AttendanceRow(string Student, int Total, int Present, int Missed, double Percent);
+
+    private int groupFilter;
+    private Dictionary<int, string> groups = new();
+    private List<AttendanceRow> Rows = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var context = DbFactory.CreateDbContext();
+        groups = (await context.Groups.OrderBy(g => g.group_name).ToListAsync())
+            .ToDictionary(g => g.group_id, g => g.group_name ?? "");
+    }
+
+    private async Task ReloadAsync()
+    {
+        Rows = new List<AttendanceRow>();
+        if (groupFilter == 0)
+        {
+            return;
+        }
+        await using var context = DbFactory.CreateDbContext();
+
+        var spentIds = (await context.Schedule.AsNoTracking()
+                .Where(s => s.group == groupFilter && s.spent)
+                .Select(s => s.lesson_id)
+                .ToListAsync())
+            .ToHashSet();
+        var students = await context.Students.AsNoTracking()
+            .Where(s => s.group == groupFilter)
+            .OrderBy(s => s.last_name)
+            .ToListAsync();
+
+        foreach (var student in students)
+        {
+            var attendance = await context.Attendance.AsNoTracking()
+                .Where(a => a.student == student.stud_id)
+                .ToListAsync();
+            var present = attendance.Count(a => spentIds.Contains(a.lesson) && a.present);
+            int total = spentIds.Count;
+            Rows.Add(new AttendanceRow(
+                string.Join(" ", new[] { student.last_name, student.first_name, student.middle_name }.Where(p => !string.IsNullOrWhiteSpace(p))),
+                total,
+                present,
+                Math.Max(0, total - present),
+                total == 0 ? 0 : present * 100.0 / total));
+        }
+        StateHasChanged();
+    }
+
+    private List<string?[]> BuildRows()
+    {
+        var rows = new List<string?[]>
+        {
+            new[] { "Студент", "Проведено", "Присутствий", "Пропуски", "Посещаемость,%" }
+        };
+        foreach (var row in Rows.OrderByDescending(r => r.Percent))
+        {
+            rows.Add(new[]
+            {
+                row.Student,
+                row.Total.ToString(),
+                row.Present.ToString(),
+                row.Missed.ToString(),
+                row.Percent.ToString("0.#")
+            });
+        }
+        return rows;
+    }
+}

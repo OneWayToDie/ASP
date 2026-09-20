@@ -14,6 +14,7 @@ builder.Services.AddQuickGridEntityFrameworkAdapter();
 builder.Services.Configure<AcademyAgain.Models.SmtpOptions>(builder.Configuration.GetSection("Smtp"));
 builder.Services.AddScoped<AcademyAgain.Helpers.IEmailSender, AcademyAgain.Helpers.EmailSender>();
 builder.Services.AddScoped<AcademyAgain.Helpers.EmailVerificationService>();
+builder.Services.AddScoped<AcademyAgain.Services.SessionAdmissionService>();
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 

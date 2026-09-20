@@ -474,6 +474,32 @@ private static double IntAxisMax(double maxVal)
             return;
         }
 
+        if (authState.User.IsInRole("student"))
+        {
+            Redirecting = true;
+            try
+            {
+                Navigation.NavigateTo("/student", forceLoad: true);
+            }
+            catch (InvalidOperationException)
+            {
+            }
+            return;
+        }
+
+        if (authState.User.IsInRole("teacher"))
+        {
+            Redirecting = true;
+            try
+            {
+                Navigation.NavigateTo("/teacher", forceLoad: true);
+            }
+            catch (InvalidOperationException)
+            {
+            }
+            return;
+        }
+
         await LoadChartsAsync();
 
         await using var context = DbFactory.CreateDbContext();

@@ -1,0 +1,378 @@
+@page "/teacher/journal"
+@attribute [Authorize(Roles = "teacher")]
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.Authorization
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject AuthenticationStateProvider Auth
+@inject NavigationManager Nav
+
+<PageTitle>Журнал — кабинет преподавателя</PageTitle>
+
+<div class="page-header">
+    <h1>Журнал</h1>
+    <p class="page-subtitle">Ведение посещаемости и оценок по вашим занятиям.</p>
+</div>
+
+@if (TeacherId is null)
+{
+    <div class="alert alert-warning">
+        К вашему аккаунту не привязана карточка преподавателя. Обратитесь к администратору.
+    </div>
+}
+else if (OwnLessons.Count == 0)
+{
+    <div class="section-empty">У вас пока нет ни одного занятия в расписании</div>
+}
+else
+{
+    <div class="mb-3">
+        <label class="form-label">Занятие</label>
+        <select class="form-select" @bind="SelectedLessonId" @bind:after="OnLessonSelected">
+            <option value="0">— выберите занятие —</option>
+            @foreach (var lesson in OwnLessons)
+            {
+                <option value="@lesson.Key">@lesson.Value</option>
+            }
+        </select>
+    </div>
+
+    @if (Rows == null)
+    {
+        <div class="section-empty">Выберите занятие, чтобы вести журнал</div>
+    }
+    else
+    {
+        <h2 class="section-title">@SelectedLessonInfo</h2>
+
+        @if (Message != null)
+        {
+            <div class="alert @(MessageIsError ? "alert-danger" : "alert-success")">@Message</div>
+        }
+
+        <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="spentToggle" @bind="LessonSpent" @bind:after="OnSpentToggled" />
+            <label class="form-check-label" for="spentToggle">
+                Занятие проведено
+            </label>
+        </div>
+
+        @if (Rows.Count == 0)
+        {
+            <div class="section-empty">В группе занятия нет студентов</div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table context-table">
+                    <thead>
+                        <tr>
+                            <th>Студент</th>
+                            <th style="width: 120px;" class="text-center">Присутствовал</th>
+                            <th style="width: 120px;" class="text-center">Оценка 1</th>
+                            <th style="width: 120px;" class="text-center">Оценка 2</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Rows)
+                        {
+                            <tr>
+                                <td>@row.StudentName</td>
+                                <td class="text-center">
+                                    <input class="form-check-input" type="checkbox" @bind="row.Present" />
+                                </td>
+                                <td class="text-center">
+                                    <input type="number" min="1" max="5" class="form-control form-control-sm grade-input d-inline-block"
+                                           placeholder="1–5" @bind="row.Grade1Text" @bind:event="onchange" />
+                                </td>
+                                <td class="text-center">
+                                    <input type="number" min="1" max="5" class="form-control form-control-sm grade-input d-inline-block"
+                                           placeholder="1–5" @bind="row.Grade2Text" @bind:event="onchange" />
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <button type="button" class="btn btn-primary" disabled="@Saving" @onclick="SaveJournal">
+                @(Saving ? "Сохранение…" : "Сохранить журнал")
+            </button>
+        }
+    }
+}
+
+@code {
+    private sealed class JournalRow
+    {
+        public int StudentId { get; init; }
+        public string StudentName { get; init; } = "";
+        public bool Present { get; set; }
+        public string? Grade1Text { get; set; }
+        public string? Grade2Text { get; set; }
+    }
+
+    private int? TeacherId;
+    private Dictionary<long, string> OwnLessons = new();
+    private long SelectedLessonId;
+    private List<JournalRow>? Rows;
+    private bool LessonSpent;
+    private bool Saving;
+    private string? Message;
+    private bool MessageIsError;
+    private string SelectedLessonInfo = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var name = authState.User.Identity?.Name;
+        await using var context = DbFactory.CreateDbContext();
+
+        var user = name is null
+            ? null
+            : await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.username == name);
+        if (user?.linked_id is not int teacherId)
+        {
+            return;
+        }
+
+        TeacherId = teacherId;
+
+        var disciplineMap = await context.Disciplines.AsNoTracking().ToDictionaryAsync(d => d.discipline_id);
+        var groupMap = await context.Groups.AsNoTracking().ToDictionaryAsync(g => g.group_id);
+        var lessons = await context.Schedule.AsNoTracking()
+            .Where(s => s.teacher == teacherId)
+            .OrderByDescending(s => s.date)
+            .ThenBy(s => s.time)
+            .ToListAsync();
+
+        OwnLessons = lessons.ToDictionary(
+            s => s.lesson_id,
+            s =>
+            {
+                var discipline = disciplineMap.TryGetValue(s.discipline, out var d) && !string.IsNullOrWhiteSpace(d.discipline_name)
+                    ? d.discipline_name!
+                    : $"№{s.discipline}";
+                var group = groupMap.TryGetValue(s.group, out var g) && !string.IsNullOrWhiteSpace(g.group_name)
+                    ? g.group_name!
+                    : $"№{s.group}";
+                var date = s.date?.ToString("dd.MM.yyyy") ?? "—";
+                var time = s.time.HasValue ? " " + s.time.Value.ToString("hh\\:mm") : "";
+                return $"{discipline} · группа {group} · {date}{time}";
+            });
+
+        var query = Nav.Uri.Split('?').Skip(1).FirstOrDefault();
+        var lessonParam = query?.Split('&')
+            .Select(p => p.Split('='))
+            .FirstOrDefault(p => p.Length == 2 && p[0].Equals("lesson", StringComparison.OrdinalIgnoreCase));
+        if (lessonParam is not null && long.TryParse(lessonParam[1], out var requestedLesson) && OwnLessons.ContainsKey(requestedLesson))
+        {
+            SelectedLessonId = requestedLesson;
+            await OnLessonSelected();
+        }
+    }
+
+    private async Task OnLessonSelected()
+    {
+        Message = null;
+        if (SelectedLessonId == 0)
+        {
+            Rows = null;
+            return;
+        }
+
+        await using var context = DbFactory.CreateDbContext();
+
+        var lesson = await context.Schedule.AsNoTracking().FirstOrDefaultAsync(s => s.lesson_id == SelectedLessonId);
+        if (lesson is null)
+        {
+            Rows = null;
+            return;
+        }
+        if (TeacherId is null || lesson.teacher != TeacherId)
+        {
+            Nav.NavigateTo("/403");
+            return;
+        }
+
+        SelectedLessonInfo = OwnLessons.GetValueOrDefault(SelectedLessonId) ?? $"Занятие №{SelectedLessonId}";
+        LessonSpent = lesson.spent;
+
+        var students = await context.Students.AsNoTracking()
+            .Where(s => s.group == lesson.group)
+            .OrderBy(s => s.last_name)
+            .ThenBy(s => s.first_name)
+            .ToListAsync();
+
+        var attendance = await context.Attendance.AsNoTracking()
+            .Where(a => a.lesson == SelectedLessonId)
+            .ToDictionaryAsync(a => a.student);
+        var grades = await context.Grades.AsNoTracking()
+            .Where(g => g.lesson == SelectedLessonId)
+            .ToDictionaryAsync(g => g.student);
+
+        Rows = students
+            .Select(s => new JournalRow
+            {
+                StudentId = s.stud_id,
+                StudentName = string.Join(" ", new[] { s.last_name, s.first_name, s.middle_name }.Where(p => !string.IsNullOrWhiteSpace(p))),
+                Present = attendance.TryGetValue(s.stud_id, out var a) && a.present,
+                Grade1Text = grades.TryGetValue(s.stud_id, out var g) ? g.grade_1?.ToString() : null,
+                Grade2Text = grades.TryGetValue(s.stud_id, out var grade) ? grade.grade_2?.ToString() : null
+            })
+            .ToList();
+    }
+
+    private async Task OnSpentToggled()
+    {
+        var value = LessonSpent;
+        Message = null;
+        if (SelectedLessonId == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            await using var context = DbFactory.CreateDbContext();
+            var lesson = await context.Schedule.FirstOrDefaultAsync(s => s.lesson_id == SelectedLessonId);
+            if (lesson is null)
+            {
+                LessonSpent = !value;
+                return;
+            }
+            if (TeacherId is null || lesson.teacher != TeacherId)
+            {
+                LessonSpent = !value;
+                Message = "Не удалось сохранить: это не ваше занятие.";
+                MessageIsError = true;
+                StateHasChanged();
+                return;
+            }
+            lesson.spent = value;
+            await context.SaveChangesAsync();
+        }
+        catch
+        {
+            LessonSpent = !value;
+            Message = "Не удалось сохранить отметку о проведении занятия.";
+            MessageIsError = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SaveJournal()
+    {
+        Message = null;
+        MessageIsError = false;
+        if (Rows is null || SelectedLessonId == 0 || TeacherId is null)
+        {
+            return;
+        }
+
+        var errors = new List<string>();
+        foreach (var row in Rows)
+        {
+            TryParseGrade(row.Grade1Text, row.StudentName, "Оценка 1", errors);
+            TryParseGrade(row.Grade2Text, row.StudentName, "Оценка 2", errors);
+        }
+        foreach (var row in Rows)
+        {
+            var grade1 = ParseGrade(row.Grade1Text);
+            var grade2 = ParseGrade(row.Grade2Text);
+            if (grade1 is int g1 && (g1 < 1 || g1 > 5))
+            {
+                errors.Add($"{row.StudentName}: «Оценка 1» может быть только 1–5");
+            }
+            if (grade2 is int g2 && (g2 < 1 || g2 > 5))
+            {
+                errors.Add($"{row.StudentName}: «Оценка 2» может быть только 1–5");
+            }
+        }
+
+        if (errors.Count > 0)
+        {
+            Message = string.Join("\n", errors.Distinct());
+            MessageIsError = true;
+            return;
+        }
+
+        Saving = true;
+        try
+        {
+            await using var context = DbFactory.CreateDbContext();
+
+            foreach (var row in Rows)
+            {
+                var attendance = await context.Attendance.FirstOrDefaultAsync(a => a.student == row.StudentId && a.lesson == SelectedLessonId);
+                if (attendance is null)
+                {
+                    context.Attendance.Add(new Attendance { student = row.StudentId, lesson = SelectedLessonId, present = row.Present });
+                }
+                else
+                {
+                    attendance.present = row.Present;
+                }
+
+                var grade1 = ParseGrade(row.Grade1Text);
+                var grade2 = ParseGrade(row.Grade2Text);
+
+                if (grade1 is null && grade2 is null)
+                {
+                    var existing = await context.Grades.FirstOrDefaultAsync(g => g.student == row.StudentId && g.lesson == SelectedLessonId);
+                    if (existing is not null)
+                    {
+                        context.Grades.Remove(existing);
+                    }
+                }
+                else
+                {
+                    var grade = await context.Grades.FirstOrDefaultAsync(g => g.student == row.StudentId && g.lesson == SelectedLessonId);
+                    if (grade is null)
+                    {
+                        context.Grades.Add(new Grade { student = row.StudentId, lesson = SelectedLessonId, grade_1 = grade1, grade_2 = grade2 });
+                    }
+                    else
+                    {
+                        grade.grade_1 = grade1;
+                        grade.grade_2 = grade2;
+                    }
+                }
+            }
+
+            await context.SaveChangesAsync();
+            Message = "Журнал сохранён.";
+        }
+        catch (Exception)
+        {
+            Message = "Не удалось сохранить журнал. Попробуйте ещё раз.";
+            MessageIsError = true;
+        }
+        finally
+        {
+            Saving = false;
+        }
+    }
+
+    private static void TryParseGrade(string? text, string studentName, string field, List<string> errors)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+        if (!int.TryParse(text.Trim(), out var value))
+        {
+            errors.Add($"{studentName}: «{field}» должна быть числом");
+        }
+    }
+
+    private static int? ParseGrade(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return null;
+        }
+        return int.TryParse(text.Trim(), out var value) ? value : null;
+    }
+}

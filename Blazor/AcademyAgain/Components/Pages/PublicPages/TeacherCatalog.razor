@@ -3,13 +3,15 @@
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
 @using AcademyAgain.Helpers
+@using Microsoft.AspNetCore.Components.Authorization
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject AuthenticationStateProvider Auth
 
 <PageTitle>Преподаватели академии</PageTitle>
 
 <div class="page-header">
     <h2>Преподаватели академии</h2>
-    <p class="text-secondary mb-0">Выберите преподавателя, посмотрите его предметы и оставьте заявку на обучение.</p>
+    <p class="text-secondary mb-0">@HeaderSubtitle</p>
 </div>
 
 @if (Teachers.Count == 0)
@@ -87,8 +89,18 @@ else
 
     private List<TeacherCard> Teachers = new();
 
+    private string HeaderSubtitle = "Выберите преподавателя, посмотрите его предметы и оставьте заявку на обучение.";
+
     protected override async Task OnInitializedAsync()
     {
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var isAuthenticated = authState.User.Identity?.IsAuthenticated == true;
+        var isCandidate = authState.User.IsInRole("candidate") || authState.User.IsInRole("teacher_candidate");
+        if (isAuthenticated && !isCandidate)
+        {
+            HeaderSubtitle = "Преподаватели и дисциплины академии.";
+        }
+
         await using var context = DbFactory.CreateDbContext();
 
         var teachers = await context.Teachers.AsNoTracking()

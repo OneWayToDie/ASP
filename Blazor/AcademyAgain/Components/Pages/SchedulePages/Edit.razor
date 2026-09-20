@@ -68,13 +68,18 @@ else
                     <InputDate id="date" @bind-Value="Schedule.date" class="form-control" />
                     <ValidationMessage For="() => Schedule.date" class="text-danger" />
                 </div>
-                <div class="mb-3">
-                    <label for="time" class="form-label">Время:</label>
-                    <input id="time" name="time" type="time" class="form-control" value="@time" />
-                </div>
-                <div class="mb-3">
-                    <span class="text-danger">*</span>
-                    <label for="spent" class="form-label">Проведено:</label>
+<div class="mb-3">
+                <label for="time" class="form-label">Время:</label>
+                <input id="time" name="time" type="time" class="form-control" value="@time" />
+            </div>
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="duration_min" class="form-label">Длительность (мин):</label>
+                <input id="duration_min" name="durationMin" type="number" min="30" max="240" step="15" class="form-control" value="@durationMin" />
+            </div>
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="spent" class="form-label">Проведено:</label>
                     <InputCheckbox id="spent" @bind-Value="Schedule.spent" class="form-check-input" aria-required="true"/>
                     <ValidationMessage For="() => Schedule.spent" class="text-danger" />
                 </div>
@@ -106,6 +111,9 @@ else
 
     [SupplyParameterFromForm]
     private string? time { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? durationMin { get; set; }
 
     private List<KeyValuePair<int, string>> groups = new();
     private List<KeyValuePair<int, string>> disciplines = new();
@@ -142,6 +150,7 @@ else
         }
 
         time ??= Schedule!.time?.ToString(@"hh\:mm") ?? "";
+        durationMin ??= Schedule!.duration_min.ToString();
     }
 
     // To protect from overposting attacks, enable the specific properties you want to bind to.
@@ -158,17 +167,27 @@ else
         Schedule.discipline = disciplineId;
         Schedule.teacher = teacherId;
         Schedule!.time = ParseTime(time);
+        if (int.TryParse(durationMin, out var duration) && duration >= 30 && duration <= 240)
+        {
+            Schedule!.duration_min = duration;
+        }
 
         using var context = DbFactory.CreateDbContext();
 
-        var conflict = await context.Schedule.AnyAsync(s =>
-            s.lesson_id != Schedule.lesson_id &&
-            s.date == Schedule.date &&
-            s.time == Schedule.time &&
-            (s.group == Schedule.group || s.teacher == Schedule.teacher));
-        if (conflict)
+        if (Schedule!.date is not null)
         {
-            SaveError = "В это время уже есть занятие для этой группы или преподавателя.";
+            var lessonForSemester = Schedule!;
+            Schedule!.semester_id = await context.Semesters.AsNoTracking()
+                .Where(m => m.start_date <= lessonForSemester.date && m.end_date >= lessonForSemester.date)
+                .Select(m => (int?)m.semester_id)
+                .FirstOrDefaultAsync();
+        }
+
+        var conflicts = AcademyAgain.Helpers.ScheduleConflictChecker.FindConflicts(
+            context, Schedule!.date, Schedule!.time, Schedule!.duration_min, Schedule!.group, Schedule!.teacher, Schedule!.lesson_id);
+        if (conflicts.Count > 0)
+        {
+            SaveError = string.Join(" ", conflicts);
             return;
         }
 

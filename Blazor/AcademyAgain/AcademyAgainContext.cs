@@ -48,6 +48,8 @@ public class AcademyAgainContext(DbContextOptions<AcademyAgainContext> options) 
     { get; set; } = default!;
     public DbSet<AcademyAgain.Models.Semester> Semesters
     { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.SessionRule> SessionRules
+    { get; set; } = default!;
     public DbSet<AcademyAgain.Models.AdmissionRequest> AdmissionRequests
     { get; set; } = default!;
     public DbSet<AcademyAgain.Models.Vacancy> Vacancies

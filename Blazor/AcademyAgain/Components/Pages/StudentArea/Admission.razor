@@ -1,0 +1,108 @@
+@page "/student/admission"
+@attribute [Authorize(Roles = "student")]
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.Authorization
+@using AcademyAgain.Models
+@using AcademyAgain.Services
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject AuthenticationStateProvider Auth
+@inject SessionAdmissionService AdmissionService
+
+<PageTitle>Допуск к сессии</PageTitle>
+
+<div class="page-header">
+    <h1>Допуск к экзаменационной сессии</h1>
+    <p class="page-subtitle">Статус рассчитывается автоматически по вашей посещаемости и оценкам за прошедшие занятия.</p>
+</div>
+
+@if (Status is null)
+{
+    <div class="alert alert-warning">К вашему аккаунту не привязана карточка студента.</div>
+}
+else
+{
+    @if (Rule is not null)
+    {
+        <div class="alert alert-info">
+            Текущие правила сессии «@Rule.name»: посещаемость не менее @Rule.min_attendance_pct%,
+            средний балл не ниже @Rule.min_average_grade.ToString("0.00"),
+            пропусков не более @Rule.required_makeups.
+        </div>
+    }
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="profile-head mb-0">@Status.StudentName</h2>
+                @if (Status.Granted)
+                {
+                    <span class="badge text-bg-success fs-6">Допущен(а) к сессии</span>
+                }
+                else
+                {
+                    <span class="badge text-bg-danger fs-6">Не допущен(а)</span>
+                }
+            </div>
+
+            <div class="dashboard-stats">
+                <div class="stat-card">
+                    <div class="stat-value">@Status.Present / @Status.TotalLessons</div>
+                    <div class="stat-label">Присутствие (проведено)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">@Status.AttendancePct.ToString("0.#")%</div>
+                    <div class="stat-label">Посещаемость</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">@(Status.AverageGrade?.ToString("0.00") ?? "—")</div>
+                    <div class="stat-label">Средний балл (@Status.GradeCount оценок)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">@Status.Missed</div>
+                    <div class="stat-label">Пропуски</div>
+                </div>
+            </div>
+
+            @if (!Status.Granted)
+            {
+                <div class="alert alert-danger mt-3 mb-0">
+                    <strong>Причины:</strong>
+                    <ul class="mb-0 mt-1">
+                        @foreach (var fail in Status.Fails)
+                        {
+                            <li>@fail</li>
+                        }
+                    </ul>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-success mt-3 mb-0">Все условия выполнены. Успехов на экзаменах!</div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private StudentAdmission? Status;
+    private SessionRule? Rule;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var name = authState.User.Identity?.Name;
+        await using var context = DbFactory.CreateDbContext();
+
+        var user = name is null
+            ? null
+            : await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.username == name);
+        if (user?.linked_id is not int studentId)
+        {
+            return;
+        }
+
+        Rule = await AdmissionService.GetActiveRuleAsync();
+        Status = await AdmissionService.ComputeStudentAsync(studentId);
+    }
+}

@@ -1,0 +1,59 @@
+@page "/teacher/schedule"
+@attribute [Authorize(Roles = "teacher")]
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.Authorization
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject AuthenticationStateProvider Auth
+
+<PageTitle>Расписание — кабинет преподавателя</PageTitle>
+
+<div class="page-header">
+    <h1>Расписание занятий</h1>
+    <p class="page-subtitle">Ваши занятия: @TeacherName</p>
+</div>
+
+@if (ShowTable)
+{
+    <ScheduleTable FixedTeacherId="LinkedTeacherId" Heading="@Heading" />
+}
+else
+{
+    <div class="alert alert-warning">
+        К вашему аккаунту не привязана карточка преподавателя. Обратитесь к администратору.
+    </div>
+}
+
+@code {
+    private bool ShowTable;
+    private int LinkedTeacherId;
+    private string TeacherName = "";
+    private string Heading = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var name = authState.User.Identity?.Name;
+        await using var context = DbFactory.CreateDbContext();
+
+        var user = name is null
+            ? null
+            : await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.username == name);
+        if (user?.linked_id is not int teacherId)
+        {
+            return;
+        }
+
+        var teacher = await context.Teachers.AsNoTracking().FirstOrDefaultAsync(t => t.teacher_id == teacherId);
+        if (teacher is null)
+        {
+            return;
+        }
+
+        LinkedTeacherId = teacherId;
+        TeacherName = string.Join(" ", new[] { teacher.last_name, teacher.first_name, teacher.middle_name }.Where(p => !string.IsNullOrWhiteSpace(p)));
+        Heading = $"Преподаватель {TeacherName}";
+        ShowTable = true;
+    }
+}

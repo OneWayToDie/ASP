@@ -1,0 +1,160 @@
+@page "/reports/group-performance"
+@attribute [Authorize(Policy = "Teaching")]
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+
+<PageTitle>Успеваемость группы</PageTitle>
+
+<div class="list-header">
+    <h1>Успеваемость группы</h1>
+    <div class="list-actions">
+        <button type="button" class="btn btn-outline-secondary" onclick="window.print()">Печать</button>
+        <ExportMenu RowBuilder="BuildRows" FileName="uspevaemost-gruppy" />
+    </div>
+</div>
+
+<div class="filter-bar d-flex flex-wrap align-items-center gap-2 mb-3">
+    <span class="filter-label">Группа:</span>
+    <select class="form-select form-select-sm filter-select" @bind="groupFilter" @bind:after="ReloadAsync">
+        <option value="0">— выберите группу —</option>
+        @foreach (var group in groups)
+        {
+            <option value="@group.Key">@group.Value</option>
+        }
+    </select>
+    <span class="filter-divider"></span>
+    <span class="filter-label">Семестр:</span>
+    <select class="form-select form-select-sm filter-select" @bind="semesterFilter" @bind:after="ReloadAsync">
+        <option value="0">Все семестры</option>
+        @foreach (var semester in semesters)
+        {
+            <option value="@semester.semester_id">@semester.name</option>
+        }
+    </select>
+</div>
+
+@if (groupFilter == 0)
+{
+    <div class="alert alert-info">Выберите группу для отчёта.</div>
+}
+else if (Rows.Count == 0)
+{
+    <div class="alert alert-warning">По группе нет данных (нет проведённых занятий).</div>
+}
+else
+{
+    <table class="table context-table">
+        <thead>
+            <tr>
+                <th>Дисциплина</th>
+                <th class="text-end">Проведено</th>
+                <th class="text-end">Средний балл</th>
+                <th class="text-end">Посещаемость</th>
+                <th class="text-end">Средний к-т</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in Rows)
+            {
+                <tr>
+                    <td>@row.Discipline</td>
+                    <td class="text-end">@row.Spent</td>
+                    <td class="text-end">@(row.AverageGrade?.ToString("0.00") ?? "—")</td>
+                    <td class="text-end">@row.AttendancePct.ToString("0.#")%</td>
+                    <td class="text-end">@(row.AttendanceCount == 0 ? "—" : $"{row.Present}/{row.AttendanceCount}")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private sealed record PerformanceRow(string Discipline, int Spent, double? AverageGrade, int AttendanceCount, int Present, double AttendancePct);
+
+    private int groupFilter;
+    private int semesterFilter;
+    private Dictionary<int, string> groups = new();
+    private Dictionary<int, string> disciplines = new();
+    private List<Models.Semester> semesters = new();
+    private List<PerformanceRow> Rows = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var context = DbFactory.CreateDbContext();
+        groups = (await context.Groups.OrderBy(g => g.group_name).ToListAsync())
+            .ToDictionary(g => g.group_id, g => g.group_name ?? "");
+        disciplines = (await context.Disciplines.OrderBy(d => d.discipline_name).ToListAsync())
+            .ToDictionary(d => d.discipline_id, d => d.discipline_name ?? "");
+        semesters = await context.Semesters.AsNoTracking().OrderBy(m => m.start_date).ToListAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        Rows = new List<PerformanceRow>();
+        if (groupFilter == 0)
+        {
+            return;
+        }
+        await using var context = DbFactory.CreateDbContext();
+        IQueryable<Schedule> query = context.Schedule.Where(s => s.group == groupFilter && s.spent);
+        if (semesterFilter != 0)
+        {
+            query = query.Where(s => s.semester_id == semesterFilter);
+        }
+        var spent = await query.AsNoTracking().ToListAsync();
+        var spentIds = spent.Select(s => s.lesson_id).ToHashSet();
+
+        var attendanceList = await context.Attendance.AsNoTracking()
+            .Where(a => spentIds.Contains(a.lesson))
+            .ToListAsync();
+        var gradeList = await context.Grades.AsNoTracking()
+            .Where(g => spentIds.Contains(g.lesson))
+            .ToListAsync();
+
+        foreach (var group in spent.GroupBy(s => s.discipline))
+        {
+            var att = attendanceList.Where(a => group.Any(s => s.lesson_id == a.lesson)).ToList();
+            var grades = gradeList
+                .Where(g => group.Any(s => s.lesson_id == g.lesson))
+                .Select(g => new[] { (int?)g.grade_1, (int?)g.grade_2 })
+                .SelectMany(v => v)
+                .Where(v => v.HasValue && v.Value >= 2 && v.Value <= 5)
+                .Select(v => v!.Value)
+                .ToList();
+
+            double? avg = grades.Count == 0 ? null : grades.Average();
+            double pct = att.Count == 0 ? 0 : att.Count(a => a.present) * 100.0 / att.Count;
+            Rows.Add(new PerformanceRow(
+                disciplines.TryGetValue(group.Key, out var name) ? name : $"№{group.Key}",
+                group.Count(),
+                avg,
+                att.Count,
+                att.Count(a => a.present),
+                pct));
+        }
+        Rows = Rows.OrderBy(r => r.Discipline).ToList();
+        StateHasChanged();
+    }
+
+    private List<string?[]> BuildRows()
+    {
+        var rows = new List<string?[]>
+        {
+            new[] { "Дисциплина", "Проведено занятий", "Средний балл", "Посещаемость,%", "Присутствие, чел. (из зафиксированных)" }
+        };
+        foreach (var row in Rows.OrderBy(r => r.Discipline))
+        {
+            rows.Add(new[]
+            {
+                row.Discipline,
+                row.Spent.ToString(),
+                row.AverageGrade?.ToString("0.00") ?? "—",
+                row.AttendancePct.ToString("0.#"),
+                row.AttendanceCount == 0 ? "—" : $"{row.Present}/{row.AttendanceCount}"
+            });
+        }
+        return rows;
+    }
+}

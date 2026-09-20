@@ -27,6 +27,13 @@ namespace AcademyAgain.Models
 		[Column(TypeName = "TIME")]
 		public TimeSpan? time { get; set; }
 
+		[Column(TypeName = "SMALLINT")]
+		public int? semester_id { get; set; }
+
+		[Required]
+		[Column(TypeName = "TINYINT")]
+		public int duration_min { get; set; } = 90;
+
 		[Required]
 		[Column(TypeName = "BIT")]
 		public bool spent { get; set; }

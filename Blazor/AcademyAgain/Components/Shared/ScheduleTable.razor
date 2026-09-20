@@ -1,0 +1,169 @@
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+
+@if (!string.IsNullOrWhiteSpace(Heading))
+{
+    <h2 class="section-title">@Heading</h2>
+}
+
+<div class="filter-bar d-flex flex-wrap align-items-center gap-2 mb-3">
+    <span class="filter-label">Период:</span>
+    <button type="button" class='chip @(periodFilter == "all" ? "chip-active" : "")' @onclick='() => SetPeriod("all")'>Все</button>
+    <button type="button" class='chip @(periodFilter == "today" ? "chip-active" : "")' @onclick='() => SetPeriod("today")'>Сегодня</button>
+    <button type="button" class='chip @(periodFilter == "week" ? "chip-active" : "")' @onclick='() => SetPeriod("week")'>Неделя</button>
+    <span class="filter-divider"></span>
+    @if (FixedGroupId is null)
+    {
+        <select class="form-select form-select-sm filter-select" @bind="groupFilter" @bind:after="OnFilterChanged">
+            <option value="0">Все группы</option>
+            @foreach (var group in groups)
+            {
+                <option value="@group.Key">@group.Value</option>
+            }
+        </select>
+    }
+    @if (FixedTeacherId is null)
+    {
+        <select class="form-select form-select-sm filter-select" @bind="teacherFilter" @bind:after="OnFilterChanged">
+            <option value="0">Все преподаватели</option>
+            @foreach (var teacher in teachers)
+            {
+                <option value="@teacher.Key">@teacher.Value</option>
+            }
+        </select>
+    }
+    <button type="button" class="btn btn-outline-secondary btn-sm ms-auto" onclick="window.print()">Печать</button>
+</div>
+
+<QuickGrid Class="table context-table" Items="query" ItemKey="schedule => schedule.lesson_id" Pagination="Pagination">
+    <TemplateColumn Title="Группа" Sortable="true" SortBy="GridSort<Schedule>.ByAscending(s => GroupName(s.group))" Context="schedule">
+        @(GroupName(schedule.group))
+    </TemplateColumn>
+    <TemplateColumn Title="Дисциплина" Sortable="true" SortBy="GridSort<Schedule>.ByAscending(s => DisciplineName(s.discipline))" Context="schedule">
+        @(DisciplineName(schedule.discipline))
+    </TemplateColumn>
+    <TemplateColumn Title="Преподаватель" Sortable="true" SortBy="GridSort<Schedule>.ByAscending(s => TeacherName(s.teacher))" Context="schedule">
+        @(TeacherName(schedule.teacher))
+    </TemplateColumn>
+    <PropertyColumn Property="schedule => schedule.date" Title="Дата" Format="dd.MM.yyyy" Sortable="true" />
+    <PropertyColumn Property="schedule => schedule.time" Title="Время" Sortable="true" />
+    <TemplateColumn Title="Проведено" Sortable="true" SortBy="GridSort<Schedule>.ByAscending(s => s.spent)" Context="schedule">
+        @(schedule.spent ? "Да" : "Нет")
+    </TemplateColumn>
+</QuickGrid>
+
+<div class="paginator">
+    <span class="badge bg-secondary total-badge">Всего: @TotalCount</span>
+    <AppPaginator State="Pagination" OnPageSizeChanged="HandlePageSizeChanged" />
+</div>
+
+@code {
+    [Parameter] public int? FixedGroupId { get; set; }
+
+    [Parameter] public int? FixedTeacherId { get; set; }
+
+    [Parameter] public string? Heading { get; set; }
+
+    private readonly PaginationState Pagination = new() { ItemsPerPage = 25 };
+
+    private int TotalCount { get; set; }
+
+    private List<Schedule> allItems = new();
+    private IQueryable<Schedule> query = new List<Schedule>().AsQueryable();
+    private List<Schedule> filtered = new();
+    private Dictionary<int, string> groups = new();
+    private Dictionary<int, string> disciplines = new();
+    private Dictionary<int, string> teachers = new();
+
+    private string periodFilter = "all";
+    private int groupFilter;
+    private int teacherFilter;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var context = DbFactory.CreateDbContext();
+        groups = (await context.Groups.OrderBy(g => g.group_name).ToListAsync())
+            .ToDictionary(g => g.group_id, g => g.group_name ?? "");
+        disciplines = (await context.Disciplines.OrderBy(d => d.discipline_name).ToListAsync())
+            .ToDictionary(d => d.discipline_id, d => d.discipline_name ?? "");
+        teachers = (await context.Teachers.OrderBy(t => t.last_name).ToListAsync())
+            .ToDictionary(t => t.teacher_id, t => TeacherName(t));
+        allItems = await context.Schedule.ToListAsync();
+
+        groupFilter = FixedGroupId
+            ?? groups.Keys.FirstOrDefault();
+        teacherFilter = FixedTeacherId ?? 0;
+        ApplyFilter();
+    }
+
+    private IEnumerable<Schedule> Filtered()
+    {
+        IEnumerable<Schedule> list = allItems;
+        switch (periodFilter)
+        {
+            case "today":
+                list = list.Where(s => s.date.HasValue && s.date.Value.Date == DateTime.Today);
+                break;
+            case "week":
+                list = list.Where(s => s.date.HasValue && IsInCurrentWeek(s.date.Value));
+                break;
+        }
+        if (groupFilter != 0)
+        {
+            list = list.Where(s => s.group == groupFilter);
+        }
+        if (teacherFilter != 0)
+        {
+            list = list.Where(s => s.teacher == teacherFilter);
+        }
+        return list;
+    }
+
+    private void ApplyFilter()
+    {
+        filtered = Filtered().ToList();
+        query = filtered.AsQueryable();
+        TotalCount = filtered.Count;
+    }
+
+    private async Task SetPeriod(string value)
+    {
+        periodFilter = value;
+        ApplyFilter();
+        await Pagination.SetCurrentPageIndexAsync(0);
+    }
+
+    private async Task OnFilterChanged()
+    {
+        ApplyFilter();
+        await Pagination.SetCurrentPageIndexAsync(0);
+    }
+
+    private async Task HandlePageSizeChanged(int newSize)
+    {
+        Pagination.ItemsPerPage = newSize;
+        await Pagination.SetCurrentPageIndexAsync(0);
+        StateHasChanged();
+    }
+
+    private static bool IsInCurrentWeek(DateTime date)
+    {
+        var today = DateTime.Today;
+        var monday = today.AddDays(-(((int)today.DayOfWeek + 6) % 7));
+        return date.Date >= monday && date.Date < monday.AddDays(7);
+    }
+
+    private string GroupName(int id)
+        => groups.TryGetValue(id, out var name) ? name : $"№{id}";
+
+    private string DisciplineName(int id)
+        => disciplines.TryGetValue(id, out var name) ? name : $"№{id}";
+
+    private string TeacherName(int id)
+        => teachers.TryGetValue(id, out var name) ? name : $"№{id}";
+
+    private static string TeacherName(Teacher t)
+        => string.Join(" ", new[] { t.last_name, t.first_name, t.middle_name }.Where(p => !string.IsNullOrWhiteSpace(p)));
+}

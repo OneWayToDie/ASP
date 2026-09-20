@@ -1,0 +1,134 @@
+@page "/session/vedomost"
+@attribute [Authorize(Policy = "Teaching")]
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@using AcademyAgain.Services
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject SessionAdmissionService AdmissionService
+
+<PageTitle>Ведомость допуска к сессии</PageTitle>
+
+<div class="list-header">
+    <h1>Ведомость допуска к сессии</h1>
+    <div class="list-actions">
+        <button type="button" class="btn btn-outline-secondary" onclick="window.print()">Печать</button>
+        <ExportMenu RowBuilder="BuildRows" FileName="vedomost-dopuska" />
+    </div>
+</div>
+
+<div class="filter-bar d-flex flex-wrap align-items-center gap-2 mb-3">
+    <span class="filter-label">Группа:</span>
+    <select class="form-select form-select-sm filter-select" @bind="groupFilter" @bind:after="ReloadAsync">
+        <option value="0">— выберите группу —</option>
+        @foreach (var group in groups)
+        {
+            <option value="@group.Key">@group.Value</option>
+        }
+    </select>
+    @if (Rule is not null)
+    {
+        <span class="filter-divider"></span>
+        <span class="text-muted small">Правила сессии: посещаемость ≥ @Rule.min_attendance_pct%, средний балл ≥ @Rule.min_average_grade.ToString("0.00"), пропусков ≤ @Rule.required_makeups</span>
+    }
+</div>
+
+@if (groupFilter == 0)
+{
+    <div class="alert alert-info">Выберите группу, чтобы сформировать ведомость допуска.</div>
+}
+else if (Admissions.Count == 0)
+{
+    <div class="alert alert-warning">В группе нет студентов или нет данных по посещаемости/оценкам.</div>
+}
+else
+{
+    <table class="table context-table">
+        <thead>
+            <tr>
+                <th>Студент</th>
+                <th>Проведено</th>
+                <th>Присутств.</th>
+                <th>Пропуски</th>
+                <th>Посещаемость</th>
+                <th>Средний балл</th>
+                <th>Допуск</th>
+                <th>Причины отказа</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var a in Admissions.OrderByDescending(x => x.Granted).ThenBy(x => x.StudentName))
+            {
+                <tr>
+                    <td>@a.StudentName</td>
+                    <td>@a.TotalLessons</td>
+                    <td>@a.Present</td>
+                    <td>@a.Missed</td>
+                    <td>@a.AttendancePct.ToString("0.#")%</td>
+                    <td>@(a.AverageGrade?.ToString("0.00") ?? "—")</td>
+                    <td>
+                        @if (a.Granted)
+                        {
+                            <span class="badge text-bg-success">допущен</span>
+                        }
+                        else
+                        {
+                            <span class="badge text-bg-danger">не допущен</span>
+                        }
+                    </td>
+                    <td class="small text-muted">@string.Join("; ", a.Fails)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private int groupFilter;
+    private Dictionary<int, string> groups = new();
+    private SessionRule? Rule;
+    private List<StudentAdmission> Admissions = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var context = DbFactory.CreateDbContext();
+        groups = (await context.Groups.OrderBy(g => g.group_name).ToListAsync())
+            .ToDictionary(g => g.group_id, g => g.group_name ?? "");
+        Rule = await AdmissionService.GetActiveRuleAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        if (groupFilter == 0)
+        {
+            Admissions = new List<StudentAdmission>();
+            return;
+        }
+        Rule = await AdmissionService.GetActiveRuleAsync();
+        Admissions = await AdmissionService.ComputeGroupAsync(groupFilter);
+        StateHasChanged();
+    }
+
+    private List<string?[]> BuildRows()
+    {
+        var rows = new List<string?[]>
+        {
+            new[] { "Студент", "Проведено", "Присутствий", "Пропуски", "Посещаемость,%", "Средний балл", "Допуск", "Причины отказа" }
+        };
+        foreach (var a in Admissions.OrderByDescending(x => x.Granted).ThenBy(x => x.StudentName))
+        {
+            rows.Add(new[]
+            {
+                a.StudentName,
+                a.TotalLessons.ToString(),
+                a.Present.ToString(),
+                a.Missed.ToString(),
+                a.AttendancePct.ToString("0.#"),
+                a.AverageGrade?.ToString("0.00") ?? "—",
+                a.Granted ? "допущен" : "не допущен",
+                string.Join("; ", a.Fails)
+            });
+        }
+        return rows;
+    }
+}

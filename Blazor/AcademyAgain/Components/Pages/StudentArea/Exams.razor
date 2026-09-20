@@ -1,0 +1,90 @@
+@page "/student/exams"
+@attribute [Authorize(Roles = "student")]
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.Authorization
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject AuthenticationStateProvider Auth
+
+<PageTitle>Экзамены — кабинет студента</PageTitle>
+
+<div class="page-header">
+    <h1>Экзамены</h1>
+    <p class="page-subtitle">Предстоящие и сданные экзамены.</p>
+</div>
+
+@if (Upcoming.Count == 0 && Taken.Count == 0)
+{
+    <div class="section-empty">Экзаменов нет</div>
+}
+else
+{
+    @if (Upcoming.Count > 0)
+    {
+        <h2 class="section-title">Предстоящие</h2>
+        @foreach (var e in Upcoming)
+        {
+            <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                <span>@e.Discipline</span>
+                <span class="text-muted">@e.Date</span>
+            </div>
+        }
+    }
+
+    @if (Taken.Count > 0)
+    {
+        <h2 class="section-title">Сданные</h2>
+        <QuickGrid Class="table context-table" Items="takenGrid" ItemKey="e => e.Key">
+            <PropertyColumn Property="e => e.Discipline" Title="Дисциплина" Sortable="true" />
+            <PropertyColumn Property="e => e.Date" Title="Дата" Sortable="true" />
+            <PropertyColumn Property="e => e.Grade" Title="Оценка" Sortable="true" />
+        </QuickGrid>
+    }
+}
+
+@code {
+    private sealed record ExamView(string Key, string Discipline, string Date, int? Grade);
+
+    private List<ExamView> Upcoming = new();
+    private List<ExamView> Taken = new();
+    private IQueryable<ExamView> takenGrid = new List<ExamView>().AsQueryable();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var name = authState.User.Identity?.Name;
+        await using var context = DbFactory.CreateDbContext();
+
+        var user = name is null
+            ? null
+            : await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.username == name);
+        if (user?.linked_id is not int studentId)
+        {
+            return;
+        }
+
+        var disciplines = await context.Disciplines.AsNoTracking().ToDictionaryAsync(d => d.discipline_id);
+        var exams = await context.Exams.AsNoTracking()
+            .Where(e => e.student == studentId)
+            .OrderBy(e => e.date)
+            .ToListAsync();
+
+        var today = DateTime.Today;
+        Upcoming = exams
+            .Where(e => e.grade == null && e.date >= today)
+            .Select(e => new ExamView(e.discipline.ToString(), DisciplineName(disciplines, e.discipline), e.date?.ToString("dd.MM.yyyy") ?? "—", e.grade))
+            .ToList();
+        Taken = exams
+            .Where(e => e.grade != null)
+            .Select(e => new ExamView(e.discipline.ToString(), DisciplineName(disciplines, e.discipline), e.date?.ToString("dd.MM.yyyy") ?? "—", e.grade))
+            .ToList();
+        takenGrid = Taken.AsQueryable();
+    }
+
+    private static string DisciplineName(Dictionary<int, Discipline> map, int id)
+        => map.TryGetValue(id, out var d) && !string.IsNullOrWhiteSpace(d.discipline_name)
+            ? d.discipline_name!
+            : $"№{id}";
+}

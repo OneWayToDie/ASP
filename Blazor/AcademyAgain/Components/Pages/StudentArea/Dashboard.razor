@@ -1,0 +1,265 @@
+@page "/student"
+@attribute [Authorize(Roles = "student")]
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.Authorization
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject AuthenticationStateProvider Auth
+
+<PageTitle>Кабинет студента</PageTitle>
+
+<div class="page-header">
+    <h1>Здравствуйте, @Greeting!</h1>
+    <p class="page-subtitle">Личный кабинет студента: расписание, оценки, посещаемость, экзамены и долги.</p>
+</div>
+
+@if (LinkedStudent is null)
+{
+    <div class="alert alert-warning">
+        К вашему аккаунту не привязана карточка студента. Обратитесь к администратору, чтобы
+        связать аккаунт со студентом — после этого здесь появится вся информация.
+    </div>
+}
+else
+{
+    @if (LinkedStudent.group is null)
+    {
+        <div class="alert alert-warning">Вам пока не назначена группа — расписание и программа появятся после назначения.</div>
+    }
+
+    <div class="dashboard-stats">
+        <div class="stat-card">
+            <div class="stat-value">@AttendedPercentText</div>
+            <div class="stat-label">Посещаемость</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">@AverageGradeText</div>
+            <div class="stat-label">Средний балл</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">@TodayCount</div>
+            <div class="stat-label">Занятий сегодня</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">@GroupName</div>
+            <div class="stat-label">@DirectionName</div>
+        </div>
+    </div>
+
+    <h2 class="section-title">Быстрый доступ</h2>
+    <div class="quick-grid">
+        <a class="quick-card" href="student/schedule">
+            <span class="quick-title">Расписание</span>
+            <span class="quick-desc">Занятия вашей группы</span>
+        </a>
+        <a class="quick-card" href="student/grades">
+            <span class="quick-title">Оценки</span>
+            <span class="quick-desc">Оценки по занятиям</span>
+        </a>
+        <a class="quick-card" href="student/attendance">
+            <span class="quick-title">Посещаемость</span>
+            <span class="quick-desc">Присутствие на занятиях</span>
+        </a>
+        <a class="quick-card" href="student/exams">
+            <span class="quick-title">Экзамены</span>
+            <span class="quick-desc">Предстоящие и сданные</span>
+        </a>
+        <a class="quick-card" href="student/debts">
+            <span class="quick-title">Долги</span>
+            <span class="quick-desc">Программа обучения и долги</span>
+        </a>
+        <a class="quick-card" href="student/admission">
+            <span class="quick-title">Допуск к сессии</span>
+            <span class="quick-desc">Статус допуска к экзаменам</span>
+        </a>
+    </div>
+
+    @if (LinkedStudent.group is int groupId)
+    {
+        <h2 class="section-title">Прогресс занятий группы</h2>
+        <p class="mb-2">Проведено @LessonsSpent из @LessonsTotal занятий группы</p>
+        <div class="progress" style="height: 0.6rem;">
+            <div class="progress-bar" role="progressbar" style="width: @(LessonsTotal == 0 ? 0 : LessonsSpent * 100 / LessonsTotal)%"></div>
+        </div>
+    }
+
+    <h2 class="section-title">Ближайшее</h2>
+    @if (UpcomingLessons.Count == 0 && UpcomingExams.Count == 0)
+    {
+        <div class="section-empty">Ближайших занятий и экзаменов нет</div>
+    }
+    else
+    {
+        @if (UpcomingLessons.Count > 0)
+        {
+            <h4 class="profile-subhead">Занятия</h4>
+            <ul class="mb-0 upcoming-list">
+                @foreach (var l in UpcomingLessons)
+                {
+                    <li>@l.Discipline — <span class="text-muted">@l.Date</span></li>
+                }
+            </ul>
+        }
+        @if (UpcomingExams.Count > 0)
+        {
+            <h4 class="profile-subhead">Экзамены</h4>
+            <ul class="mb-0 upcoming-list">
+                @foreach (var e in UpcomingExams)
+                {
+                    <li>@e.Discipline — <span class="text-muted">@e.Date</span></li>
+                }
+            </ul>
+        }
+    }
+
+    if (DebtCount > 0)
+    {
+        <div class="alert alert-warning">По программе вашего направления осталось пройти дисциплин: <strong>@DebtCount</strong>. <a href="student/debts">Смотреть долги</a></div>
+    }
+}
+
+@code {
+    private sealed record LessonRow(string Discipline, string Date);
+
+    private sealed record ExamRow(string Discipline, string Date);
+
+    private string Greeting = "студент";
+
+    private Student? LinkedStudent;
+    private string GroupName = "—";
+    private string DirectionName = "—";
+    private string AttendedPercentText = "—";
+    private string AverageGradeText = "—";
+    private int TodayCount;
+    private int LessonsTotal;
+    private int LessonsSpent;
+    private int DebtCount;
+
+    private List<LessonRow> UpcomingLessons = new();
+    private List<ExamRow> UpcomingExams = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var name = authState.User.Identity?.Name;
+        await using var context = DbFactory.CreateDbContext();
+
+        var user = name is null
+            ? null
+            : await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.username == name);
+        if (user is null)
+        {
+            return;
+        }
+
+        Greeting = !string.IsNullOrWhiteSpace(user.first_name) ? user.first_name.Trim() : user.username;
+        if (user.linked_id is not int studentId)
+        {
+            return;
+        }
+
+        LinkedStudent = await context.Students.AsNoTracking().FirstOrDefaultAsync(s => s.stud_id == studentId);
+        if (LinkedStudent is null)
+        {
+            return;
+        }
+
+        var disciplines = await context.Disciplines.AsNoTracking().ToDictionaryAsync(d => d.discipline_id);
+
+        var today = DateTime.Today;
+        var groupSchedule = LinkedStudent.group is int gid
+            ? await context.Schedule.AsNoTracking().Where(s => s.group == gid).ToListAsync()
+            : new List<Schedule>();
+
+        LessonsTotal = groupSchedule.Count;
+        LessonsSpent = groupSchedule.Count(s => s.spent);
+        TodayCount = groupSchedule.Count(s => s.date == today);
+
+        if (LinkedStudent.group is int groupId)
+        {
+            var group = await context.Groups.AsNoTracking().FirstOrDefaultAsync(g => g.group_id == groupId);
+            if (group is not null)
+            {
+                GroupName = string.IsNullOrWhiteSpace(group.group_name) ? $"№{group.group_id}" : group.group_name;
+                DirectionName = group.direction is int dirId
+                    ? await context.Directions.AsNoTracking()
+                        .Where(d => d.direction_id == dirId)
+                        .Select(d => d.direction_name)
+                        .FirstOrDefaultAsync() ?? "—"
+                    : "—";
+            }
+        }
+
+        var attendanceList = await context.Attendance.AsNoTracking()
+            .Where(a => a.student == LinkedStudent.stud_id)
+            .ToListAsync();
+        var attended = attendanceList.Count(a => a.present);
+        AttendedPercentText = attendanceList.Count == 0 ? "—" : $"{attended * 100.0 / attendanceList.Count:0.#}%";
+
+        var gradeValues = (await context.Grades.AsNoTracking()
+                .Where(g => g.student == LinkedStudent.stud_id)
+                .Select(g => new[] { (int?)g.grade_1, (int?)g.grade_2 })
+                .ToListAsync())
+            .SelectMany(v => v)
+            .Where(v => v.HasValue)
+            .Select(v => v!.Value)
+            .ToList();
+        AverageGradeText = gradeValues.Count == 0 ? "—" : $"{gradeValues.Average():0.00}";
+
+        var scheduleById = groupSchedule.ToDictionary(s => s.lesson_id);
+        var upcomingSchedules = await context.Schedule.AsNoTracking()
+            .Where(s => s.group == LinkedStudent.group && s.spent == false && s.date >= today)
+            .OrderBy(s => s.date)
+            .ThenBy(s => s.time)
+            .Take(5)
+            .ToListAsync();
+        UpcomingLessons = upcomingSchedules
+            .Select(s => new LessonRow(
+                DisciplineName(disciplines, s.discipline),
+                (s.date?.ToString("dd.MM.yyyy") ?? "—") + (s.time.HasValue ? " " + s.time.Value.ToString(@"hh\:mm") : "")))
+            .ToList();
+
+        var upcomingExams = await context.Exams.AsNoTracking()
+            .Where(e => e.student == LinkedStudent.stud_id && e.grade == null && e.date >= today)
+            .OrderBy(e => e.date)
+            .Take(5)
+            .ToListAsync();
+        UpcomingExams = upcomingExams
+            .Select(e => new ExamRow(DisciplineName(disciplines, e.discipline), e.date?.ToString("dd.MM.yyyy") ?? "—"))
+            .ToList();
+
+        if (LinkedStudent.group is int debtGroupId)
+        {
+            var completedSet = (await context.CompleteDisciplines.AsNoTracking()
+                    .Where(c => c.group == debtGroupId)
+                    .Select(c => c.discipline)
+                    .ToListAsync())
+                .ToHashSet();
+
+            var programIds = new List<int>();
+            var group = await context.Groups.AsNoTracking().FirstOrDefaultAsync(g => g.group_id == debtGroupId);
+            if (group?.direction.HasValue == true)
+            {
+                programIds = await context.DisciplinesDirectionsRelation.AsNoTracking()
+                    .Where(r => r.direction == group.direction)
+                    .Select(r => r.discipline)
+                    .ToListAsync();
+            }
+            if (programIds.Count == 0)
+            {
+                programIds = await context.Schedule.AsNoTracking()
+                    .Where(s => s.group == debtGroupId)
+                    .Select(s => s.discipline)
+                    .Distinct()
+                    .ToListAsync();
+            }
+            DebtCount = programIds.Count(id => !completedSet.Contains(id));
+        }
+    }
+
+    private static string DisciplineName(Dictionary<int, Discipline> map, int id)
+        => map.TryGetValue(id, out var d) && !string.IsNullOrWhiteSpace(d.discipline_name)
+            ? d.discipline_name!
+            : $"№{id}";
+}

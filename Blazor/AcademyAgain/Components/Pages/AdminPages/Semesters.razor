@@ -1,0 +1,238 @@
+@page "/admin/semesters"
+@attribute [Authorize(Policy = "ManageData")]
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@using AcademyAgain.Helpers
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+
+<PageTitle>Семестры</PageTitle>
+
+<div class="list-header">
+    <h1>Семестры</h1>
+</div>
+
+@if (!string.IsNullOrEmpty(Error))
+{
+    <div class="alert alert-danger" role="alert">@Error</div>
+}
+@if (!string.IsNullOrEmpty(Info))
+{
+    <div class="alert alert-success" role="alert">@Info</div>
+}
+
+<div class="card mb-3">
+    <div class="card-header">Новый семестр</div>
+    <div class="card-body">
+        <EditForm Model="NewSemester" OnValidSubmit="AddSemester" FormName="semester-create">
+            <DataAnnotationsValidator />
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <label class="form-label">Название:</label>
+                    <InputText class="form-control" @bind-Value="NewSemester.name" />
+                    <ValidationMessage For="() => NewSemester.name" class="text-danger" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Начало:</label>
+                    <InputDate class="form-control" @bind-Value="NewSemester.start_date" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Окончание:</label>
+                    <InputDate class="form-control" @bind-Value="NewSemester.end_date" />
+                </div>
+                <div class="col-md-2 d-flex align-items-end gap-2">
+                    <label class="form-check form-switch form-check-inline mb-1">
+                        <InputCheckbox class="form-check-input" @bind-Value="NewSemester.is_even_week_start" />
+                        <span class="form-check-label">чётная 1-я неделя</span>
+                    </label>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary">Добавить</button>
+                </div>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+<table class="table context-table">
+    <thead>
+        <tr>
+            <th>Название</th>
+            <th>Начало</th>
+            <th>Окончание</th>
+            <th>Текущий</th>
+            <th>1-я неделя</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var semester in SemesterList.OrderBy(m => m.start_date))
+        {
+            <tr>
+                <td>@semester.name</td>
+                <td>@semester.start_date?.ToString("dd.MM.yyyy")</td>
+                <td>@semester.end_date?.ToString("dd.MM.yyyy")</td>
+                <td>@(semester.is_current ? "да" : "")</td>
+                <td>@(semester.is_even_week_start ? "чётная" : "нечётная")</td>
+                <td class="text-end text-nowrap">
+                    @if (!semester.is_current)
+                    {
+                        <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => SetCurrentAsync(semester.semester_id)">Сделать текущим</button>
+                    }
+                    <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => ToggleEdit(semester.semester_id)">Изменить</button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => DeleteAsync(semester.semester_id)">Удалить</button>
+                </td>
+            </tr>
+            @if (EditId == semester.semester_id)
+            {
+                <tr>
+                    <td colspan="6">
+                        <EditForm Model="EditSemester" OnValidSubmit="SaveEditAsync" FormName="@($"semester-edit-{semester.semester_id}")">
+                            <DataAnnotationsValidator />
+                            <div class="row g-2">
+                                <div class="col-md-4">
+                                    <label class="form-label">Название:</label>
+                                    <InputText class="form-control" @bind-Value="EditSemester.name" />
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Начало:</label>
+                                    <InputDate class="form-control" @bind-Value="EditSemester.start_date" />
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Окончание:</label>
+                                    <InputDate class="form-control" @bind-Value="EditSemester.end_date" />
+                                </div>
+                                <div class="col-md-2 d-flex align-items-end gap-2">
+                                    <label class="form-check form-switch form-check-inline mb-1">
+                                        <InputCheckbox class="form-check-input" @bind-Value="EditSemester.is_even_week_start" />
+                                        <span class="form-check-label">чётная 1-я неделя</span>
+                                    </label>
+                                </div>
+                                <div class="col-md-2 d-flex align-items-end gap-2">
+                                    <button type="submit" class="btn btn-primary btn-sm">Сохранить</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="CancelEdit">Отмена</button>
+                                </div>
+                            </div>
+                        </EditForm>
+                    </td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+
+@code {
+    private List<Semester> SemesterList = new();
+    private Semester NewSemester = new();
+    private Semester EditSemester = new();
+    private int EditId;
+    private string? Error;
+    private string? Info;
+
+    protected override async Task OnInitializedAsync()
+    {
+        NewSemester = new Semester { is_even_week_start = false };
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        await using var context = DbFactory.CreateDbContext();
+        SemesterList = await context.Semesters.AsNoTracking().OrderBy(m => m.start_date).ToListAsync();
+    }
+
+    private async Task AddSemester()
+    {
+        Error = null;
+        Info = null;
+        if (NewSemester.start_date is null || NewSemester.end_date is null || NewSemester.start_date > NewSemester.end_date)
+        {
+            Error = "Укажите корректные даты начала и окончания.";
+            return;
+        }
+        await using var context = DbFactory.CreateDbContext();
+        if (NewSemester.is_current)
+        {
+            await context.Semesters.Where(m => m.is_current).ExecuteUpdateAsync(m => m.SetProperty(x => x.is_current, false));
+        }
+        context.Semesters.Add(NewSemester);
+        await context.SaveChangesAsync();
+        Info = "Семестр добавлен.";
+        NewSemester = new Semester { is_even_week_start = false };
+        await LoadAsync();
+    }
+
+    private void ToggleEdit(int id)
+    {
+        if (EditId == id)
+        {
+            EditId = 0;
+            return;
+        }
+        var source = SemesterList.FirstOrDefault(m => m.semester_id == id);
+        if (source is null)
+        {
+            return;
+        }
+        EditSemester = new Semester
+        {
+            semester_id = source.semester_id,
+            name = source.name,
+            start_date = source.start_date,
+            end_date = source.end_date,
+            is_even_week_start = source.is_even_week_start,
+            is_current = source.is_current
+        };
+        EditId = id;
+    }
+
+    private void CancelEdit() => EditId = 0;
+
+    private async Task SaveEditAsync()
+    {
+        Error = null;
+        Info = null;
+        if (EditSemester.start_date is null || EditSemester.end_date is null || EditSemester.start_date > EditSemester.end_date)
+        {
+            Error = "Укажите корректные даты начала и окончания.";
+            return;
+        }
+        await using var context = DbFactory.CreateDbContext();
+        if (EditSemester.is_current)
+        {
+            await context.Semesters.Where(m => m.is_current && m.semester_id != EditSemester.semester_id).ExecuteUpdateAsync(m => m.SetProperty(x => x.is_current, false));
+        }
+        context.Attach(EditSemester).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
+        await context.SaveChangesAsync();
+        Info = "Семестр обновлён.";
+        EditId = 0;
+        await LoadAsync();
+    }
+
+    private async Task SetCurrentAsync(int id)
+    {
+        await using var context = DbFactory.CreateDbContext();
+        await context.Semesters.Where(m => m.is_current).ExecuteUpdateAsync(m => m.SetProperty(x => x.is_current, false));
+        await context.Semesters.Where(m => m.semester_id == id).ExecuteUpdateAsync(m => m.SetProperty(x => x.is_current, true));
+        Info = "Текущий семестр обновлён.";
+        await LoadAsync();
+    }
+
+    private async Task DeleteAsync(int id)
+    {
+        await using var context = DbFactory.CreateDbContext();
+        var lessons = await context.Schedule.CountAsync(s => s.semester_id == id);
+        if (lessons > 0)
+        {
+            Error = $"Нельзя удалить семестр: к нему привязано занятий — {lessons}. Сначала измените семестр занятий.";
+            return;
+        }
+        var semester = await context.Semesters.FirstOrDefaultAsync(m => m.semester_id == id);
+        if (semester is not null)
+        {
+            context.Semesters.Remove(semester);
+            await context.SaveChangesAsync();
+            Info = "Семестр удалён.";
+        }
+        await LoadAsync();
+    }
+}

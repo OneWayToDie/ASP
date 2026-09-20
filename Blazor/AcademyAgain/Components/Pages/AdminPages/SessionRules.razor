@@ -1,0 +1,223 @@
+@page "/admin/session"
+@attribute [Authorize(Policy = "ManageData")]
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+
+<PageTitle>Правила сессии</PageTitle>
+
+<div class="list-header">
+    <h1>Правила сессии</h1>
+</div>
+
+@if (!string.IsNullOrEmpty(Error))
+{
+    <div class="alert alert-danger" role="alert">@Error</div>
+}
+@if (!string.IsNullOrEmpty(Info))
+{
+    <div class="alert alert-success" role="alert">@Info</div>
+}
+
+<p class="mb-3">
+    По этим правилам рассчитывается допуск студентов к экзаменационной сессии:
+    процент посещаемости, минимальный средний балл и допустимое количество пропусков (отработок).
+</p>
+
+@if (EditId == 0)
+{
+    <div class="card mb-3">
+        <div class="card-header">Новое правило</div>
+        <div class="card-body">
+            <EditForm Model="NewRule" OnValidSubmit="AddRuleAsync" FormName="session-rule-create">
+                <DataAnnotationsValidator />
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <label class="form-label">Название:</label>
+                        <InputText class="form-control" @bind-Value="NewRule.name" />
+                        <ValidationMessage For="() => NewRule.name" class="text-danger" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Посещаемость, %:</label>
+                        <InputNumber class="form-control" @bind-Value="NewRule.min_attendance_pct" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Средний балл:</label>
+                        <InputNumber class="form-control" @bind-Value="NewRule.min_average_grade" step="0.01" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Пропусков (мех.):</label>
+                        <InputNumber class="form-control" @bind-Value="NewRule.required_makeups" />
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end gap-2">
+                        <label class="form-check form-switch form-check-inline mb-1">
+                            <InputCheckbox class="form-check-input" @bind-Value="NewRule.is_active" />
+                            <span class="form-check-label">активное</span>
+                        </label>
+                        <button type="submit" class="btn btn-primary">Добавить</button>
+                    </div>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<table class="table context-table">
+    <thead>
+        <tr>
+            <th>Название</th>
+            <th>Посещаемость</th>
+            <th>Средний балл</th>
+            <th>Пропуски</th>
+            <th>Статус</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var rule in Rules.OrderByDescending(r => r.is_active).ThenBy(r => r.name))
+        {
+            @if (EditId == rule.session_rule_id)
+            {
+                <tr>
+                    <td>
+                        <InputText class="form-control form-control-sm" @bind-Value="EditRule.name" />
+                    </td>
+                    <td>
+                        <InputNumber class="form-control form-control-sm" @bind-Value="EditRule.min_attendance_pct" />
+                    </td>
+                    <td>
+                        <InputNumber class="form-control form-control-sm" @bind-Value="EditRule.min_average_grade" step="0.01" />
+                    </td>
+                    <td>
+                        <InputNumber class="form-control form-control-sm" @bind-Value="EditRule.required_makeups" />
+                    </td>
+                    <td>
+                        <InputCheckbox class="form-check-input" @bind-Value="EditRule.is_active" />
+                    </td>
+                    <td class="text-end text-nowrap">
+                        <button type="button" class="btn btn-primary btn-sm" @onclick="SaveEditAsync">Сохранить</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="CancelEdit">Отмена</button>
+                    </td>
+                </tr>
+            }
+            else
+            {
+                <tr>
+                    <td>@rule.name</td>
+                    <td>@rule.min_attendance_pct%</td>
+                    <td>@rule.min_average_grade.ToString("0.00")</td>
+                    <td>@rule.required_makeups</td>
+                    <td>
+                        @if (rule.is_active)
+                        {
+                            <span class="badge text-bg-success">активное</span>
+                        }
+                        else
+                        {
+                            <span class="badge text-bg-secondary">неактивное</span>
+                        }
+                    </td>
+                    <td class="text-end text-nowrap">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => ToggleEdit(rule.session_rule_id)">Изменить</button>
+                        <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => DeleteAsync(rule.session_rule_id)">Удалить</button>
+                    </td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+
+@code {
+    private List<SessionRule> Rules = new();
+    private SessionRule NewRule = new();
+    private SessionRule EditRule = new();
+    private int EditId;
+    private string? Error;
+    private string? Info;
+
+    protected override async Task OnInitializedAsync()
+    {
+        NewRule = new SessionRule { name = "", min_attendance_pct = 70, min_average_grade = 3.00m, required_makeups = 1, is_active = false };
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        await using var context = DbFactory.CreateDbContext();
+        Rules = await context.SessionRules.AsNoTracking().OrderBy(r => r.name).ToListAsync();
+    }
+
+    private async Task AddRuleAsync()
+    {
+        Error = null;
+        Info = null;
+        await using var context = DbFactory.CreateDbContext();
+        if (NewRule.is_active)
+        {
+            await context.SessionRules.Where(r => r.is_active).ExecuteUpdateAsync(r => r.SetProperty(x => x.is_active, false));
+        }
+        context.SessionRules.Add(NewRule);
+        await context.SaveChangesAsync();
+        Info = "Правило добавлено.";
+        NewRule = new SessionRule { name = "", min_attendance_pct = 70, min_average_grade = 3.00m, required_makeups = 1, is_active = false };
+        await LoadAsync();
+    }
+
+    private void ToggleEdit(int id)
+    {
+        var source = Rules.FirstOrDefault(r => r.session_rule_id == id);
+        if (source is null)
+        {
+            return;
+        }
+        EditRule = new SessionRule
+        {
+            session_rule_id = source.session_rule_id,
+            name = source.name,
+            min_attendance_pct = source.min_attendance_pct,
+            min_average_grade = source.min_average_grade,
+            required_makeups = source.required_makeups,
+            is_active = source.is_active
+        };
+        EditId = id;
+    }
+
+    private void CancelEdit() => EditId = 0;
+
+    private async Task SaveEditAsync()
+    {
+        Error = null;
+        Info = null;
+        await using var context = DbFactory.CreateDbContext();
+        var target = await context.SessionRules.FirstOrDefaultAsync(r => r.session_rule_id == EditRule.session_rule_id);
+        if (target is not null)
+        {
+            target.name = EditRule.name;
+            target.min_attendance_pct = EditRule.min_attendance_pct;
+            target.min_average_grade = EditRule.min_average_grade;
+            target.required_makeups = EditRule.required_makeups;
+            target.is_active = EditRule.is_active;
+            if (EditRule.is_active)
+            {
+                await context.SessionRules.Where(r => r.is_active && r.session_rule_id != EditRule.session_rule_id).ExecuteUpdateAsync(r => r.SetProperty(x => x.is_active, false));
+            }
+            await context.SaveChangesAsync();
+            Info = "Правило обновлено.";
+        }
+        EditId = 0;
+        await LoadAsync();
+    }
+
+    private async Task DeleteAsync(int id)
+    {
+        await using var context = DbFactory.CreateDbContext();
+        var rule = await context.SessionRules.FirstOrDefaultAsync(r => r.session_rule_id == id);
+        if (rule is not null)
+        {
+            context.SessionRules.Remove(rule);
+            await context.SaveChangesAsync();
+            Info = "Правило удалено.";
+        }
+        await LoadAsync();
+    }
+}

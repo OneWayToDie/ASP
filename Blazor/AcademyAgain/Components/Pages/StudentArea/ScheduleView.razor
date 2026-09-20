@@ -1,0 +1,61 @@
+@page "/student/schedule"
+@attribute [Authorize(Roles = "student")]
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.Authorization
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject AuthenticationStateProvider Auth
+
+<PageTitle>Расписание — кабинет студента</PageTitle>
+
+<div class="page-header">
+    <h1>Расписание занятий</h1>
+    <p class="page-subtitle">Занятия вашей группы: @GroupName</p>
+</div>
+
+@if (ShowTable)
+{
+    <ScheduleTable FixedGroupId="LinkedGroupId" Heading="@Heading" />
+}
+else
+{
+    <div class="alert alert-warning">
+        К вашему аккаунту не привязана карточка студента или не назначена группа.
+        Обратитесь к администратору, чтобы связать аккаунт со студентом.
+    </div>
+}
+
+@code {
+    private bool ShowTable;
+    private int LinkedGroupId;
+    private string GroupName = "";
+    private string Heading = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var name = authState.User.Identity?.Name;
+        await using var context = DbFactory.CreateDbContext();
+
+        var user = name is null
+            ? null
+            : await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.username == name);
+        if (user?.linked_id is not int studentId)
+        {
+            return;
+        }
+
+        var student = await context.Students.AsNoTracking().FirstOrDefaultAsync(s => s.stud_id == studentId);
+        if (student?.group is not int groupId)
+        {
+            return;
+        }
+
+        LinkedGroupId = groupId;
+        var group = await context.Groups.AsNoTracking().FirstOrDefaultAsync(g => g.group_id == groupId);
+        GroupName = group is not null && !string.IsNullOrWhiteSpace(group.group_name) ? group.group_name : $"№{groupId}";
+        Heading = $"Группа {GroupName}";
+        ShowTable = true;
+    }
+}

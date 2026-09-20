@@ -1,0 +1,332 @@
+@page "/teacher"
+@attribute [Authorize(Roles = "teacher")]
+@rendermode InteractiveServer
+@using System.Globalization
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.Authorization
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject AuthenticationStateProvider Auth
+
+<PageTitle>Кабинет преподавателя</PageTitle>
+
+<div class="page-header">
+    <h1>Здравствуйте, @Greeting!</h1>
+    <p class="page-subtitle mb-0">@TodayInfo · Личный кабинет преподавателя</p>
+</div>
+
+@if (!LinkedTeacher)
+{
+    <div class="alert alert-warning">
+        К вашему аккаунту не привязана карточка преподавателя. Обратитесь к администратору,
+        чтобы связать аккаунт с преподавателем — после этого здесь появится вся информация.
+    </div>
+}
+else
+{
+    <div class="tdash-actions">
+        <a class="tdash-action" href="teacher/schedule">
+            <span class="tdash-action-icon">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11.5" rx="1.5"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>
+            </span>
+            <span>
+                <span class="tdash-action-title">Расписание</span>
+                <span class="tdash-action-desc">Ваши занятия по дисциплинам и группам</span>
+            </span>
+        </a>
+        <a class="tdash-action" href="teacher/journal">
+            <span class="tdash-action-icon">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1"/><path d="M4 5.5h8M4 8h3M4 10.5h3"/></svg>
+            </span>
+            <span>
+                <span class="tdash-action-title">Журнал</span>
+                <span class="tdash-action-desc">Посещаемость и оценки занятий</span>
+            </span>
+        </a>
+    </div>
+
+    <div class="dashboard-stats">
+        <div class="stat-card">
+            <div class="stat-value">@MySchedule.Count</div>
+            <div class="stat-label">Занятий всего</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">@TodayCount</div>
+            <div class="stat-label">Сегодня</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">@SpentCount / @UpcomingCount</div>
+            <div class="stat-label">Проведено / предстоит</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">@DisciplineCount</div>
+            <div class="stat-label">Дисциплин</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">@GroupCount</div>
+            <div class="stat-label">Групп</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">@AttendedPercentText</div>
+            <div class="stat-label">Посещаемость</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">@AverageGradeText</div>
+            <div class="stat-label">Средний балл</div>
+        </div>
+    </div>
+
+    <h2 class="section-title">Сегодня</h2>
+    @if (TodayLessons.Count == 0)
+    {
+        <div class="section-empty">Сегодня занятий нет</div>
+    }
+    else
+    {
+        <div class="tdash-lessons">
+            @foreach (var l in TodayLessons)
+            {
+                <a class="tdash-lesson" href="teacher/journal?lesson=@l.Id">
+                    <span class="tdash-lesson-time">
+                        <span class="tdash-lesson-date">@l.DayLabel</span>
+                        <span class="tdash-lesson-clock">@l.TimeLabel</span>
+                    </span>
+                    <span class="tdash-lesson-main">
+                        <span class="tdash-lesson-title">@l.Discipline</span>
+                        <span class="tdash-lesson-sub">Группа: @l.Group</span>
+                    </span>
+                    <span class="tdash-chip @(l.Spent ? "tdash-chip-done" : "tdash-chip-todo")">@(l.Spent ? "Проведено" : "Предстоит")</span>
+                    <span class="tdash-lesson-go">Журнал →</span>
+                </a>
+            }
+        </div>
+    }
+
+    <h2 class="section-title">Ближайшие занятия</h2>
+    @if (Upcoming.Count == 0)
+    {
+        <div class="section-empty">Ближайших занятий нет</div>
+    }
+    else
+    {
+        <div class="tdash-lessons">
+            @foreach (var l in Upcoming)
+            {
+                <a class="tdash-lesson" href="teacher/journal?lesson=@l.Id">
+                    <span class="tdash-lesson-time">
+                        <span class="tdash-lesson-date">@l.DateLabel, @l.DayLabel</span>
+                        <span class="tdash-lesson-clock">@l.TimeLabel</span>
+                    </span>
+                    <span class="tdash-lesson-main">
+                        <span class="tdash-lesson-title">@l.Discipline</span>
+                        <span class="tdash-lesson-sub">Группа: @l.Group</span>
+                    </span>
+                    <span class="tdash-chip tdash-chip-todo">Предстоит</span>
+                    <span class="tdash-lesson-go">Журнал →</span>
+                </a>
+            }
+        </div>
+    }
+
+    <h2 class="section-title">Мои дисциплины</h2>
+    @if (Disciplines.Count == 0)
+    {
+        <div class="section-empty">Дисциплины пока не назначены</div>
+    }
+    else
+    {
+        <div class="tdash-chips">
+            @foreach (var d in Disciplines)
+            {
+                <span class="tdash-chip-plain">@d.Name — @d.Lessons @PluralLessons(d.Lessons)</span>
+            }
+        </div>
+        <div class="tdash-progress">
+            <div class="tdash-progress-bar" style="width: @ProgressPercent%"></div>
+        </div>
+        <div class="text-secondary small">Проведено @SpentCount из @MySchedule.Count занятий</div>
+    }
+
+    <h2 class="section-title">Мои группы</h2>
+    @if (Groups.Count == 0)
+    {
+        <div class="section-empty">Группы пока не назначены</div>
+    }
+    else
+    {
+        <div class="tdash-chips">
+            @foreach (var g in Groups)
+            {
+                <a class="tdash-chip-plain" href="teacher/schedule">@g</a>
+            }
+        </div>
+    }
+}
+
+@code {
+    private sealed record LessonCard(long Id, string Discipline, string Group, bool Spent, DateTime? Date, TimeSpan? Time)
+    {
+        public string TimeLabel => Time?.ToString(@"hh\:mm") ?? "—";
+        public string DateLabel => Date is DateTime d ? $"{d:dd.MM.yyyy}" : "—";
+        public string DayLabel => Date is DateTime d ? WeekdayShort(d) : "—";
+    }
+
+    private sealed record DisciplineRow(string Name, int Lessons);
+
+    private static string WeekdayShort(DateTime d)
+        => CultureInfo.GetCultureInfo("ru-RU").DateTimeFormat.GetAbbreviatedDayName(d.DayOfWeek);
+
+    private static string PluralLessons(int count)
+    {
+        var mod100 = count % 100;
+        var mod10 = count % 10;
+        if (mod100 is >= 11 and <= 14)
+        {
+            return "занятий";
+        }
+        return mod10 switch
+        {
+            1 => "занятие",
+            >= 2 and <= 4 => "занятия",
+            _ => "занятий"
+        };
+    }
+
+    private string Greeting = "преподаватель";
+    private string TodayInfo = string.Empty;
+    private bool LinkedTeacher;
+    private List<Schedule> MySchedule = new();
+    private List<LessonCard> TodayLessons = new();
+    private List<LessonCard> Upcoming = new();
+    private List<DisciplineRow> Disciplines = new();
+    private List<string> Groups = new();
+
+    private int TodayCount;
+    private int SpentCount;
+    private int UpcomingCount;
+    private int DisciplineCount;
+    private int GroupCount;
+    private int ProgressPercent;
+    private string AttendedPercentText = "—";
+    private string AverageGradeText = "—";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var name = authState.User.Identity?.Name;
+        await using var context = DbFactory.CreateDbContext();
+
+        var user = name is null
+            ? null
+            : await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.username == name);
+        if (user is null)
+        {
+            return;
+        }
+
+        Greeting = !string.IsNullOrWhiteSpace(user.first_name) ? user.first_name.Trim() : user.username;
+        if (user.linked_id is not int teacherId)
+        {
+            return;
+        }
+
+        var teacher = await context.Teachers.AsNoTracking().FirstOrDefaultAsync(t => t.teacher_id == teacherId);
+        if (teacher is null)
+        {
+            return;
+        }
+        LinkedTeacher = true;
+
+        var ru = CultureInfo.GetCultureInfo("ru-RU");
+        TodayInfo = $"{DateTime.Today:dd.MM.yyyy}, {ru.DateTimeFormat.GetDayName(DateTime.Today.DayOfWeek)}";
+
+        var disciplineMap = await context.Disciplines.AsNoTracking().ToDictionaryAsync(d => d.discipline_id);
+        var groupMap = await context.Groups.AsNoTracking().ToDictionaryAsync(g => g.group_id);
+
+        MySchedule = await context.Schedule.AsNoTracking()
+            .Where(s => s.teacher == teacherId)
+            .ToListAsync();
+
+        var today = DateTime.Today;
+        SpentCount = MySchedule.Count(s => s.spent);
+        UpcomingCount = MySchedule.Count - SpentCount;
+        TodayCount = MySchedule.Count(s => s.date == today);
+
+        var lessonIds = MySchedule.Select(s => s.lesson_id).ToList();
+
+        if (lessonIds.Count > 0)
+        {
+            var attendanceRows = await context.Attendance.AsNoTracking()
+                .Where(a => lessonIds.Contains(a.lesson))
+                .ToListAsync();
+            if (attendanceRows.Count > 0)
+            {
+                var attended = attendanceRows.Count(a => a.present);
+                AttendedPercentText = $"{attended * 100.0 / attendanceRows.Count:0.#}%";
+            }
+
+            var gradeValues = (await context.Grades.AsNoTracking()
+                    .Where(g => lessonIds.Contains(g.lesson))
+                    .Select(g => new[] { (int?)g.grade_1, (int?)g.grade_2 })
+                    .ToListAsync())
+                .SelectMany(v => v)
+                .Where(v => v.HasValue)
+                .Select(v => v!.Value)
+                .ToList();
+            if (gradeValues.Count > 0)
+            {
+                AverageGradeText = $"{gradeValues.Average():0.00}";
+            }
+        }
+
+        TodayLessons = MySchedule
+            .Where(s => s.date == today)
+            .OrderBy(s => s.time)
+            .Select(s => ToCard(s, disciplineMap, groupMap))
+            .ToList();
+
+        Upcoming = MySchedule
+            .Where(s => s.date > today && s.spent == false)
+            .OrderBy(s => s.date)
+            .ThenBy(s => s.time)
+            .Take(6)
+            .Select(s => ToCard(s, disciplineMap, groupMap))
+            .ToList();
+
+        Disciplines = MySchedule
+            .GroupBy(s => s.discipline)
+            .Select(g => new DisciplineRow(
+                disciplineMap.TryGetValue(g.Key, out var d) && !string.IsNullOrWhiteSpace(d.discipline_name)
+                    ? d.discipline_name!
+                    : $"№{g.Key}",
+                g.Count()))
+            .OrderBy(r => r.Name)
+            .ToList();
+        DisciplineCount = Disciplines.Count;
+
+        Groups = MySchedule
+            .Select(s => s.group)
+            .Distinct()
+            .OrderBy(x => x)
+            .Select(gid => groupMap.TryGetValue(gid, out var g) && !string.IsNullOrWhiteSpace(g.group_name)
+                ? g.group_name!
+                : $"№{gid}")
+            .ToList();
+        GroupCount = Groups.Count;
+
+        ProgressPercent = MySchedule.Count == 0 ? 0 : SpentCount * 100 / MySchedule.Count;
+    }
+
+    private static LessonCard ToCard(Schedule s, Dictionary<int, Discipline> dm, Dictionary<int, Group> gm)
+        => new LessonCard(
+            s.lesson_id,
+            dm.TryGetValue(s.discipline, out var d) && !string.IsNullOrWhiteSpace(d.discipline_name)
+                ? d.discipline_name!
+                : $"№{s.discipline}",
+            gm.TryGetValue(s.group, out var g) && !string.IsNullOrWhiteSpace(g.group_name)
+                ? g.group_name!
+                : $"№{s.group}",
+            s.spent,
+            s.date,
+            s.time);
+}

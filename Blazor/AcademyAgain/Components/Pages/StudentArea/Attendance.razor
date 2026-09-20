@@ -1,0 +1,90 @@
+@page "/student/attendance"
+@attribute [Authorize(Roles = "student")]
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.Authorization
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject AuthenticationStateProvider Auth
+
+<PageTitle>Посещаемость — кабинет студента</PageTitle>
+
+<div class="page-header">
+    <h1>Посещаемость</h1>
+    <p class="page-subtitle">Посещено занятий: <strong>@AttendedCount из @TotalCount</strong> — @AttendedPercentText</p>
+</div>
+
+@if (Rows.Count == 0)
+{
+    <div class="section-empty">Отметок о посещаемости пока нет</div>
+}
+else
+{
+    <QuickGrid Class="table context-table" Items="gridRows" ItemKey="row => row.LessonId">
+        <PropertyColumn Property="row => row.Discipline" Title="Дисциплина" Sortable="true" />
+        <PropertyColumn Property="row => row.Date" Title="Дата" Sortable="true" />
+        <TemplateColumn Title="Присутствовал" Context="row">
+            @(row.Present ? "Да" : "Нет")
+        </TemplateColumn>
+    </QuickGrid>
+}
+
+@code {
+    private sealed class AttendanceRow
+    {
+        public long LessonId { get; init; }
+        public string Discipline { get; init; } = "";
+        public string Date { get; init; } = "";
+        public bool Present { get; init; }
+    }
+
+    private List<AttendanceRow> Rows = new();
+    private IQueryable<AttendanceRow> gridRows = new List<AttendanceRow>().AsQueryable();
+    private int AttendedCount;
+    private int TotalCount;
+    private string AttendedPercentText = "—";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var name = authState.User.Identity?.Name;
+        await using var context = DbFactory.CreateDbContext();
+
+        var user = name is null
+            ? null
+            : await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.username == name);
+        if (user?.linked_id is not int studentId)
+        {
+            return;
+        }
+
+        var disciplines = await context.Disciplines.AsNoTracking().ToDictionaryAsync(d => d.discipline_id);
+        var lessons = await context.Schedule.AsNoTracking().ToDictionaryAsync(s => s.lesson_id);
+        var attendance = await context.Attendance.AsNoTracking()
+            .Where(a => a.student == studentId)
+            .ToListAsync();
+
+        Rows = attendance
+            .OrderByDescending(a => lessons.GetValueOrDefault(a.lesson)?.date)
+            .Select(a =>
+            {
+                lessons.TryGetValue(a.lesson, out var lesson);
+                return new AttendanceRow
+                {
+                    LessonId = a.lesson,
+                    Discipline = lesson is not null && disciplines.TryGetValue(lesson.discipline, out var d) && !string.IsNullOrWhiteSpace(d.discipline_name)
+                        ? d.discipline_name
+                        : $"№{lesson?.discipline ?? 0}",
+                    Date = lesson?.date?.ToString("dd.MM.yyyy") ?? "—",
+                    Present = a.present
+                };
+            })
+            .ToList();
+        gridRows = Rows.AsQueryable();
+
+        TotalCount = attendance.Count;
+        AttendedCount = attendance.Count(a => a.present);
+        AttendedPercentText = TotalCount == 0 ? "—" : $"{AttendedCount * 100.0 / TotalCount:0.#}%";
+    }
+}
