@@ -79,6 +79,7 @@ else
                             {
                             <Photo image="@Student.photo" />
                             }
+                            <InputFile OnChange="LoadPhoto"></InputFile>
                         </div>
                         @* <div class="mb-3">
                         <label for="photo" class="form-label">photo:</label>
@@ -103,6 +104,21 @@ else
 
     [SupplyParameterFromForm]
     private Student? Student { get; set; }
+
+    //          Photo:
+    IBrowserFile URL { get; set; } = default!;
+    async Task LoadPhoto(InputFileChangeEventArgs e)
+    {
+        URL = e.File;
+        URL.OpenReadStream();
+        MemoryStream ms = new MemoryStream();
+        await URL.OpenReadStream().CopyToAsync(ms);
+        byte[] raw_data = ms.ToArray();
+        Student.photo = raw_data;
+    }
+
+
+    /// ///////////////////////////////////////////////////////////////
 
     protected override async Task OnInitializedAsync()
     {
