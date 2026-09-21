@@ -16,6 +16,7 @@
 }
 else
 {
+    <h1>@Student.FullName edit</h1>
     <div class="row">
         <div class="col-md-10">
             <EditForm method="post" Model="Student" OnValidSubmit="UpdateStudent" FormName="edit" Enhance>
@@ -74,11 +75,14 @@ else
                             </InputSelect>
                             <ValidationMessage For="() => Student.group" class="text-danger" />
                         </div>
+                    </div>
                         <div class="photo-container">
-                            @if (Student.photo != null)
-                            {
-                            <Photo image="@Student.photo" />
-                            }
+                            <div>
+                                @if (Student.photo != null)
+                                {
+                                    <Photo image="@Student.photo" />
+                                }
+                            </div>
                             <InputFile OnChange="LoadPhoto"></InputFile>
                         </div>
                         @* <div class="mb-3">
@@ -87,7 +91,6 @@ else
                         <ValidationMessage For="() => Student.photo" class="text-danger" />
                         </div> *@
                         <button type="submit" class="btn btn-primary">Save</button>
-                    </div>
                 </div>
             </EditForm>
         </div>
@@ -110,7 +113,7 @@ else
     async Task LoadPhoto(InputFileChangeEventArgs e)
     {
         URL = e.File;
-        URL.OpenReadStream();
+        // URL.OpenReadStream();
         MemoryStream ms = new MemoryStream();
         await URL.OpenReadStream().CopyToAsync(ms);
         byte[] raw_data = ms.ToArray();

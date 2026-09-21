@@ -1,4 +1,6 @@
 @page "/students/create"
+@rendermode InteractiveServer
+
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
@@ -11,64 +13,79 @@
 <h2>Student</h2>
 <hr />
 <div class="row">
-    <div class="col-md-4">
+    <div class="col-md-10">
         <EditForm method="post" Model="Student" OnValidSubmit="AddStudent" FormName="create" Enhance>
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" role="alert"/>       
-            <div class="mb-3">
-                <span class="text-danger">*</span>
-                <label for="last_name" class="form-label">last_name:</label> 
-                <InputText id="last_name" @bind-Value="Student.last_name" class="form-control" aria-required="true"/> 
-                <ValidationMessage For="() => Student.last_name" class="text-danger" /> 
-            </div>        
-            <div class="mb-3">
-                <span class="text-danger">*</span>
-                <label for="first_name" class="form-label">first_name:</label> 
-                <InputText id="first_name" @bind-Value="Student.first_name" class="form-control" aria-required="true"/> 
-                <ValidationMessage For="() => Student.first_name" class="text-danger" /> 
-            </div>        
-            <div class="mb-3">
-                <label for="middle_name" class="form-label">middle_name:</label> 
-                <InputText id="middle_name" @bind-Value="Student.middle_name" class="form-control" /> 
-                <ValidationMessage For="() => Student.middle_name" class="text-danger" /> 
-            </div>        
-            <div class="mb-3">
-                <span class="text-danger">*</span>
-                <label for="birth_date" class="form-label">birth_date:</label> 
-                <InputDate id="birth_date" @bind-Value="Student.birth_date" class="form-control" aria-required="true"/> 
-                <ValidationMessage For="() => Student.birth_date" class="text-danger" /> 
-            </div>        
-            <div class="mb-3">
-                <label for="email" class="form-label">email:</label> 
-                <InputText id="email" @bind-Value="Student.email" class="form-control" /> 
-                <ValidationMessage For="() => Student.email" class="text-danger" /> 
-            </div>        
-            <div class="mb-3">
-                <label for="phone" class="form-label">phone:</label> 
-                <InputText id="phone" @bind-Value="Student.phone" class="form-control" /> 
-                <ValidationMessage For="() => Student.phone" class="text-danger" /> 
-            </div>    
-            <div class="mb-3">
-                <span class="text-danger">*</span>
-                <label for="group" class="form-label">group:</label>
-                @* <InputNumber id="group" @bind-Value="Student.group" class="form-control" aria-required="true" /> *@
-                <InputSelect id="group" class="form-control" @bind-Value="@Student.group">
-                    <option selected disabled>--- Выберите группу ---</option>
-                    @using (AcademyAgainContext context = DbFactory.CreateDbContext())
-                    {
-                        @foreach (Group group in context.Groups)
+            <div class="details">
+                <div>
+                    <div class="mb-3">
+                        <span class="text-danger">*</span>
+                        <label for="last_name" class="form-label">last_name:</label>
+                        <InputText id="last_name" @bind-Value="Student.last_name" class="form-control" aria-required="true" />
+                        <ValidationMessage For="() => Student.last_name" class="text-danger" />
+                    </div>
+                    <div class="mb-3">
+                        <span class="text-danger">*</span>
+                        <label for="first_name" class="form-label">first_name:</label>
+                        <InputText id="first_name" @bind-Value="Student.first_name" class="form-control" aria-required="true" />
+                        <ValidationMessage For="() => Student.first_name" class="text-danger" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="middle_name" class="form-label">middle_name:</label>
+                        <InputText id="middle_name" @bind-Value="Student.middle_name" class="form-control" />
+                        <ValidationMessage For="() => Student.middle_name" class="text-danger" />
+                    </div>
+                    <div class="mb-3">
+                        <span class="text-danger">*</span>
+                        <label for="birth_date" class="form-label">birth_date:</label>
+                        <InputDate id="birth_date" @bind-Value="Student.birth_date" class="form-control" aria-required="true" />
+                        <ValidationMessage For="() => Student.birth_date" class="text-danger" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">email:</label>
+                        <InputText id="email" @bind-Value="Student.email" class="form-control" />
+                        <ValidationMessage For="() => Student.email" class="text-danger" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">phone:</label>
+                        <InputText id="phone" @bind-Value="Student.phone" class="form-control" />
+                        <ValidationMessage For="() => Student.phone" class="text-danger" />
+                    </div>
+                    <div class="mb-3">
+                        <span class="text-danger">*</span>
+                        <label for="group" class="form-label">group:</label>
+                        @* <InputNumber id="group" @bind-Value="Student.group" class="form-control" aria-required="true" /> *@
+                        <InputSelect id="group" class="form-control" @bind-Value="@Student.group">
+                            <option selected disabled>--- Выберите группу ---</option>
+                            @using (AcademyAgainContext context = DbFactory.CreateDbContext())
+                            {
+                            @foreach (Group group in context.Groups)
+                            {
+                            <option value="@group.group_Id">@group.group_name</option>
+                            }
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="() => Student.group" class="text-danger" />
+                    </div>
+                </div>
+                    @* <div class="mb-3">
+                    <label for="photo" class="form-label">photo:</label>
+                    <InputText id="photo" @bind-Value="Student.photo" class="form-control" />
+                    <ValidationMessage For="() => Student.photo" class="text-danger" />
+                    </div> *@
+
+                <div>
+                    <div>
+                        @if (Student.photo != null)
                         {
-                            <option value="@group.group_Id">@group.group_name</option>   
+                            <Photo Image="@Student.photo" />
                         }
-                    }
-                </InputSelect>
-                <ValidationMessage For="() => Student.group" class="text-danger" />
+                    </div>
+                    <InputFile @rendermode="InteractiveServer" @OnChange="LoadPhoto"></InputFile>
+                </div>
             </div>
-            @* <div class="mb-3">
-                <label for="photo" class="form-label">photo:</label> 
-                <InputText id="photo" @bind-Value="Student.photo" class="form-control" /> 
-                <ValidationMessage For="() => Student.photo" class="text-danger" /> 
-            </div> *@        
+
             <button type="submit" class="btn btn-primary">Create</button>
         </EditForm>
     </div>
@@ -81,6 +98,15 @@
 @code {
     [SupplyParameterFromForm]
     private Student Student { get; set; } = default!;
+
+    IBrowserFile URL { get; set; }
+    async Task LoadPhoto(InputFileChangeEventArgs e)
+    {
+        URL = e.File;
+        MemoryStream ms = new MemoryStream();
+        await URL.OpenReadStream().CopyToAsync(ms);
+        Student.photo = ms.ToArray();
+    }
 
     protected override void OnInitialized() => Student ??= new();
 
