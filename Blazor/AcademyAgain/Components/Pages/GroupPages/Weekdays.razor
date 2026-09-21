@@ -1,0 +1,18 @@
+﻿<h6>Learning days</h6>
+
+<ul class="weekdays form-control">
+	@for(int i = 0; i < 7; i++)
+	{
+		<li>
+			<input type="checkbox" id="@Week.DAYNAMES[i]" tabindex="@days[i]"/>
+			<label for="@Week.DAYNAMES[i]">@Week.DAYNAMES[i]</label>
+		</li>
+	}
+</ul>
+
+@code 
+{
+	bool[] days = new bool[7];
+	[Parameter] public Models.Group Group { get; set; }
+
+}

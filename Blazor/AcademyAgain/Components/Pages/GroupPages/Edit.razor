@@ -48,6 +48,7 @@ else
                     <InputNumber id="learning_days" @bind-Value="Group.learning_days" class="form-control" />
                     <ValidationMessage For="() => Group.learning_days" class="text-danger" />
                 </div>
+                <Weekdays Group="@Group"/>
                 <div class="mb-3">
                     <label for="start_time" class="form-label">start_time:</label>
                     <InputDate id="start_time" @bind-Value="Group.start_time" class="form-control" />
