@@ -257,6 +257,15 @@
         </div>
         }
 
+        <AuthorizeView Roles="admin,moderator,support">
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="support">
+                    <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="12" height="9" rx="1.5"/><path d="m3 5.5 5 3.2 5-3.2"/></svg>
+                    <span class="nav-label">Техподдержка</span>
+                </NavLink>
+            </div>
+        </AuthorizeView>
+
         @if (IsAuthenticated)
         {
             <div class="nav-item px-3">
@@ -314,6 +323,7 @@
         "student" => "Студент",
         "candidate" => "Абитуриент",
         "teacher_candidate" => "Соискатель",
+        "support" => "Поддержка",
         _ => role ?? string.Empty
     };
 
@@ -325,6 +335,7 @@
         "student" => "text-bg-success",
         "candidate" => "text-bg-warning",
         "teacher_candidate" => "text-bg-secondary",
+        "support" => "text-bg-info",
         _ => "text-bg-secondary"
     };
 }

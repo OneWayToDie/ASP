@@ -32,39 +32,49 @@ namespace AcademyAgain.Helpers
 
     public static class Photo
     {
-        public static string? DataSrc(byte[]? bytes)
+        public static string? Mime(byte[]? bytes)
         {
             if (bytes == null || bytes.Length == 0)
                 return null;
 
-            string? mime = null;
             // JPEG: FF D8 FF
             if (bytes.Length >= 3 && bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF)
-                mime = "image/jpeg";
+                return "image/jpeg";
             // PNG: 89 50 4E 47
-            else if (bytes.Length >= 8 && bytes[0] == 0x89 && bytes[1] == 0x50
-                     && bytes[2] == 0x4E && bytes[3] == 0x47)
-                mime = "image/png";
+            if (bytes.Length >= 8 && bytes[0] == 0x89 && bytes[1] == 0x50
+                && bytes[2] == 0x4E && bytes[3] == 0x47)
+                return "image/png";
             // WebP: RIFF????WEBP
-            else if (bytes.Length >= 12 && bytes[0] == 0x52 && bytes[1] == 0x49
-                     && bytes[2] == 0x46 && bytes[3] == 0x46
-                     && bytes[8] == 0x57 && bytes[9] == 0x45
-                     && bytes[10] == 0x42 && bytes[11] == 0x50)
-                mime = "image/webp";
+            if (bytes.Length >= 12 && bytes[0] == 0x52 && bytes[1] == 0x49
+                && bytes[2] == 0x46 && bytes[3] == 0x46
+                && bytes[8] == 0x57 && bytes[9] == 0x45
+                && bytes[10] == 0x42 && bytes[11] == 0x50)
+                return "image/webp";
             // GIF: GIF87a / GIF89a
-            else if (bytes.Length >= 6 && bytes[0] == 0x47 && bytes[1] == 0x49
-                     && bytes[2] == 0x46 && bytes[3] == 0x38
-                     && (bytes[4] == 0x37 || bytes[4] == 0x39) && bytes[5] == 0x61)
-                mime = "image/gif";
+            if (bytes.Length >= 6 && bytes[0] == 0x47 && bytes[1] == 0x49
+                && bytes[2] == 0x46 && bytes[3] == 0x38
+                && (bytes[4] == 0x37 || bytes[4] == 0x39) && bytes[5] == 0x61)
+                return "image/gif";
             // BMP: BM
-            else if (bytes.Length >= 2 && bytes[0] == 0x42 && bytes[1] == 0x4D)
-                mime = "image/bmp";
+            if (bytes.Length >= 2 && bytes[0] == 0x42 && bytes[1] == 0x4D)
+                return "image/bmp";
             // ICO: 00 00 01 00
-            else if (bytes.Length >= 4 && bytes[0] == 0x00 && bytes[1] == 0x00
-                     && bytes[2] == 0x01 && bytes[3] == 0x00)
-                mime = "image/x-icon";
+            if (bytes.Length >= 4 && bytes[0] == 0x00 && bytes[1] == 0x00
+                && bytes[2] == 0x01 && bytes[3] == 0x00)
+                return "image/x-icon";
 
-            return mime is null ? null : $"data:{mime};base64,{Convert.ToBase64String(bytes)}";
+            return null;
+        }
+
+        public static string? DataSrc(byte[]? bytes)
+        {
+            var mime = Mime(bytes);
+            return mime is null ? null : $"data:{mime};base64,{Convert.ToBase64String(bytes!)}";
+        }
+
+        public static string? AvatarUrl(int userId, byte[]? bytes)
+        {
+            return Mime(bytes) is null ? null : $"/photo/{userId}?v=" + (bytes?.Length ?? 0);
         }
     }
 

@@ -58,6 +58,12 @@ public class AcademyAgainContext(DbContextOptions<AcademyAgainContext> options) 
     { get; set; } = default!;
     public DbSet<AcademyAgain.Models.EmailVerificationCode> EmailVerificationCodes
     { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.SupportChat> SupportChats
+    { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.SupportMessage> SupportMessages
+    { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.SupportBan> SupportBans
+    { get; set; } = default!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -85,5 +91,10 @@ public class AcademyAgainContext(DbContextOptions<AcademyAgainContext> options) 
             .HasKey(r => new { r.discipline, r.required_discipline });
         modelBuilder.Entity<AcademyAgain.Models.TeachersDisciplinesRelation>()
             .HasKey(t => new { t.teacher, t.discipline });
+
+        modelBuilder.Entity<AcademyAgain.Models.SupportChat>()
+            .HasIndex(c => c.user_id);
+        modelBuilder.Entity<AcademyAgain.Models.SupportMessage>()
+            .HasIndex(m => m.chat_id);
     }
 }

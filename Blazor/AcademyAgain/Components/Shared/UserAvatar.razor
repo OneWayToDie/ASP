@@ -1,0 +1,30 @@
+<div class="user-avatar user-avatar-tone-@Tone" title="@Name" aria-hidden="true">
+    <span class="user-avatar-initials">@Initials</span>
+    @if (PhotoSrc is not null)
+    {
+        <img src="@PhotoSrc" alt="" onerror="this.classList.add('is-broken');" />
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int UserId { get; set; }
+
+    [Parameter]
+    public string? Name { get; set; }
+
+    [Parameter]
+    public string? PhotoSrc { get; set; }
+
+    [Parameter]
+    public string? Initials { get; set; }
+
+    private string Tone
+    {
+        get
+        {
+            var palette = new[] { "a", "b", "c", "d", "e", "f" };
+            return palette[Math.Abs(UserId) % palette.Length];
+        }
+    }
+}

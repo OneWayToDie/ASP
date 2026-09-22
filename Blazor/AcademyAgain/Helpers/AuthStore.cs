@@ -58,7 +58,8 @@ namespace AcademyAgain.Helpers
 				(3, "student"),
 				(4, "moderator"),
 				(5, "candidate"),
-				(6, "teacher_candidate")
+				(6, "teacher_candidate"),
+				(7, "support")
 			};
 
 			foreach (var (id, name) in roles)

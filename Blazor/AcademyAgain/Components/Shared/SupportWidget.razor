@@ -1,0 +1,542 @@
+@rendermode InteractiveServer
+@using AcademyAgain.Models
+@using AcademyAgain.Components.Support
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject AuthenticationStateProvider Auth
+@inject IJSRuntime JS
+
+@if (Visible)
+{
+    <div id="supportWidget" class="support-widget" data-state="@(IsOpen ? "open" : "closed")">
+        <button type="button" class="support-fab support-drag" @onclick="TogglePanel"
+                title="Техподдержка" aria-label="Открыть окно техподдержки">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="2" y="4" width="20" height="16" rx="2" />
+                <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+            </svg>
+            @if (UnreadCount > 0)
+            {
+                <span class="support-badge">@(UnreadCount > 9 ? "9+" : UnreadCount.ToString())</span>
+            }
+        </button>
+        @if (IsOpen)
+        {
+            <div class="support-panel">
+                <div class="support-panel-head support-drag">
+                    <span class="support-panel-title">Техподдержка</span>
+                    <div class="support-panel-head-actions">
+                        <button type="button" class="support-icon-btn" @onclick="StartNewChat" title="Диалоги">+</button>
+                        <button type="button" class="support-icon-btn" @onclick="ClosePanel" title="Свернуть" aria-label="Свернуть окно">—</button>
+                    </div>
+                </div>
+
+                @if (IsBanned)
+                {
+                    <div class="support-banned">
+                        <p>Вы заблокированы в этом чате службой поддержки. Писать новые сообщения нельзя.</p>
+                    </div>
+                }
+
+                @if (ShowChatList && Chats.Count > 1)
+                {
+                    <div class="support-chat-select">
+                        <select class="form-select form-select-sm" value="@ActiveChatId" @onchange="OnChatChanged" aria-label="Выбрать диалог">
+                            @foreach (var chat in Chats)
+                            {
+                                <option value="@chat.chat_id">@ChatLabel(chat)</option>
+                            }
+                        </select>
+                    </div>
+                }
+
+                <div class="support-messages">
+                    @if (Messages.Count == 0)
+                    {
+                        <div class="support-empty">Задайте вопрос, и поддержка ответит.</div>
+                    }
+                    else
+                    {
+                        @foreach (var m in Messages)
+                        {
+                            var mine = m.author_user_id == (CurrentUser?.user_id ?? -1);
+                            var author = Authors.TryGetValue(m.author_user_id, out var a) ? a : null;
+                            <div class="support-msg @(mine ? "support-msg-mine" : "support-msg-them")">
+                                <div class="support-msg-head">
+                                    <UserAvatar UserId="m.author_user_id" Name="@author?.Name" PhotoSrc="@author?.PhotoSrc" Initials="@author?.Initials" />
+                                    <span class="support-msg-author">@(mine ? "Вы" : author?.Name ?? "···")</span>
+                                    <span class="support-msg-time">@TimeText(m.created_at)</span>
+                                </div>
+                                <div class="support-msg-body">@m.body</div>
+                            </div>
+                        }
+                    }
+                </div>
+
+                @if (Error is not null)
+                {
+                    <div class="alert alert-danger small mb-2" role="alert">@Error</div>
+                }
+
+                <div class="support-input">
+                    <input class="form-control form-control-sm" placeholder="Сообщение…" @bind="Draft" @bind:event="oninput"
+                           @onkeydown="OnDraftKey" disabled="@IsBanned" aria-label="Текст сообщения" />
+                    <button type="button" class="btn btn-primary btn-sm" @onclick="Send"
+                            disabled="@(IsBanned || string.IsNullOrWhiteSpace(Draft))">Отправить</button>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private bool Visible;
+    private bool IsOpen;
+    private bool IsBanned;
+    private bool ShowChatList;
+    private bool _previousOpen;
+    private int UnreadCount;
+    private int ActiveChatId;
+    private User? CurrentUser;
+    private string Draft = "";
+    private string? Error;
+    private List<SupportChat> Chats = new();
+    private List<SupportMessageDto> Messages = new();
+    private Dictionary<int, AuthorInfo> Authors = new();
+    private DotNetObjectReference<SupportWidget>? _ref;
+    private System.Threading.Timer? _pollTimer;
+    private bool _polling;
+    private bool _disposed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var name = (await Auth.GetAuthenticationStateAsync()).User.Identity?.Name;
+        if (string.IsNullOrEmpty(name))
+        {
+            return;
+        }
+
+        await using var db = DbFactory.CreateDbContext();
+        var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.username == name);
+        if (user is null)
+        {
+            return;
+        }
+
+        var role = await db.Roles.AsNoTracking().FirstOrDefaultAsync(r => r.role_id == user.role_id);
+        if (role?.role_name == "support")
+        {
+            return;
+        }
+
+        CurrentUser = user;
+        Visible = true;
+        _previousOpen = IsOpen;
+        await RefreshDataAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Visible && _previousOpen != IsOpen)
+        {
+            _previousOpen = IsOpen;
+            if (IsOpen)
+            {
+                await JS.InvokeVoidAsync("AcademySupportWidget.positionPanel");
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("AcademySupportWidget.clearPosition");
+            }
+        }
+
+        if (firstRender && Visible)
+        {
+            _ref = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("AcademySupport.init", _ref);
+            if (ActiveChatId != 0)
+            {
+                await JS.InvokeVoidAsync("AcademySupport.joinChat", ActiveChatId);
+            }
+            await JS.InvokeVoidAsync("AcademySupportWidget.restore");
+            StartPolling();
+        }
+    }
+
+    private void StartPolling()
+    {
+        if (_disposed || _pollTimer is not null)
+        {
+            return;
+        }
+        _pollTimer = new System.Threading.Timer(PollTick, null, TimeSpan.FromSeconds(12), TimeSpan.FromSeconds(12));
+    }
+
+    private async void PollTick(object? state)
+    {
+        if (_disposed || _polling)
+        {
+            return;
+        }
+        _polling = true;
+        try
+        {
+            await InvokeAsync(async () =>
+            {
+                if (ActiveChatId != 0)
+                {
+                    try
+                    {
+                        await JS.InvokeVoidAsync("AcademySupport.joinChat", ActiveChatId);
+                    }
+                    catch
+                    {
+                    }
+                }
+                await RefreshDataAsync();
+                StateHasChanged();
+            });
+        }
+        catch
+        {
+        }
+        finally
+        {
+            _polling = false;
+        }
+    }
+
+    private async Task RefreshDataAsync()
+    {
+        await using var db = DbFactory.CreateDbContext();
+        Chats = await db.SupportChats.AsNoTracking()
+            .Where(c => c.user_id == CurrentUser!.user_id)
+            .OrderByDescending(c => c.updated_at)
+            .ThenByDescending(c => c.created_at)
+            .ToListAsync();
+
+        if (Chats.All(c => c.chat_id != ActiveChatId))
+        {
+            var open = Chats.FirstOrDefault(c => c.status == 1);
+            ActiveChatId = open?.chat_id ?? Chats.FirstOrDefault()?.chat_id ?? 0;
+        }
+
+        if (ActiveChatId == 0)
+        {
+            Messages.Clear();
+            IsBanned = false;
+            UnreadCount = 0;
+            Authors.Clear();
+            return;
+        }
+
+        IsBanned = await db.SupportBans.AsNoTracking().AnyAsync(b => b.chat_id == ActiveChatId);
+        await LoadMessagesAsync(ActiveChatId);
+        await LoadAuthorsAsync(db, Messages.Select(m => m.author_user_id));
+        UnreadCount = await ComputeUnreadAsync(db);
+    }
+
+    private async Task LoadMessagesAsync(int chatId)
+    {
+        await using var db = DbFactory.CreateDbContext();
+        var rows = await db.SupportMessages.AsNoTracking()
+            .Where(m => m.chat_id == chatId)
+            .OrderBy(m => m.created_at)
+            .ThenBy(m => m.msg_id)
+            .ToListAsync();
+        Messages = rows
+            .Select(m => new SupportMessageDto(m.msg_id, m.chat_id, m.author_user_id, m.body, m.created_at?.ToString("O")))
+            .ToList();
+    }
+
+    private async Task LoadAuthorsAsync(AcademyAgainContext db, IEnumerable<int> userIds)
+    {
+        var ids = userIds.Append(CurrentUser!.user_id).Distinct().ToList();
+        var users = await db.Users.AsNoTracking().Where(u => ids.Contains(u.user_id)).ToDictionaryAsync(u => u.user_id);
+        var roles = await db.Roles.AsNoTracking().ToDictionaryAsync(r => r.role_id);
+        var linkedPhotos = await AuthorResolver.LoadLinkedPhotosAsync(db, users.Values.ToList());
+        Authors = users.ToDictionary(
+            kv => kv.Key,
+            kv => AuthorResolver.Build(kv.Value, roles.GetValueOrDefault(kv.Value.role_id)?.role_name is "admin" or "moderator" or "support",
+                kv.Value.linked_id is int lid ? linkedPhotos.GetValueOrDefault(lid) : null));
+    }
+
+    private async Task EnsureAuthorAsync(int userId)
+    {
+        if (Authors.ContainsKey(userId))
+        {
+            return;
+        }
+        await using var db = DbFactory.CreateDbContext();
+        var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.user_id == userId);
+        if (user is null)
+        {
+            return;
+        }
+        var role = await db.Roles.AsNoTracking().Where(r => r.role_id == user.role_id).Select(r => r.role_name).FirstOrDefaultAsync();
+        var linkedPhotos = await AuthorResolver.LoadLinkedPhotosAsync(db, new[] { user });
+        Authors[userId] = AuthorResolver.Build(user, role is "admin" or "moderator" or "support",
+            user.linked_id is int lid ? linkedPhotos.GetValueOrDefault(lid) : null);
+    }
+
+    private static async Task<int> ComputeUnreadAsync(AcademyAgainContext db, int userId)
+    {
+        var chatIds = await db.SupportChats.AsNoTracking()
+            .Where(c => c.user_id == userId && c.status == 1)
+            .Select(c => c.chat_id)
+            .ToListAsync();
+
+        var count = 0;
+        foreach (var chatId in chatIds)
+        {
+            var last = await db.SupportMessages.AsNoTracking()
+                .Where(m => m.chat_id == chatId)
+                .OrderByDescending(m => m.created_at)
+                .ThenByDescending(m => m.msg_id)
+                .FirstOrDefaultAsync();
+            if (last is not null && last.author_user_id != userId)
+            {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private async Task<int> ComputeUnreadAsync(AcademyAgainContext db)
+    {
+        return await ComputeUnreadAsync(db, CurrentUser!.user_id);
+    }
+
+    private async Task TogglePanel()
+    {
+        if (IsOpen)
+        {
+            ClosePanel();
+            return;
+        }
+        IsOpen = true;
+        Error = null;
+        await RefreshDataAsync();
+        if (ActiveChatId != 0)
+        {
+            await JS.InvokeVoidAsync("AcademySupport.joinChat", ActiveChatId);
+        }
+    }
+
+    private void ClosePanel()
+    {
+        IsOpen = false;
+    }
+
+    private async Task OnChatChanged(ChangeEventArgs e)
+    {
+        if (!int.TryParse(e.Value?.ToString(), out var chatId) || chatId == ActiveChatId)
+        {
+            return;
+        }
+
+        await ActivateChatAsync(chatId);
+    }
+
+    private async Task Send()
+    {
+        var text = Draft.Trim();
+        if (string.IsNullOrEmpty(text) || ActiveChatId == 0 || IsBanned)
+        {
+            return;
+        }
+
+        Draft = "";
+        Error = null;
+        try
+        {
+            var dto = await JS.InvokeAsync<SupportMessageDto?>("AcademySupport.send", ActiveChatId, text);
+            if (dto is not null)
+            {
+                if (Messages.All(m => m.msg_id != dto.msg_id))
+                {
+                    Messages.Add(dto);
+                }
+                await EnsureAuthorAsync(dto.author_user_id);
+                await RefreshUnreadAsync();
+            }
+        }
+        catch
+        {
+            Error = "Не удалось отправить сообщение. Проверьте соединение.";
+        }
+    }
+
+    private async Task OnDraftKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(Draft))
+        {
+            await Send();
+        }
+    }
+
+    private async Task StartNewChat()
+    {
+        if (Chats.Count == 0)
+        {
+            await using var db = DbFactory.CreateDbContext();
+            var existingOpen = await db.SupportChats
+                .AsNoTracking()
+                .Where(c => c.user_id == CurrentUser!.user_id && c.status == 1)
+                .Where(c => !db.SupportMessages.AsNoTracking().Any(m => m.chat_id == c.chat_id))
+                .FirstOrDefaultAsync();
+            if (existingOpen is not null)
+            {
+                ActiveChatId = existingOpen.chat_id;
+                IsBanned = false;
+                IsOpen = true;
+                Error = null;
+                ShowChatList = false;
+                await LoadMessagesAsync(existingOpen.chat_id);
+                await LoadAuthorsAsync(db, Messages.Select(m => m.author_user_id));
+                UnreadCount = await ComputeUnreadAsync(db);
+                await JS.InvokeVoidAsync("AcademySupport.joinChat", existingOpen.chat_id);
+                return;
+            }
+
+            var chat = new SupportChat
+            {
+                user_id = CurrentUser!.user_id,
+                status = 1,
+                created_at = DateTime.Now,
+                updated_at = DateTime.Now
+            };
+            db.SupportChats.Add(chat);
+            await db.SaveChangesAsync();
+
+            ActiveChatId = chat.chat_id;
+            IsBanned = false;
+            IsOpen = true;
+            Error = null;
+            Messages.Clear();
+            UnreadCount = 0;
+            ShowChatList = false;
+            Chats.Insert(0, chat);
+            await JS.InvokeVoidAsync("AcademySupport.joinChat", chat.chat_id);
+            return;
+        }
+
+        ShowChatList = !ShowChatList;
+    }
+
+    private async Task ActivateChatAsync(int chatId)
+    {
+        var previous = ActiveChatId;
+        ActiveChatId = chatId;
+        await using var db = DbFactory.CreateDbContext();
+        IsBanned = await db.SupportBans.AsNoTracking().AnyAsync(b => b.chat_id == chatId);
+        await LoadMessagesAsync(chatId);
+        await LoadAuthorsAsync(db, Messages.Select(m => m.author_user_id));
+        UnreadCount = await ComputeUnreadAsync(db);
+        IsOpen = true;
+        Error = null;
+        await JS.InvokeVoidAsync("AcademySupport.leaveChat", previous);
+        await JS.InvokeVoidAsync("AcademySupport.joinChat", chatId);
+    }
+
+    private async Task RefreshUnreadAsync()
+    {
+        await using var db = DbFactory.CreateDbContext();
+        UnreadCount = await ComputeUnreadAsync(db);
+    }
+
+    [JSInvokable]
+    public async Task OnSupportMessage(SupportMessageDto msg)
+    {
+        try
+        {
+            if (msg.chat_id == ActiveChatId && Messages.All(m => m.msg_id != msg.msg_id))
+            {
+                Messages.Add(msg);
+                await EnsureAuthorAsync(msg.author_user_id);
+            }
+            await RefreshUnreadAsync();
+        }
+        finally
+        {
+            StateHasChanged();
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnSupportConversationUpdated(int chatId)
+    {
+        await RefreshDataAsync();
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public async Task OnSupportChatUpdated(int chatId)
+    {
+        await RefreshDataAsync();
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public Task OnSupportBanned(int chatId)
+    {
+        if (chatId == ActiveChatId)
+        {
+            IsBanned = true;
+            IsOpen = true;
+            StateHasChanged();
+        }
+        return Task.CompletedTask;
+    }
+
+    [JSInvokable]
+    public async Task OnSupportReconnected()
+    {
+        if (ActiveChatId != 0)
+        {
+            await JS.InvokeVoidAsync("AcademySupport.joinChat", ActiveChatId);
+            await RefreshDataAsync();
+            StateHasChanged();
+        }
+    }
+
+    private static string ChatLabel(SupportChat chat)
+    {
+        var date = chat.updated_at ?? chat.created_at;
+        var status = chat.status == 1 ? "открыт" : "закрыт";
+        return $"Диалог от {date?.ToString("dd.MM.yyyy HH:mm") ?? "—"} · {status}";
+    }
+
+    private static string TimeText(string? iso)
+    {
+        if (iso is null)
+        {
+            return "";
+        }
+        return DateTime.TryParse(iso, out var dt) ? dt.ToString("dd.MM HH:mm") : "";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        if (_pollTimer is not null)
+        {
+            _pollTimer.Dispose();
+            _pollTimer = null;
+        }
+        if (_ref is null)
+        {
+            return;
+        }
+        try
+        {
+            await JS.InvokeVoidAsync("AcademySupport.dispose", _ref);
+        }
+        catch
+        {
+        }
+        _ref.Dispose();
+        _ref = null;
+        GC.SuppressFinalize(this);
+    }
+}
