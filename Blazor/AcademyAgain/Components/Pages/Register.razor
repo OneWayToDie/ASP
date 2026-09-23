@@ -9,6 +9,8 @@
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject EmailVerificationService Verification
 @inject NavigationManager Navigation
+@inject AcademyAgain.Helpers.RateLimiter RateLimiter
+@inject IHttpContextAccessor HttpContextAccessor
 
 <PageTitle>Регистрация</PageTitle>
 
@@ -93,6 +95,10 @@
                     </InputSelect>
                     <ValidationMessage For="() => Model.RoleId" class="text-danger" />
                 </div>
+                <div style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden" aria-hidden="true">
+                    <label for="register_company">Компания</label>
+                    <input id="register_company" type="text" name="Honeypot" value="@Honeypot" tabindex="-1" autocomplete="off" />
+                </div>
                 <button type="submit" class="btn btn-primary w-100">Получить код на email</button>
             </EditForm>
             <div class="mt-3 text-center">
@@ -160,7 +166,7 @@
         public string? Phone { get; set; }
 
         [Required(ErrorMessage = "Введите пароль")]
-        [MinLength(6, ErrorMessage = "Пароль должен быть не короче 6 символов")]
+        [MinLength(8, ErrorMessage = "Пароль должен быть не короче 8 символов")]
         public string Password { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Подтвердите пароль")]
@@ -222,10 +228,35 @@
 
     private static string Normalize(string value) => value.Trim().ToLowerInvariant();
 
+    [SupplyParameterFromForm(Name = "Honeypot")]
+    private string? Honeypot { get; set; }
+
     private async Task SubmitRegistrationAsync()
     {
         Error = null;
         Message = null;
+
+        var email = Normalize(Model.Email);
+
+        if (!string.IsNullOrWhiteSpace(Honeypot))
+        {
+            // Honeypot заполнили — это бот. Имитируем успех, код не отправляем.
+            Navigation.NavigateTo("/register?step=3", forceLoad: true);
+            return;
+        }
+
+        var ip = HttpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        if (!RateLimiter.TryConsume("reg:email:" + email))
+        {
+            Error = "Слишком много попыток регистрации на этот email. Попробуйте позже.";
+            return;
+        }
+        if (!RateLimiter.TryConsume("reg:ip:" + ip))
+        {
+            Error = "Слишком много попыток регистрации с этого адреса. Попробуйте позже.";
+            return;
+        }
+
         if (Model.RoleId != 5 && Model.RoleId != 6)
         {
             Error = "Недопустимая роль.";
@@ -233,7 +264,6 @@
         }
 
         var username = Model.Username.Trim();
-        var email = Normalize(Model.Email);
 
         await using var context = await DbFactory.CreateDbContextAsync();
         if (await context.Users.AsNoTracking().AnyAsync(u => u.username == username))

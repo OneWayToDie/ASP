@@ -319,8 +319,9 @@
             return;
         }
         request.status = 2;
+        request.is_deleted = true;
         await context.SaveChangesAsync();
-        Message = "Заявка отклонена.";
+        Message = "Заявка отклонена (перенесена в корзину).";
         await ReloadAsync();
     }
 
@@ -372,8 +373,9 @@
             return;
         }
         application.status = 2;
+        application.is_deleted = true;
         await context.SaveChangesAsync();
-        Message = "Заявка отклонена.";
+        Message = "Заявка отклонена (перенесена в корзину).";
         await ReloadAsync();
     }
 
@@ -408,8 +410,9 @@
             return;
         }
         request.status = 2;
+        request.is_deleted = true;
         await context.SaveChangesAsync();
-        Message = "Заявка отклонена.";
+        Message = "Заявка отклонена (перенесена в корзину).";
         await ReloadAsync();
     }
 

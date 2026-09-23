@@ -3,9 +3,11 @@
 @rendermode InteractiveServer
 @using AcademyAgain.Models
 @using AcademyAgain.Components.Support
+@using AcademyAgain.Helpers
 @using Microsoft.AspNetCore.SignalR
 @using Microsoft.EntityFrameworkCore
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject AuditLogger AuditLogger
 @inject AuthenticationStateProvider Auth
 @inject NavigationManager Nav
 @inject IJSRuntime JS
@@ -508,6 +510,7 @@
         });
         await db.SaveChangesAsync();
         IsBanned = true;
+        await AuditLogger.LogAndSaveAsync(db, "support.ban", "SupportBan", SelectedChatId.ToString(), null, $"user #{chat.user_id}");
         await Hub.Clients.Group($"user-{chat.user_id}").SendAsync("Banned", SelectedChatId);
         await RefreshChatListAsync();
     }
@@ -524,6 +527,7 @@
         db.SupportBans.RemoveRange(bans);
         await db.SaveChangesAsync();
         IsBanned = false;
+        await AuditLogger.LogAndSaveAsync(db, "support.unban", "SupportBan", SelectedChatId.ToString(), null, $"user #{SelectedClientUserId}");
         await RefreshChatListAsync();
     }
 

@@ -88,7 +88,7 @@
     private async Task DeleteGrade()
     {
         using var context = DbFactory.CreateDbContext();
-        context.Grades.Remove(grade!);
+        grade!.is_deleted = true;
         await context.SaveChangesAsync();
         NavigationManager.NavigateTo("/grades");
     }

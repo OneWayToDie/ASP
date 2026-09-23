@@ -4,6 +4,7 @@
 @using AcademyAgain.Models
 @using AcademyAgain.Helpers
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject AuditLogger AuditLogger
 
 <PageTitle>Семестры</PageTitle>
 
@@ -153,6 +154,7 @@
         if (NewSemester.is_current)
         {
             await context.Semesters.Where(m => m.is_current).ExecuteUpdateAsync(m => m.SetProperty(x => x.is_current, false));
+            await AuditLogger.LogAndSaveAsync(context, "semester.set_current", "Semester", NewSemester.semester_id.ToString(), "—", $"#{NewSemester.semester_id} {NewSemester.name}");
         }
         context.Semesters.Add(NewSemester);
         await context.SaveChangesAsync();
@@ -200,6 +202,7 @@
         if (EditSemester.is_current)
         {
             await context.Semesters.Where(m => m.is_current && m.semester_id != EditSemester.semester_id).ExecuteUpdateAsync(m => m.SetProperty(x => x.is_current, false));
+            await AuditLogger.LogAndSaveAsync(context, "semester.set_current", "Semester", EditSemester.semester_id.ToString(), "—", $"#{EditSemester.semester_id} {EditSemester.name}");
         }
         context.Attach(EditSemester).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
         await context.SaveChangesAsync();
@@ -211,8 +214,10 @@
     private async Task SetCurrentAsync(int id)
     {
         await using var context = DbFactory.CreateDbContext();
+        var oldIds = await context.Semesters.Where(m => m.is_current).Select(m => m.semester_id).ToListAsync();
         await context.Semesters.Where(m => m.is_current).ExecuteUpdateAsync(m => m.SetProperty(x => x.is_current, false));
         await context.Semesters.Where(m => m.semester_id == id).ExecuteUpdateAsync(m => m.SetProperty(x => x.is_current, true));
+        await AuditLogger.LogAndSaveAsync(context, "semester.set_current", "Semester", id.ToString(), oldIds.Count == 0 ? "—" : string.Join(",", oldIds), $"#{id}");
         Info = "Текущий семестр обновлён.";
         await LoadAsync();
     }

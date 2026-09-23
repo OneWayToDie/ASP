@@ -37,5 +37,9 @@ namespace AcademyAgain.Models
 		[Required]
 		[Column(TypeName = "BIT")]
 		public bool spent { get; set; }
+
+		[Required]
+		[Column(TypeName = "BIT")]
+		public bool is_deleted { get; set; }
 	}
 }

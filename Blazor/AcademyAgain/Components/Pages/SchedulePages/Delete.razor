@@ -80,7 +80,7 @@
     private async Task DeleteSchedule()
     {
         using var context = DbFactory.CreateDbContext();
-        context.Schedule.Remove(schedule!);
+        schedule!.is_deleted = true;
         await context.SaveChangesAsync();
         NavigationManager.NavigateTo("/schedules");
     }

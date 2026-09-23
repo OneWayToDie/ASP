@@ -76,7 +76,7 @@
     private async Task DeleteExam()
     {
         using var context = DbFactory.CreateDbContext();
-        context.Exams.Remove(exam!);
+        exam!.is_deleted = true;
         await context.SaveChangesAsync();
         NavigationManager.NavigateTo("/exams");
     }

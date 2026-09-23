@@ -166,7 +166,7 @@ else
             var original = await context.Grades.FirstOrDefaultAsync(g => g.student == originalStudent && g.lesson == originalLesson);
             if (original is not null)
             {
-                context.Grades.Remove(original);
+                original.is_deleted = true;
                 await context.SaveChangesAsync();
             }
 

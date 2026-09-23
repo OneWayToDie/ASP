@@ -17,5 +17,9 @@ namespace AcademyAgain.Models
 
 		[Column(TypeName = "TINYINT")]
 		public int? grade { get; set; }
+
+		[Required]
+		[Column(TypeName = "BIT")]
+		public bool is_deleted { get; set; }
 	}
 }

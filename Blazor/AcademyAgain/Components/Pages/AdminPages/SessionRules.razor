@@ -2,7 +2,9 @@
 @attribute [Authorize(Policy = "ManageData")]
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
+@using AcademyAgain.Helpers
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject AuditLogger AuditLogger
 
 <PageTitle>Правила сессии</PageTitle>
 
@@ -152,12 +154,18 @@
         Error = null;
         Info = null;
         await using var context = DbFactory.CreateDbContext();
+        List<int> prevActive = new();
         if (NewRule.is_active)
         {
+            prevActive = await context.SessionRules.Where(r => r.is_active).Select(r => r.session_rule_id).ToListAsync();
             await context.SessionRules.Where(r => r.is_active).ExecuteUpdateAsync(r => r.SetProperty(x => x.is_active, false));
         }
         context.SessionRules.Add(NewRule);
         await context.SaveChangesAsync();
+        if (NewRule.is_active)
+        {
+            await AuditLogger.LogAndSaveAsync(context, "session_rule.set_active", "SessionRule", NewRule.session_rule_id.ToString(), prevActive.Count == 0 ? "—" : string.Join(",", prevActive), $"#{NewRule.session_rule_id} {NewRule.name}");
+        }
         Info = "Правило добавлено.";
         NewRule = new SessionRule { name = "", min_attendance_pct = 70, min_average_grade = 3.00m, required_makeups = 1, is_active = false };
         await LoadAsync();
@@ -199,7 +207,9 @@
             target.is_active = EditRule.is_active;
             if (EditRule.is_active)
             {
+                var prevActive = await context.SessionRules.Where(r => r.is_active && r.session_rule_id != EditRule.session_rule_id).Select(r => r.session_rule_id).ToListAsync();
                 await context.SessionRules.Where(r => r.is_active && r.session_rule_id != EditRule.session_rule_id).ExecuteUpdateAsync(r => r.SetProperty(x => x.is_active, false));
+                await AuditLogger.LogAndSaveAsync(context, "session_rule.set_active", "SessionRule", EditRule.session_rule_id.ToString(), prevActive.Count == 0 ? "—" : string.Join(",", prevActive), $"#{EditRule.session_rule_id} {EditRule.name}");
             }
             await context.SaveChangesAsync();
             Info = "Правило обновлено.";

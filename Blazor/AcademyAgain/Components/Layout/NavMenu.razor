@@ -213,6 +213,18 @@
                     <span class="nav-label">Пользователи</span>
                 </NavLink>
             </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="admin/audit">
+                    <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 2.5h7a1 1 0 0 1 1 1v10l-2-1.5-2 1.5-2-1.5-2 1.5v-10a1 1 0 0 1 1-1Z"/><path d="M6 6h4M6 8.5h4"/></svg>
+                    <span class="nav-label">Журнал аудита</span>
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="admin/trash">
+                    <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5h11M6 2.5h4M4.5 4.5l.7 10h5.6l.7-10M6.5 10.5V8M9.5 10.5V8"/></svg>
+                    <span class="nav-label">Корзина</span>
+                </NavLink>
+            </div>
             <AuthorizeView Roles="admin" Context="adminOnly">
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="admin/database">

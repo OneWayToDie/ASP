@@ -78,7 +78,7 @@
     private async Task DeleteStudent()
     {
         using var context = DbFactory.CreateDbContext();
-        context.Students.Remove(student!);
+        student!.is_deleted = true;
         await context.SaveChangesAsync();
         NavigationManager.NavigateTo("/students");
     }

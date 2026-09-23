@@ -1,0 +1,277 @@
+@page "/admin/audit"
+@attribute [Authorize(Policy = "ManageData")]
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+
+<PageTitle>Журнал аудита</PageTitle>
+
+<div class="list-header">
+    <h1>Журнал аудита</h1>
+    <div class="list-actions">
+        <a class="btn btn-outline-secondary" href="admin/users">Пользователи</a>
+        <a class="btn btn-outline-secondary" href="admin/trash">Корзина</a>
+        <a class="btn btn-outline-secondary" href="">Панель</a>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Сущность:</label>
+                <select class="form-select" value="@EntityFilter" @onchange="OnEntityFilterChanged">
+                    <option value="">Все</option>
+                    @foreach (var e in Entities)
+                    {
+                        <option value="@e">@e</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Пользователь:</label>
+                <select class="form-select" value="@SelectedUserId" @onchange="OnUserFilterChanged">
+                    <option value="">Все</option>
+                    @foreach (var u in Users)
+                    {
+                        <option value="@u.Key">@u.Value</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">С даты:</label>
+                <input type="date" class="form-control" value="@DateFrom?.ToString("yyyy-MM-dd")" @onchange="OnDateFromChanged" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">По дату:</label>
+                <input type="date" class="form-control" value="@DateTo?.ToString("yyyy-MM-dd")" @onchange="OnDateToChanged" />
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-outline-secondary" @onclick="ResetFilters">Сбросить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (loaded)
+{
+    <div class="table-responsive">
+        <table class="table context-table">
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Пользователь</th>
+                    <th>Сущность</th>
+                    <th>Действие</th>
+                    <th>ID</th>
+                    <th>Изменения</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Rows)
+                {
+                    <tr>
+                        <td class="text-nowrap">@row.CreatedAt</td>
+                        <td>@row.UserLabel</td>
+                        <td>@row.Entity</td>
+                        <td><span class="badge @ActionCss(row.Action)">@row.Action</span></td>
+                        <td>@row.EntityId</td>
+                        <td class="audit-diff">
+                            @if (!string.IsNullOrEmpty(row.Old))
+                            {
+                                <span class="text-danger small">@Shorten(row.Old)</span>
+                            }
+                            @if (!string.IsNullOrEmpty(row.Old) && !string.IsNullOrEmpty(row.New))
+                            {
+                                <span class="text-secondary small"> → </span>
+                            }
+                            @if (!string.IsNullOrEmpty(row.New))
+                            {
+                                <span class="text-success small">@Shorten(row.New)</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (TotalPages > 1)
+    {
+        <div class="d-flex justify-content-between align-items-center">
+            <span class="text-secondary">Записей: @TotalCount</span>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm" disabled="@(Page <= 1)" @onclick="() => GoTo(Page - 1)">← Назад</button>
+                <span class="align-self-center">@Page / @TotalPages</span>
+                <button type="button" class="btn btn-outline-secondary btn-sm" disabled="@(Page >= TotalPages)" @onclick="() => GoTo(Page + 1)">Вперёд →</button>
+            </div>
+        </div>
+    }
+    else if (TotalCount == 0)
+    {
+        <p class="text-secondary">Записей в журнале аудита пока нет.</p>
+    }
+}
+else
+{
+    <p class="text-secondary">Загрузка…</p>
+}
+
+@code {
+    [Inject]
+    private IDbContextFactory<AcademyAgainContext> DbFactory { get; set; } = default!;
+
+    private const int PageSize = 50;
+
+    private bool loaded;
+    private string EntityFilter = "";
+    private int? SelectedUserId;
+    private DateTime? DateFrom;
+    private DateTime? DateTo;
+    private int Page = 1;
+    private int TotalPages = 1;
+    private long TotalCount;
+
+    private List<string> Entities = new();
+    private SortedList<int, string> Users = new();
+    private List<AuditRow> Rows = new();
+
+    private sealed record AuditRow(string CreatedAt, string UserLabel, string Entity, string Action, string EntityId, string? Old, string? New);
+
+    protected override async Task OnInitializedAsync() => await ReloadAsync();
+
+    private async Task ReloadAsync()
+    {
+        await using var context = DbFactory.CreateDbContext();
+
+        Entities = await context.AuditLogs.AsNoTracking()
+            .Select(a => a.entity)
+            .Distinct()
+            .OrderBy(e => e)
+            .ToListAsync();
+
+        var auditUserIds = await context.AuditLogs.AsNoTracking()
+            .Where(a => a.user_id != null)
+            .Select(a => a.user_id!.Value)
+            .Distinct()
+            .ToListAsync();
+
+        foreach (var u in await context.Users.AsNoTracking()
+            .Where(u => auditUserIds.Contains(u.user_id))
+            .OrderBy(u => u.username)
+            .ToListAsync())
+        {
+            Users[u.user_id] = u.username;
+        }
+
+        var query = context.AuditLogs.AsNoTracking().AsQueryable();
+        if (!string.IsNullOrEmpty(EntityFilter))
+        {
+            query = query.Where(a => a.entity == EntityFilter);
+        }
+        if (SelectedUserId.HasValue)
+        {
+            query = query.Where(a => a.user_id == SelectedUserId.Value);
+        }
+        if (DateFrom.HasValue)
+        {
+            query = query.Where(a => a.created_at >= DateFrom.Value.Date);
+        }
+        if (DateTo.HasValue)
+        {
+            var end = DateTo.Value.Date.AddDays(1);
+            query = query.Where(a => a.created_at < end);
+        }
+
+        TotalCount = await query.LongCountAsync();
+        TotalPages = (int)Math.Ceiling(TotalCount / (double)PageSize);
+        if (TotalPages == 0)
+        {
+            TotalPages = 1;
+        }
+        if (Page > TotalPages)
+        {
+            Page = TotalPages;
+        }
+
+        var items = await query
+            .OrderByDescending(a => a.created_at)
+            .ThenByDescending(a => a.audit_id)
+            .Skip((Page - 1) * PageSize)
+            .Take(PageSize)
+            .ToListAsync();
+
+        Rows = items.Select(a => new AuditRow(
+            a.created_at.ToString("dd.MM.yyyy HH:mm:ss"),
+            a.user_id.HasValue && Users.TryGetValue(a.user_id.Value, out var name) ? name : "—",
+            a.entity,
+            a.action ?? "",
+            a.entity_id ?? "",
+            a.old_value,
+            a.new_value)).ToList();
+
+        loaded = true;
+    }
+
+    private async Task OnEntityFilterChanged(ChangeEventArgs e)
+    {
+        EntityFilter = e.Value?.ToString() ?? "";
+        Page = 1;
+        await ReloadAsync();
+    }
+
+    private async Task OnUserFilterChanged(ChangeEventArgs e)
+    {
+        var text = e.Value?.ToString();
+        SelectedUserId = !string.IsNullOrEmpty(text) && int.TryParse(text, out var v) ? v : null;
+        Page = 1;
+        await ReloadAsync();
+    }
+
+    private async Task OnDateFromChanged(ChangeEventArgs e)
+    {
+        DateFrom = DateTime.TryParse(e.Value?.ToString(), out var d) ? d : null;
+        Page = 1;
+        await ReloadAsync();
+    }
+
+    private async Task OnDateToChanged(ChangeEventArgs e)
+    {
+        DateTo = DateTime.TryParse(e.Value?.ToString(), out var d) ? d : null;
+        Page = 1;
+        await ReloadAsync();
+    }
+
+    private async Task ResetFilters()
+    {
+        EntityFilter = "";
+        SelectedUserId = null;
+        DateFrom = null;
+        DateTo = null;
+        Page = 1;
+        await ReloadAsync();
+    }
+
+    private async Task GoTo(int page)
+    {
+        Page = page;
+        await ReloadAsync();
+    }
+
+    private static string Shorten(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return string.Empty;
+        }
+        return value.Length > 200 ? value[..200] + "…" : value;
+    }
+
+    private static string ActionCss(string action) => action switch
+    {
+        "create" => "text-bg-success",
+        "delete" or "trash.purge" or "support.ban" => "text-bg-danger",
+        "update" or "trash.restore" or "support.unban" or "semester.set_current" or "session_rule.set_active" => "text-bg-warning",
+        _ => "text-bg-secondary"
+    };
+}

@@ -12,11 +12,15 @@ builder.Services.AddDbContextFactory<AcademyAgainContext>(options => options.Use
 
 builder.Services.AddQuickGridEntityFrameworkAdapter();
 builder.Services.AddSignalR();
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.Configure<AcademyAgain.Models.SmtpOptions>(builder.Configuration.GetSection("Smtp"));
 builder.Services.AddScoped<AcademyAgain.Helpers.IEmailSender, AcademyAgain.Helpers.EmailSender>();
 builder.Services.AddScoped<AcademyAgain.Helpers.EmailVerificationService>();
 builder.Services.AddScoped<AcademyAgain.Services.SessionAdmissionService>();
+builder.Services.AddScoped<AcademyAgain.Helpers.CurrentUser>();
+builder.Services.AddScoped<AcademyAgain.Helpers.AuditLogger>();
+builder.Services.AddSingleton<AcademyAgain.Helpers.RateLimiter>();
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 

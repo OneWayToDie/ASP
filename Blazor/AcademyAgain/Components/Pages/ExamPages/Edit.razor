@@ -138,7 +138,7 @@ else
             var original = await context.Exams.FirstOrDefaultAsync(e => e.student == originalStudent && e.discipline == originalDiscipline);
             if (original is not null)
             {
-                context.Exams.Remove(original);
+                original.is_deleted = true;
                 await context.SaveChangesAsync();
             }
 

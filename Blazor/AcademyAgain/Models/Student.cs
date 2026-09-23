@@ -34,5 +34,9 @@ namespace AcademyAgain.Models
 		public byte[]? photo { get; set; }
 
 		public int? group { get; set; }
+
+		[Required]
+		[Column(TypeName = "BIT")]
+		public bool is_deleted { get; set; }
 	}
 }

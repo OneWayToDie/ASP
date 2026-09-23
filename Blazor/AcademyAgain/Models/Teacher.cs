@@ -36,5 +36,9 @@ namespace AcademyAgain.Models
 
 		[Column(TypeName = "SMALLMONEY")]
 		public decimal? rate { get; set; }
+
+		[Required]
+		[Column(TypeName = "BIT")]
+		public bool is_deleted { get; set; }
 	}
 }

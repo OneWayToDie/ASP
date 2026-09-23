@@ -1,0 +1,282 @@
+@page "/admin/trash"
+@attribute [Authorize(Policy = "ManageData")]
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+
+<PageTitle>Корзина</PageTitle>
+
+<div class="list-header">
+    <h1>Корзина</h1>
+    <div class="list-actions">
+        <a class="btn btn-outline-secondary" href="admin/audit">Журнал аудита</a>
+        <a class="btn btn-outline-secondary" href="">Панель</a>
+    </div>
+</div>
+
+@if (Message is not null)
+{
+    <div class="alert alert-success">@Message</div>
+}
+@if (Error is not null)
+{
+    <div class="alert alert-danger">@Error</div>
+}
+
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label">Тип записи:</label>
+                <select class="form-select" value="@EntityFilter" @onchange="OnEntityFilterChanged">
+                    <option value="">Все</option>
+                    @foreach (var e in AllEntities)
+                    {
+                        <option value="@e">@e</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-4">
+                <span class="form-label d-block">В корзине: @FilteredItems.Count()</span>
+            </div>
+            <div class="col-md-4 text-end">
+                <button type="button" class="btn btn-outline-secondary" @onclick="ReloadAsync">Обновить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (loaded)
+{
+    @if (!FilteredItems.Any())
+    {
+        <p class="text-secondary">Корзина пуста.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table context-table">
+                <thead>
+                    <tr>
+                        <th>Тип</th>
+                        <th>ID</th>
+                        <th>Описание</th>
+                        <th style="width:220px"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in FilteredItems.OrderBy(i => i.Entity).ThenBy(i => i.Id1))
+                    {
+                        <tr>
+                            <td><span class="badge text-bg-secondary">@item.Entity</span></td>
+                            <td>@item.IdText</td>
+                            <td>@item.Display</td>
+                            <td class="text-end text-nowrap">
+                                <button type="button" class="btn btn-sm btn-outline-success" @onclick="() => RestoreAsync(item)">Восстановить</button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => PurgeAsync(item)">Удалить навсегда</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+else
+{
+    <p class="text-secondary">Загрузка…</p>
+}
+
+@code {
+    [Inject]
+    private IDbContextFactory<AcademyAgainContext> DbFactory { get; set; } = default!;
+
+    private bool loaded;
+    private string EntityFilter = "";
+    private string? Message;
+    private string? Error;
+    private List<TrashItem> Items = new();
+
+    private static readonly List<string> AllEntities = new()
+    {
+        "Student", "Teacher", "Schedule", "Exam", "Grade",
+        "CandidateRequest", "AdmissionRequest", "VacancyApplication"
+    };
+
+    private IEnumerable<TrashItem> FilteredItems =>
+        string.IsNullOrEmpty(EntityFilter) ? Items : Items.Where(i => i.Entity == EntityFilter);
+
+    private sealed record TrashItem(string Entity, long Id1, long Id2, string Display)
+    {
+        public string IdText => Id2 == 0 ? Id1.ToString() : $"{Id1} / {Id2}";
+    }
+
+    protected override async Task OnInitializedAsync() => await ReloadAsync();
+
+    private void OnEntityFilterChanged(ChangeEventArgs e)
+    {
+        EntityFilter = e.Value?.ToString() ?? "";
+    }
+
+    private async Task ReloadAsync()
+    {
+        Message = null;
+        Error = null;
+        await using var context = DbFactory.CreateDbContext();
+
+        Items = new List<TrashItem>();
+
+        foreach (var s in await context.Students.IgnoreQueryFilters().Where(x => x.is_deleted).ToListAsync())
+        {
+            Items.Add(new TrashItem("Student", s.stud_id, 0, NameLabel(s.last_name, s.first_name, s.middle_name)));
+        }
+        foreach (var t in await context.Teachers.IgnoreQueryFilters().Where(x => x.is_deleted).ToListAsync())
+        {
+            Items.Add(new TrashItem("Teacher", t.teacher_id, 0, NameLabel(t.last_name, t.first_name, t.middle_name)));
+        }
+        foreach (var s in await context.Schedule.IgnoreQueryFilters().Where(x => x.is_deleted).ToListAsync())
+        {
+            Items.Add(new TrashItem("Schedule", s.lesson_id, 0, $"занятие #{s.lesson_id}"));
+        }
+        foreach (var e in await context.Exams.IgnoreQueryFilters().Where(x => x.is_deleted).ToListAsync())
+        {
+            Items.Add(new TrashItem("Exam", e.student, e.discipline, $"студент #{e.student}, дисциплина #{e.discipline}"));
+        }
+        foreach (var g in await context.Grades.IgnoreQueryFilters().Where(x => x.is_deleted).ToListAsync())
+        {
+            Items.Add(new TrashItem("Grade", g.student, g.lesson, $"студент #{g.student}, урок #{g.lesson}"));
+        }
+        foreach (var c in await context.CandidateRequests.IgnoreQueryFilters().Where(x => x.is_deleted).ToListAsync())
+        {
+            Items.Add(new TrashItem("CandidateRequest", c.id, 0, $"пользователь #{c.candidate_user_id}"));
+        }
+        foreach (var a in await context.AdmissionRequests.IgnoreQueryFilters().Where(x => x.is_deleted).ToListAsync())
+        {
+            Items.Add(new TrashItem("AdmissionRequest", a.id, 0, a.full_name));
+        }
+        foreach (var v in await context.VacancyApplications.IgnoreQueryFilters().Where(x => x.is_deleted).ToListAsync())
+        {
+            Items.Add(new TrashItem("VacancyApplication", v.id, 0, $"пользователь #{v.candidate_user_id}"));
+        }
+
+        loaded = true;
+    }
+
+    private async Task RestoreAsync(TrashItem item)
+    {
+        Message = null;
+        Error = null;
+        await using var context = DbFactory.CreateDbContext();
+        try
+        {
+            switch (item.Entity)
+            {
+                case "Student":
+                    var s = await context.Students.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.stud_id == item.Id1);
+                    if (s is not null) { s.is_deleted = false; await context.SaveChangesAsync(); }
+                    break;
+                case "Teacher":
+                    var t = await context.Teachers.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.teacher_id == item.Id1);
+                    if (t is not null) { t.is_deleted = false; await context.SaveChangesAsync(); }
+                    break;
+                case "Schedule":
+                    var sc = await context.Schedule.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.lesson_id == item.Id1);
+                    if (sc is not null) { sc.is_deleted = false; await context.SaveChangesAsync(); }
+                    break;
+                case "Exam":
+                    var exists = await context.Exams.AnyAsync(x => x.student == item.Id1 && x.discipline == item.Id2);
+                    if (exists) { Error = $"Экзамен со студентом #{item.Id1} и дисциплиной #{item.Id2} уже активен."; break; }
+                    var ex = await context.Exams.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.student == item.Id1 && x.discipline == item.Id2);
+                    if (ex is not null) { ex.is_deleted = false; await context.SaveChangesAsync(); }
+                    break;
+                case "Grade":
+                    var gradeExists = await context.Grades.AnyAsync(x => x.student == item.Id1 && x.lesson == item.Id2);
+                    if (gradeExists) { Error = $"Оценка студента #{item.Id1} по уроку #{item.Id2} уже активна."; break; }
+                    var gr = await context.Grades.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.student == item.Id1 && x.lesson == item.Id2);
+                    if (gr is not null) { gr.is_deleted = false; await context.SaveChangesAsync(); }
+                    break;
+                case "CandidateRequest":
+                    var cr = await context.CandidateRequests.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.id == item.Id1);
+                    if (cr is not null) { cr.is_deleted = false; await context.SaveChangesAsync(); }
+                    break;
+                case "AdmissionRequest":
+                    var ar = await context.AdmissionRequests.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.id == item.Id1);
+                    if (ar is not null) { ar.is_deleted = false; await context.SaveChangesAsync(); }
+                    break;
+                case "VacancyApplication":
+                    var va = await context.VacancyApplications.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.id == item.Id1);
+                    if (va is not null) { va.is_deleted = false; await context.SaveChangesAsync(); }
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            Error = $"Не удалось восстановить: {ex.Message}";
+        }
+        if (Error is null)
+        {
+            Message = $"Запись {item.Entity} #{item.IdText} восстановлена.";
+        }
+        await ReloadAsync();
+    }
+
+    private async Task PurgeAsync(TrashItem item)
+    {
+        Message = null;
+        Error = null;
+        await using var context = DbFactory.CreateDbContext();
+        try
+        {
+            switch (item.Entity)
+            {
+                case "Student":
+                    var s = await context.Students.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.stud_id == item.Id1);
+                    if (s is not null) { context.Remove(s); await context.SaveChangesAsync(); }
+                    break;
+                case "Teacher":
+                    var t = await context.Teachers.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.teacher_id == item.Id1);
+                    if (t is not null) { context.Remove(t); await context.SaveChangesAsync(); }
+                    break;
+                case "Schedule":
+                    var sc = await context.Schedule.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.lesson_id == item.Id1);
+                    if (sc is not null) { context.Remove(sc); await context.SaveChangesAsync(); }
+                    break;
+                case "Exam":
+                    var ex = await context.Exams.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.student == item.Id1 && x.discipline == item.Id2);
+                    if (ex is not null) { context.Remove(ex); await context.SaveChangesAsync(); }
+                    break;
+                case "Grade":
+                    var gr = await context.Grades.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.student == item.Id1 && x.lesson == item.Id2);
+                    if (gr is not null) { context.Remove(gr); await context.SaveChangesAsync(); }
+                    break;
+                case "CandidateRequest":
+                    var cr = await context.CandidateRequests.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.id == item.Id1);
+                    if (cr is not null) { context.Remove(cr); await context.SaveChangesAsync(); }
+                    break;
+                case "AdmissionRequest":
+                    var ar = await context.AdmissionRequests.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.id == item.Id1);
+                    if (ar is not null) { context.Remove(ar); await context.SaveChangesAsync(); }
+                    break;
+                case "VacancyApplication":
+                    var va = await context.VacancyApplications.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.id == item.Id1);
+                    if (va is not null) { context.Remove(va); await context.SaveChangesAsync(); }
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            Error = $"Не удалось удалить навсегда: {ex.Message}";
+        }
+        if (Error is null)
+        {
+            Message = $"Запись {item.Entity} #{item.IdText} удалена навсегда.";
+        }
+        await ReloadAsync();
+    }
+
+    private static string NameLabel(string? last, string? first, string? middle)
+    {
+        var name = string.Join(" ", new[] { last, first, middle }.Where(p => !string.IsNullOrWhiteSpace(p)));
+        return name.Length == 0 ? "—" : name;
+    }
+}

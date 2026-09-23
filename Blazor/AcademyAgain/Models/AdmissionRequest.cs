@@ -25,5 +25,9 @@ namespace AcademyAgain.Models
 
 		[Column(TypeName = "DATETIME")]
 		public DateTime? created_at { get; set; }
+
+		[Required]
+		[Column(TypeName = "BIT")]
+		public bool is_deleted { get; set; }
 	}
 }
