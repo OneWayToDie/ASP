@@ -1,4 +1,5 @@
 @page "/groups/create"
+@rendermode InteractiveServer
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
@@ -40,14 +41,15 @@
 
                 <ValidationMessage For="() => Group.direction" class="text-danger" /> 
             </div>        
-            <div class="mb-3">
+            @* <div class="mb-3">
                 <label for="learning_days" class="form-label">learning_days:</label> 
                 <InputNumber id="learning_days" @bind-Value="Group.learning_days" class="form-control" /> 
                 <ValidationMessage For="() => Group.learning_days" class="text-danger" /> 
-            </div>        
+            </div>    *@    
+            <Weekdays Group="@Group" />
             <div class="mb-3">
                 <label for="start_time" class="form-label">start_time:</label> 
-                <InputDate id="start_time" @bind-Value="Group.start_time" class="form-control" /> 
+                <InputDate Type="InputDateType.Time" id="start_time" @bind-Value="Group.start_time" class="form-control" /> 
                 <ValidationMessage For="() => Group.start_time" class="text-danger" /> 
             </div>        
             <div class="mb-3">
