@@ -22,7 +22,7 @@
             <dt class="col-sm-2">direction</dt>
             <dd class="col-sm-10">@group.Direction.direction_Name</dd>
             <dt class="col-sm-2">learning_days</dt>
-            <dd class="col-sm-10">@group.learning_days</dd>
+            <dd class="col-sm-10">@(new Week((int)group.learning_days))</dd>
             <dt class="col-sm-2">start_time</dt>
             <dd class="col-sm-10">@group.start_time</dd>
             <dt class="col-sm-2">start_date</dt>
