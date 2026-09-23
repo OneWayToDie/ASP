@@ -2989,6 +2989,42 @@ a.tdash-chip-plain:hover
     color: var(--app-placeholder);
 }
 
+.support-messages,
+.support-admin-messages
+{
+    position: relative;
+}
+
+.support-unread-chip
+{
+    position: sticky;
+    bottom: 8px;
+    align-self: flex-end;
+    flex: none;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 8px;
+    margin-top: 8px;
+    border: none;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--app-accent, #3b82f6);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 5;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.support-unread-chip:hover
+{
+    filter: brightness(1.1);
+}
+
 .support-msg
 {
     max-width: 85%;

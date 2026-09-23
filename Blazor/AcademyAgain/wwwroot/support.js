@@ -174,6 +174,95 @@
 
     window.AcademySupportWidget = widget;
 
+    // ===== Автопрокрутка чата + чип непрочитанных у скроллбара =====
+    const chatScroll = {
+        registry: new Map(),
+
+        track(containerId, chipId) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            const existing = this.registry.get(containerId);
+            if (existing && existing.container === container) return;
+            if (existing && existing.observer) {
+                existing.observer.disconnect();
+                if (existing.chip) existing.chip.style.display = 'none';
+            }
+
+            const chip = document.getElementById(chipId);
+            const seen = new Set();
+            let atBottom = true;
+            let pending = 0;
+
+            const isAtBottom = () =>
+                container.scrollTop + container.clientHeight >= container.scrollHeight - 24;
+
+            const updateChip = () => {
+                if (!chip) return;
+                if (pending > 0) {
+                    chip.textContent = String(pending);
+                    chip.style.display = 'flex';
+                } else {
+                    chip.style.display = 'none';
+                }
+            };
+
+            const scrollToBottom = () => {
+                container.scrollTop = container.scrollHeight;
+                atBottom = true;
+                if (pending > 0) {
+                    pending = 0;
+                    updateChip();
+                }
+            };
+
+            container.addEventListener('scroll', () => {
+                atBottom = isAtBottom();
+                if (atBottom && pending > 0) {
+                    pending = 0;
+                    updateChip();
+                }
+            }, { passive: true });
+
+            if (chip) {
+                chip.addEventListener('click', () => scrollToBottom());
+            }
+
+            container.querySelectorAll('.support-msg[data-msg-id]').forEach((el) => seen.add(el.dataset.msgId));
+
+            const observer = new MutationObserver((mutations) => {
+                let added = 0;
+                for (const m of mutations) {
+                    for (const node of m.addedNodes) {
+                        if (node.nodeType !== Node.ELEMENT_NODE) continue;
+                        const candidates = node.matches && node.matches('.support-msg[data-msg-id]')
+                            ? [node]
+                            : (node.querySelectorAll ? Array.from(node.querySelectorAll('.support-msg[data-msg-id]')) : []);
+                        for (const el of candidates) {
+                            if (!seen.has(el.dataset.msgId)) {
+                                seen.add(el.dataset.msgId);
+                                added++;
+                            }
+                        }
+                    }
+                }
+                if (!added) return;
+                if (atBottom) {
+                    scrollToBottom();
+                } else {
+                    pending += added;
+                    updateChip();
+                }
+            });
+            observer.observe(container, { childList: true, subtree: true });
+
+            this.registry.set(containerId, { container, chip, observer, seen });
+            scrollToBottom();
+        },
+    };
+
+    widget.chatTrack = (containerId, chipId) => chatScroll.track(containerId, chipId);
+
     let dragState = null;
 
     document.addEventListener('pointerdown', (e) => {

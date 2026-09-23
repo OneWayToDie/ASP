@@ -75,7 +75,7 @@
             <div class="support-admin-chat-head">
                 @if (Authors.TryGetValue(SelectedClientUserId, out var clientAuthor))
                 {
-                    <UserAvatar UserId="clientAuthor.UserId" Name="clientAuthor.Name" PhotoSrc="clientAuthor.DataSrc" Initials="clientAuthor.Initials" />
+                    <UserAvatar UserId="clientAuthor.UserId" Name="clientAuthor.Name" PhotoSrc="@(clientAuthor.PhotoSrc ?? clientAuthor.DataSrc)" Initials="clientAuthor.Initials" />
                 }
                 <span class="support-admin-chat-title">@SelectedClientLabel</span>
                 <div class="support-admin-head-actions">
@@ -98,7 +98,7 @@
                 </div>
             </div>
 
-            <div class="support-admin-messages">
+            <div class="support-admin-messages" id="supportConsoleMessages">
                 @if (Messages.Count == 0)
                 {
                     <div class="support-admin-empty">Сообщений пока нет.</div>
@@ -109,9 +109,9 @@
                     {
                         var mine = m.author_user_id == CurrentUserId;
                         var author = Authors.TryGetValue(m.author_user_id, out var a) ? a : null;
-                        <div class="support-msg @(mine ? "support-msg-mine" : "support-msg-them")">
+                        <div class="support-msg @(mine ? "support-msg-mine" : "support-msg-them")" data-msg-id="@m.msg_id">
                             <div class="support-msg-head">
-                                <UserAvatar UserId="m.author_user_id" Name="@author?.Name" PhotoSrc="@author?.PhotoSrc" Initials="@author?.Initials" />
+                                <UserAvatar UserId="m.author_user_id" Name="@author?.Name" PhotoSrc="@(author?.PhotoSrc ?? author?.DataSrc)" Initials="@author?.Initials" />
                                 <span class="support-msg-author">@MessageAuthor(m, author)</span>
                                 <span class="support-msg-time">@TimeText(m.created_at)</span>
                             </div>
@@ -119,6 +119,7 @@
                         </div>
                     }
                 }
+                <button type="button" class="support-unread-chip" id="supportConsoleUnread" style="display:none">0</button>
             </div>
 
             <div class="support-input">
@@ -147,6 +148,10 @@
     private bool IsAdminOrModerator;
     private DotNetObjectReference<Support>? _ref;
     private bool _jsReady;
+    private System.Threading.Timer? _pollTimer;
+    private bool _polling;
+    private bool _disposed;
+    private bool _scrollTracked;
 
     private IReadOnlyList<ChatRow> VisibleChatRows =>
         ChatRows.Where(r => ChatStatusFilter == 1 ? r.IsOpen : !r.IsOpen).ToList();
@@ -198,20 +203,97 @@
         {
             await SelectChat(ChatRows.First().ChatId);
         }
+        StartPolling();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender)
+        if (firstRender)
+        {
+            StartPolling();
+            _jsReady = true;
+            _ref = DotNetObjectReference.Create(this);
+            try
+            {
+                await JS.InvokeVoidAsync("AcademySupport.init", _ref);
+                if (SelectedChatId != 0)
+                {
+                    await JS.InvokeVoidAsync("AcademySupport.joinChat", SelectedChatId);
+                }
+            }
+            catch
+            {
+                // инициализация JS могла не пройти — поллинг уже запущен выше
+            }
+        }
+
+        if (SelectedChatId != 0 && !_scrollTracked)
+        {
+            _scrollTracked = true;
+            try
+            {
+                await JS.InvokeVoidAsync("AcademySupportWidget.chatTrack", "supportConsoleMessages", "supportConsoleUnread");
+            }
+            catch
+            {
+            }
+        }
+    }
+
+    private void StartPolling()
+    {
+        if (_pollTimer is not null)
         {
             return;
         }
-        _jsReady = true;
-        _ref = DotNetObjectReference.Create(this);
-        await JS.InvokeVoidAsync("AcademySupport.init", _ref);
-        if (SelectedChatId != 0)
+        _pollTimer = new System.Threading.Timer(PollTick, null, TimeSpan.FromSeconds(12), TimeSpan.FromSeconds(12));
+    }
+
+    private async void PollTick(object? state)
+    {
+        if (_disposed || _polling)
         {
-            await JS.InvokeVoidAsync("AcademySupport.joinChat", SelectedChatId);
+            return;
+        }
+        _polling = true;
+        try
+        {
+            await InvokeAsync(async () =>
+            {
+                try
+                {
+                    if (SelectedChatId != 0)
+                    {
+                        try
+                        {
+                            await JS.InvokeVoidAsync("AcademySupport.joinChat", SelectedChatId);
+                        }
+                        catch
+                        {
+                        }
+                    }
+                    await RefreshChatListAsync();
+                    if (SelectedChatId != 0 && ChatRows.Any(r => r.ChatId == SelectedChatId))
+                    {
+                        await SelectChat(SelectedChatId);
+                    }
+                }
+                catch (Exception pollEx)
+                {
+                    Console.WriteLine($"[Support.PollTick] tick exception: {pollEx.Message}");
+                }
+                finally
+                {
+                    StateHasChanged();
+                }
+            });
+        }
+        catch
+        {
+        }
+        finally
+        {
+            _polling = false;
         }
     }
 
@@ -224,6 +306,7 @@
             SelectedChatId = 0;
             SelectedClientUserId = 0;
             Messages.Clear();
+            _scrollTracked = false;
         }
     }
 
@@ -310,7 +393,13 @@
         var previous = SelectedChatId;
         if (_jsReady)
         {
-            await JS.InvokeVoidAsync("AcademySupport.leaveChat", previous);
+            try
+            {
+                await JS.InvokeVoidAsync("AcademySupport.leaveChat", previous);
+            }
+            catch
+            {
+            }
         }
 
         await using var db = DbFactory.CreateDbContext();
@@ -318,6 +407,7 @@
         if (chat is null)
         {
             SelectedChatId = 0;
+            _scrollTracked = false;
             return;
         }
 
@@ -352,7 +442,13 @@
 
         if (_jsReady)
         {
-            await JS.InvokeVoidAsync("AcademySupport.joinChat", chatId);
+            try
+            {
+                await JS.InvokeVoidAsync("AcademySupport.joinChat", chatId);
+            }
+            catch
+            {
+            }
         }
         await RefreshChatListAsync();
     }
@@ -533,6 +629,12 @@
 
     public async ValueTask DisposeAsync()
     {
+        _disposed = true;
+        if (_pollTimer is not null)
+        {
+            _pollTimer.Dispose();
+            _pollTimer = null;
+        }
         if (_ref is null)
         {
             return;

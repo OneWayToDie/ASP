@@ -50,7 +50,7 @@
                     </div>
                 }
 
-                <div class="support-messages">
+                <div class="support-messages" id="supportWidgetMessages">
                     @if (Messages.Count == 0)
                     {
                         <div class="support-empty">Задайте вопрос, и поддержка ответит.</div>
@@ -61,9 +61,9 @@
                         {
                             var mine = m.author_user_id == (CurrentUser?.user_id ?? -1);
                             var author = Authors.TryGetValue(m.author_user_id, out var a) ? a : null;
-                            <div class="support-msg @(mine ? "support-msg-mine" : "support-msg-them")">
+                            <div class="support-msg @(mine ? "support-msg-mine" : "support-msg-them")" data-msg-id="@m.msg_id">
                                 <div class="support-msg-head">
-                                    <UserAvatar UserId="m.author_user_id" Name="@author?.Name" PhotoSrc="@author?.PhotoSrc" Initials="@author?.Initials" />
+                                    <UserAvatar UserId="m.author_user_id" Name="@author?.Name" PhotoSrc="@(author?.PhotoSrc ?? author?.DataSrc)" Initials="@author?.Initials" />
                                     <span class="support-msg-author">@(mine ? "Вы" : author?.Name ?? "···")</span>
                                     <span class="support-msg-time">@TimeText(m.created_at)</span>
                                 </div>
@@ -71,6 +71,7 @@
                             </div>
                         }
                     }
+                    <button type="button" class="support-unread-chip" id="supportWidgetUnread" style="display:none">0</button>
                 </div>
 
                 @if (Error is not null)
@@ -107,6 +108,7 @@
     private System.Threading.Timer? _pollTimer;
     private bool _polling;
     private bool _disposed;
+    private bool _scrollTracked;
 
     protected override async Task OnInitializedAsync()
     {
@@ -133,6 +135,7 @@
         Visible = true;
         _previousOpen = IsOpen;
         await RefreshDataAsync();
+        StartPolling();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -152,14 +155,43 @@
 
         if (firstRender && Visible)
         {
+            try
+            {
+                await EnsureSubscribedAsync();
+                await JS.InvokeVoidAsync("AcademySupportWidget.restore");
+            }
+            catch
+            {
+            }
+        }
+
+        if (Visible && IsOpen && !_scrollTracked)
+        {
+            _scrollTracked = true;
+            try
+            {
+                await JS.InvokeVoidAsync("AcademySupportWidget.chatTrack", "supportWidgetMessages", "supportWidgetUnread");
+            }
+            catch
+            {
+            }
+        }
+    }
+
+    private async Task EnsureSubscribedAsync()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+        if (_ref is null)
+        {
             _ref = DotNetObjectReference.Create(this);
             await JS.InvokeVoidAsync("AcademySupport.init", _ref);
-            if (ActiveChatId != 0)
-            {
-                await JS.InvokeVoidAsync("AcademySupport.joinChat", ActiveChatId);
-            }
-            await JS.InvokeVoidAsync("AcademySupportWidget.restore");
-            StartPolling();
+        }
+        if (ActiveChatId != 0)
+        {
+            await JS.InvokeVoidAsync("AcademySupport.joinChat", ActiveChatId);
         }
     }
 
@@ -183,15 +215,12 @@
         {
             await InvokeAsync(async () =>
             {
-                if (ActiveChatId != 0)
+                try
                 {
-                    try
-                    {
-                        await JS.InvokeVoidAsync("AcademySupport.joinChat", ActiveChatId);
-                    }
-                    catch
-                    {
-                    }
+                    await EnsureSubscribedAsync();
+                }
+                catch
+                {
                 }
                 await RefreshDataAsync();
                 StateHasChanged();
@@ -326,6 +355,7 @@
     private void ClosePanel()
     {
         IsOpen = false;
+        _scrollTracked = false;
     }
 
     private async Task OnChatChanged(ChangeEventArgs e)
