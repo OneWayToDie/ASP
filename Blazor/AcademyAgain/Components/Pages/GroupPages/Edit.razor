@@ -1,4 +1,5 @@
 @page "/groups/edit"
+@rendermode InteractiveServer
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
@@ -51,14 +52,14 @@ else
                 <Weekdays Group="@Group"/>
                 <div class="mb-3">
                     <label for="start_time" class="form-label">start_time:</label>
-                    <InputDate id="start_time" @bind-Value="Group.start_time" class="form-control" />
+                    <InputDate Type="InputDateType.Time" id="start_time" @bind-Value="Group.start_time" class="form-control" />
                     <ValidationMessage For="() => Group.start_time" class="text-danger" />
                 </div>
-                <div class="mb-3">
+                @* <div class="mb-3">
                     <label for="start_date" class="form-label">start_date:</label>
                     <InputDate id="start_date" @bind-Value="Group.start_date" class="form-control" />
                     <ValidationMessage For="() => Group.start_date" class="text-danger" />
-                </div>
+                </div> *@
                 <button type="submit" class="btn btn-primary">Save</button>
             </EditForm>
         </div>

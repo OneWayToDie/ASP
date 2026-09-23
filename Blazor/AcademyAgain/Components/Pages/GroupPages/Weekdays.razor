@@ -3,9 +3,10 @@
 <ul class="weekdays form-control">
 	@for(int i = 0; i < 7; i++)
 	{
+		int index = i;
 		<li>
-			<input type="checkbox" id="@Week.DAYNAMES[i]" tabindex="@days[i]"/>
-			<label for="@Week.DAYNAMES[i]">@Week.DAYNAMES[i]</label>
+			<input type="checkbox" id="@Week.DAYNAMES[i]" tabindex="@days[index]" @bind:after="Compress()"/>
+			<label for="@Week.DAYNAMES[index]">@Week.DAYNAMES[index]</label>
 		</li>
 	}
 </ul>
@@ -15,4 +16,28 @@
 	bool[] days = new bool[7];
 	[Parameter] public Models.Group Group { get; set; }
 
+	int mask;
+	void Compress()
+	{
+		mask = 0;
+		for (byte i = 0; i < 7; i++)
+		{
+			if (days[i]) mask |= 1 << i;	
+		}
+		Group.learning_days = mask;
+	}
+
+	void Extract()
+	{
+		int mask = Group?.learning_days ?? 0;
+		for (int i = 0; i < 7; i++)
+		{
+			if (((Group.learning_days >> i) & 1) != 0)
+				days[i] = true;
+		}
+	}
+	protected override void OnInitialized()
+	{
+		Extract();
+	}
 }
