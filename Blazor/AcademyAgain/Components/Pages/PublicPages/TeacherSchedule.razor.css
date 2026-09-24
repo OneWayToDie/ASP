@@ -1,0 +1,165 @@
+.tsched
+{
+    max-width: 960px;
+    margin: 1.5rem auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.tsched-head
+{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 1.25rem 1.5rem;
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    border-radius: 16px;
+}
+
+.tsched-head h1
+{
+    margin: 0;
+    font-size: 1.6rem;
+}
+
+.tsched-sub
+{
+    margin: 0;
+    color: var(--app-text-secondary);
+}
+
+.tsched-section-title
+{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.75rem;
+}
+
+.tsched-section-title h2
+{
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.tsched-table
+{
+    margin: 0;
+}
+
+.tsched-table th
+{
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--app-text-secondary);
+    border-color: var(--app-border);
+}
+
+.tsched-table td
+{
+    font-size: 0.9rem;
+    border-color: var(--app-border);
+    vertical-align: middle;
+}
+
+.tsched-chips
+{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.tsched-chip
+{
+    padding: 0.3rem 0.8rem;
+    background: var(--app-surface-2);
+    border: 1px solid var(--app-border);
+    border-radius: 999px;
+    font-size: 0.85rem;
+    color: var(--app-accent);
+}
+
+.tsched-note
+{
+    margin: 0 0 0.9rem;
+    color: var(--app-text-secondary);
+    font-size: 0.88rem;
+}
+
+.tsched-grid
+{
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 0.75rem;
+}
+
+.tsched-card
+{
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0.9rem 1rem;
+    background: var(--app-surface-2);
+    border: 1px solid var(--app-border);
+    border-radius: 12px;
+}
+
+.tsched-card-top
+{
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.tsched-card-name
+{
+    font-weight: 700;
+    color: var(--app-text);
+}
+
+.tsched-card-dir
+{
+    font-size: 0.75rem;
+    color: var(--app-text-soft);
+}
+
+.tsched-card-row
+{
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+}
+
+.tsched-card-row span
+{
+    color: var(--app-text-secondary);
+}
+
+.tsched-card-row b
+{
+    font-weight: 600;
+    color: var(--app-text);
+}
+
+.tsched-card-badge
+{
+    align-self: flex-start;
+    margin-top: 0.25rem;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    background: rgba(25, 135, 84, 0.12);
+    border: 1px solid rgba(25, 135, 84, 0.35);
+    color: var(--bs-success);
+    font-size: 0.72rem;
+}

@@ -1,39 +1,85 @@
 @rendermode InteractiveServer
 @inject IJSRuntime JS
 
-<button type="button" class="theme-toggle" @onclick="ToggleTheme"
-        title="@(IsLight ? "Переключить на тёмную тему" : "Переключить на светлую тему")"
-        aria-label="Переключить тему">
-    @if (IsLight)
-    {
+<div class="theme-tools">
+    <button type="button" class="theme-toggle" @onclick="() => ShowPalette = !ShowPalette"
+            title="Темы оформления" aria-label="Темы оформления"
+            aria-expanded="@(ShowPalette ? "true" : "false")">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+            <rect x="3" y="3" width="7" height="7" rx="1.5" />
+            <rect x="14" y="3" width="7" height="7" rx="1.5" />
+            <rect x="3" y="14" width="7" height="7" rx="1.5" />
+            <path d="M14 17.5h7M17.5 14v7" />
         </svg>
-    }
-    else
+    </button>
+
+    @if (ShowPalette)
     {
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="4" />
-            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
-        </svg>
+        <button type="button" class="accent-backdrop" @onclick="() => ShowPalette = false" aria-label="Закрыть"></button>
+        <div class="accent-popover" role="menu">
+            <span class="accent-popover-title">Тема</span>
+
+            <button type="button" class="accent-option @(IsActive("classic", false) ? "active" : null)" role="menuitemradio"
+                    aria-checked="@(IsActive("classic", false) ? "true" : "false")" @onclick="SelectClassicDark">
+                <span class="accent-swatch swatch-classic-dark" aria-hidden="true"></span>
+                <span>Классическая тёмная</span>
+            </button>
+            <button type="button" class="accent-option @(IsActive("classic", true) ? "active" : null)" role="menuitemradio"
+                    aria-checked="@(IsActive("classic", true) ? "true" : "false")" @onclick="SelectClassicLight">
+                <span class="accent-swatch swatch-classic-light" aria-hidden="true"></span>
+                <span>Классическая светлая</span>
+            </button>
+            <button type="button" class="accent-option @(IsActive("mint", false) ? "active" : null)" role="menuitemradio"
+                    aria-checked="@(IsActive("mint", false) ? "true" : "false")" @onclick="SelectMint">
+                <span class="accent-swatch swatch-mint" aria-hidden="true"></span>
+                <span>Мята</span>
+            </button>
+            <button type="button" class="accent-option @(IsActive("lavender", false) ? "active" : null)" role="menuitemradio"
+                    aria-checked="@(IsActive("lavender", false) ? "true" : "false")" @onclick="SelectLavender">
+                <span class="accent-swatch swatch-lavender" aria-hidden="true"></span>
+                <span>Лаванда</span>
+            </button>
+            <button type="button" class="accent-option @(IsActive("peach", false) ? "active" : null)" role="menuitemradio"
+                    aria-checked="@(IsActive("peach", false) ? "true" : "false")" @onclick="SelectPeach">
+                <span class="accent-swatch swatch-peach" aria-hidden="true"></span>
+                <span>Персик</span>
+            </button>
+        </div>
     }
-</button>
+</div>
 
 @code {
+    private bool ShowPalette;
+    private string ActiveAccent = "classic";
     private bool IsLight;
+
+    private bool IsActive(string accent, bool isLight) => ActiveAccent == accent && IsLight == isLight;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
+            ActiveAccent = await JS.InvokeAsync<string>("AcademyTheme.accent") ?? "classic";
             IsLight = await JS.InvokeAsync<bool>("AcademyTheme.isLight");
             StateHasChanged();
         }
     }
 
-    private async Task ToggleTheme()
+    private Task SelectClassicDark() => SelectThemeAsync("classic", false);
+
+    private Task SelectClassicLight() => SelectThemeAsync("classic", true);
+
+    private Task SelectMint() => SelectThemeAsync("mint", false);
+
+    private Task SelectLavender() => SelectThemeAsync("lavender", false);
+
+    private Task SelectPeach() => SelectThemeAsync("peach", false);
+
+    private async Task SelectThemeAsync(string accent, bool isLight)
     {
-        IsLight = await JS.InvokeAsync<bool>("AcademyTheme.toggle");
-        StateHasChanged();
+        await JS.InvokeAsync<string>("AcademyTheme.applyTheme", accent, isLight);
+        ActiveAccent = accent;
+        IsLight = isLight;
+        ShowPalette = false;
     }
 }

@@ -1,0 +1,345 @@
+@page "/teachers/card/{id:int}/schedule"
+@attribute [AllowAnonymous]
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@using AcademyAgain.Helpers
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+
+<PageTitle>@DisplayName — расписание</PageTitle>
+
+@if (NotFound)
+{
+    <div class="section-empty">Преподаватель не найден.</div>
+}
+else if (loaded)
+{
+    <div class="tsched">
+        <div class="tsched-head">
+            <div>
+                <h1>Расписание занятий</h1>
+                <p class="tsched-sub">@DisplayName — преподаватель академии</p>
+            </div>
+            <a class="btn btn-outline-secondary" href="/teachers/card/@id">← К преподавателю</a>
+        </div>
+
+        <div class="profile-section">
+<div class="tsched-section-title">
+                    <h2>Занятия</h2>
+                    <div class="filter-bar d-flex flex-wrap align-items-center gap-2">
+                        <button type="button" class="chip @(periodFilter == "upcoming" ? "chip-active" : "")" @onclick='() => SetPeriod("upcoming")'>Предстоит (@UpcomingCount)</button>
+                        <button type="button" class="chip @(periodFilter == "past" ? "chip-active" : "")" @onclick='() => SetPeriod("past")'>Проведено (@PastCount)</button>
+                    </div>
+                </div>
+
+                <div class="filter-bar d-flex flex-wrap align-items-center gap-2 mb-3">
+                    <span class="filter-label">Группа:</span>
+                    <select class="form-select form-select-sm filter-select" @bind="groupFilter" @bind:after="OnFilterChanged">
+                        <option value="0">Все группы</option>
+                        @foreach (var g in teacherGroups)
+                        {
+                            <option value="@g.Id">@g.Name</option>
+                        }
+                    </select>
+                    <span class="filter-label">Дисциплина:</span>
+                    <select class="form-select form-select-sm filter-select" @bind="disciplineFilter" @bind:after="OnFilterChanged">
+                        <option value="0">Все дисциплины</option>
+                        @foreach (var d in teacherDisciplines)
+                        {
+                            <option value="@d.Id">@d.Name</option>
+                        }
+                    </select>
+                </div>
+
+            @if (AllCount == 0)
+            {
+                <div class="section-empty">Занятия пока не назначены</div>
+            }
+            else if (ActiveList.Count == 0)
+            {
+                <div class="section-empty">@EmptyMessage</div>
+            }
+            else
+            {
+                <QuickGrid Class="table table-sm tsched-table" Items="scheduleQuery" Pagination="SchedulePager" ItemKey="s => s.lesson_id">
+                    <TemplateColumn Title="Дата" Sortable="true" SortBy="GridSort<Schedule>.ByAscending(s => s.date)" Context="s">
+                        @(s.date?.ToString("dd.MM.yyyy") ?? "—")
+                    </TemplateColumn>
+                    <TemplateColumn Title="Время" Context="s">
+                        @LessonTime(s)
+                    </TemplateColumn>
+                    <TemplateColumn Title="Группа" Sortable="true" SortBy="GridSort<Schedule>.ByAscending(s => GroupName(s.group))" Context="s">
+                        @(GroupName(s.group))
+                    </TemplateColumn>
+                    <TemplateColumn Title="Дисциплина" Sortable="true" SortBy="GridSort<Schedule>.ByAscending(s => DisciplineName(s.discipline))" Context="s">
+                        @(DisciplineName(s.discipline))
+                    </TemplateColumn>
+                    <TemplateColumn Title="Семестр" Sortable="true" SortBy="GridSort<Schedule>.ByAscending(s => SemesterSortValue(s.semester_id))" Context="s">
+                        @SemesterCell(s)
+                    </TemplateColumn>
+                </QuickGrid>
+
+                <div class="paginator">
+                    <span class="badge bg-secondary total-badge">Всего: @ActiveList.Count</span>
+                    <AppPaginator State="SchedulePager" OnPageSizeChanged="HandleSchedulePageSizeChanged" />
+                </div>
+            }
+        </div>
+
+        @if (ActiveGroups.Count > 0)
+        {
+            <div class="profile-section">
+                <h2>Актуальные группы</h2>
+                <div class="tsched-chips">
+                    @foreach (var group in ActiveGroups)
+                    {
+                        <span class="tsched-chip">@group</span>
+                    }
+                </div>
+            </div>
+        }
+
+        <div class="profile-section">
+            <h2>Группы под запись</h2>
+            @if (RecruitGroups.Count == 0)
+            {
+                <div class="section-empty">Набор пока не объявлен</div>
+            }
+            else
+            {
+                <p class="tsched-note">
+                    Академия ведёт набор в группы. Занятия ещё не начались, предметы не назначены —
+                    можно посмотреть, по каким дням и во сколько преподаватель будет вести занятия.
+                </p>
+                <div class="tsched-grid">
+                    @foreach (var g in RecruitGroups)
+                    {
+                        <div class="tsched-card">
+                            <div class="tsched-card-top">
+                                <span class="tsched-card-name">@g.Name</span>
+                                <span class="tsched-card-dir">@g.Direction</span>
+                            </div>
+                            <div class="tsched-card-row"><span>Дни</span><b>@g.Days</b></div>
+                            <div class="tsched-card-row"><span>Время</span><b>@g.Time</b></div>
+                            <div class="tsched-card-row"><span>Начало</span><b>@g.StartDate</b></div>
+                            <div class="tsched-card-badge">идёт набор</div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+
+    private sealed record RecruitRow(string Name, string Direction, string Days, string Time, string StartDate);
+    private sealed record FilterOption(int Id, string Name);
+
+    private bool loaded;
+    private bool NotFound;
+    private string DisplayName = string.Empty;
+
+    private readonly PaginationState SchedulePager = new() { ItemsPerPage = 25 };
+
+    private List<AcademyAgain.Models.Schedule> Upcoming = new();
+    private List<AcademyAgain.Models.Schedule> Past = new();
+    private List<RecruitRow> RecruitGroups = new();
+    private List<string> ActiveGroups = new();
+    private List<FilterOption> teacherGroups = new();
+    private List<FilterOption> teacherDisciplines = new();
+    private Dictionary<int, string> groups = new();
+    private Dictionary<int, string> disciplineNames = new();
+    private Dictionary<int, Models.Semester> semesterMap = new();
+    private IQueryable<AcademyAgain.Models.Schedule> scheduleQuery = new List<AcademyAgain.Models.Schedule>().AsQueryable();
+
+    private string periodFilter = "upcoming";
+    private int groupFilter;
+    private int disciplineFilter;
+    private int UpcomingCount => Filtered(Upcoming).Count;
+    private int PastCount => Filtered(Past).Count;
+    private int AllCount => UpcomingCount + PastCount;
+    private List<AcademyAgain.Models.Schedule> ActiveList => Filtered(periodFilter == "past" ? Past : Upcoming);
+
+    private string EmptyMessage
+        => groupFilter != 0 || disciplineFilter != 0
+            ? "По выбранным фильтрам занятий не найдено"
+            : periodFilter == "past" ? "Проведённых занятий пока нет" : "Предстоящих занятий пока нет";
+
+    private List<AcademyAgain.Models.Schedule> Filtered(IEnumerable<AcademyAgain.Models.Schedule> source)
+        => source
+            .Where(s => groupFilter == 0 || s.group == groupFilter)
+            .Where(s => disciplineFilter == 0 || s.discipline == disciplineFilter)
+            .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var context = DbFactory.CreateDbContext();
+
+        var teacher = await context.Teachers.AsNoTracking()
+            .FirstOrDefaultAsync(t => t.teacher_id == id);
+        if (teacher is null)
+        {
+            NotFound = true;
+            loaded = true;
+            return;
+        }
+
+        DisplayName = string.Join(" ", new[] { teacher.last_name, teacher.first_name, teacher.middle_name }
+            .Where(x => !string.IsNullOrWhiteSpace(x)));
+        if (string.IsNullOrWhiteSpace(DisplayName))
+        {
+            DisplayName = $"Преподаватель №{id}";
+        }
+
+        groups = (await context.Groups.AsNoTracking().ToDictionaryAsync(g => g.group_id, g => g.group_name ?? ""));
+        disciplineNames = (await context.Disciplines.AsNoTracking().ToDictionaryAsync(d => d.discipline_id, d => d.discipline_name ?? ""));
+        semesterMap = (await context.Semesters.AsNoTracking().ToListAsync()).ToDictionary(m => m.semester_id);
+
+        var schedule = await context.Schedule.AsNoTracking()
+            .Where(s => s.teacher == id && !s.is_deleted)
+            .ToListAsync();
+        var today = DateTime.Today;
+        Upcoming = schedule.Where(s => !s.spent && s.date.HasValue && s.date.Value.Date >= today)
+            .OrderBy(s => s.date).ThenBy(s => s.time)
+            .ToList();
+        Past = schedule.Where(s => s.spent)
+            .OrderByDescending(s => s.date).ThenByDescending(s => s.time)
+            .ToList();
+
+        ActiveGroups = schedule
+            .Select(s => GroupName(s.group))
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct()
+            .OrderBy(n => n)
+            .ToList();
+
+        teacherGroups = schedule
+            .Select(s => s.group)
+            .Distinct()
+            .Select(g => new FilterOption(g, GroupName(g)))
+            .OrderBy(g => g.Name)
+            .ToList();
+        teacherDisciplines = schedule
+            .Select(s => s.discipline)
+            .Distinct()
+            .Select(d => new FilterOption(d, DisciplineName(d)))
+            .OrderBy(d => d.Name)
+            .ToList();
+
+        await LoadRecruitGroupsAsync(context);
+        scheduleQuery = ActiveList.AsQueryable();
+        loaded = true;
+    }
+
+    private async Task LoadRecruitGroupsAsync(AcademyAgainContext context)
+    {
+        var relatedGroupIds = await context.TeachersGroupsRelation.AsNoTracking()
+            .Where(r => r.teacher == id)
+            .Select(r => r.group)
+            .ToListAsync();
+        if (relatedGroupIds.Count == 0)
+        {
+            return;
+        }
+
+        var directions = (await context.Directions.AsNoTracking().ToListAsync())
+            .ToDictionary(d => d.direction_id, d => d.direction_name ?? "");
+
+        var groupsWithLessons = await context.Schedule.AsNoTracking()
+            .Where(s => relatedGroupIds.Contains(s.group))
+            .Select(s => s.group)
+            .Distinct()
+            .ToListAsync();
+
+        var recruitGroupIds = relatedGroupIds.Except(groupsWithLessons).ToList();
+        if (recruitGroupIds.Count == 0)
+        {
+            return;
+        }
+
+        var recruitGroups = await context.Groups.AsNoTracking()
+            .Where(g => recruitGroupIds.Contains(g.group_id))
+            .ToListAsync();
+
+        foreach (var group in recruitGroups.OrderBy(g => g.group_name))
+        {
+            RecruitGroups.Add(new RecruitRow(
+                string.IsNullOrWhiteSpace(group.group_name) ? $"Группа №{group.group_id}" : group.group_name!.Trim(),
+                group.direction is int dirId && directions.TryGetValue(dirId, out var dirName) && !string.IsNullOrWhiteSpace(dirName)
+                    ? dirName
+                    : "Направление уточняется",
+                Weekdays.ToDisplay(group.weekdays),
+                TimeText(group.start_time),
+                group.start_date?.ToString("dd.MM.yyyy") ?? "—"));
+        }
+    }
+
+    private string GroupName(int groupId)
+        => groups.TryGetValue(groupId, out var name) && !string.IsNullOrWhiteSpace(name) ? name : $"№{groupId}";
+
+    private string DisciplineName(int disciplineId)
+        => disciplineNames.TryGetValue(disciplineId, out var name) ? name : $"№{disciplineId}";
+
+    private string SemesterName(int? semesterId)
+        => semesterId is int sid && semesterMap.TryGetValue(sid, out var m) ? m.name : "—";
+
+    private DateTime? SemesterSortValue(int? semesterId)
+        => semesterId is int sid && semesterMap.TryGetValue(sid, out var m) ? m.start_date : null;
+
+    private string LessonTime(AcademyAgain.Models.Schedule s)
+    {
+        if (s.time is not TimeSpan t)
+        {
+            return "—";
+        }
+        var end = t.Add(TimeSpan.FromMinutes(s.duration_min));
+        return $"{t:hh\\:mm} - {end:hh\\:mm}";
+    }
+
+    private MarkupString SemesterCell(AcademyAgain.Models.Schedule schedule)
+    {
+        string name = SemesterName(schedule.semester_id);
+        if (schedule.date is null || schedule.semester_id is not int sid || !semesterMap.TryGetValue(sid, out var semester) || semester.start_date is not DateTime startDate)
+        {
+            return new MarkupString($"<span>{name}</span>");
+        }
+        bool even = AcademyAgain.Helpers.WeekParity.IsEvenWeek(schedule.date.Value, startDate, semester.is_even_week_start);
+        string parity = $" <span class=\"badge {(even ? "text-bg-primary" : "text-bg-secondary")}\">{AcademyAgain.Helpers.WeekParity.ParityLabel(even)}</span>";
+        return new MarkupString($"<span>{name}</span>{parity}");
+    }
+
+    private async Task SetPeriod(string value)
+    {
+        periodFilter = value;
+        scheduleQuery = ActiveList.AsQueryable();
+        await SchedulePager.SetCurrentPageIndexAsync(0);
+        StateHasChanged();
+    }
+
+    private async Task OnFilterChanged()
+    {
+        scheduleQuery = ActiveList.AsQueryable();
+        await SchedulePager.SetCurrentPageIndexAsync(0);
+        StateHasChanged();
+    }
+
+    private async Task HandleSchedulePageSizeChanged(int newSize)
+    {
+        SchedulePager.ItemsPerPage = newSize;
+        await SchedulePager.SetCurrentPageIndexAsync(0);
+        StateHasChanged();
+    }
+
+    private static string TimeText(TimeSpan? time)
+    {
+        if (time is not TimeSpan t)
+        {
+            return "—";
+        }
+        return $"{t:hh\\:mm} - {t.Add(TimeSpan.FromHours(3)):hh\\:mm}";
+    }
+}

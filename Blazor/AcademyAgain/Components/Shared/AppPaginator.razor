@@ -4,9 +4,9 @@
     <div class="app-page-size">
         <label for="page-size">Записей:</label>
         <select id="page-size" value="@State.ItemsPerPage.ToString()" @onchange="OnSizeChanged">
+            <option value="10">10</option>
             <option value="25">25</option>
             <option value="50">50</option>
-            <option value="100">100</option>
         </select>
     </div>
 

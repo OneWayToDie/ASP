@@ -1,11 +1,16 @@
 @page "/teachers/card/{id:int}"
 @attribute [AllowAnonymous]
+@rendermode InteractiveServer
 @using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using System.ComponentModel.DataAnnotations
 @using AcademyAgain.Models
 @using AcademyAgain.Helpers
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider Auth
+@inject IJSRuntime JSRuntime
+@inject AuditLogger Audit
 
 <PageTitle>@DisplayName — преподаватель</PageTitle>
 
@@ -31,11 +36,21 @@ else if (loaded)
             </div>
             <div class="tcard-head-info">
                 <h1>@DisplayName</h1>
-                <div class="tcard-rating" title="Рейтинг 5.0 — отзывов пока нет">
-                    <span class="tcard-stars" aria-hidden="true">★★★★★</span>
-                    <span class="tcard-rating-value">5.0</span>
-                    <span class="tcard-rating-empty">нет отзывов</span>
-                </div>
+                @if (ReviewCount == 0)
+                {
+                    <div class="tcard-rating" title="Отзывов пока нет">
+                        <span class="tcard-stars" aria-hidden="true">☆☆☆☆☆</span>
+                        <span class="tcard-rating-empty">нет отзывов</span>
+                    </div>
+                }
+                else
+                {
+                    <div class="tcard-rating" title="@("Рейтинг " + AverageRatingText + " — " + Plural(ReviewCount, "отзыв", "отзыва", "отзывов"))">
+                        <span class="tcard-stars" aria-hidden="true">@RatingStars</span>
+                        <span class="tcard-rating-value">@AverageRatingText</span>
+                        <span class="tcard-rating-empty">@Plural(ReviewCount, "отзыв", "отзыва", "отзывов")</span>
+                    </div>
+                }
                 <p class="tcard-sub">Преподаватель академии</p>
             </div>
         </div>
@@ -76,6 +91,9 @@ else if (loaded)
                         }
                     </div>
                 }
+                <div class="mt-3">
+                    <a class="btn btn-primary" href="/teachers/card/@id/schedule">Расписание занятий</a>
+                </div>
             </div>
 
             <div class="profile-section">
@@ -134,6 +152,88 @@ else if (loaded)
                     }
                 </div>
             }
+
+            <div class="profile-section">
+                <h3>Отзывы</h3>
+                @if (!IsAuthenticated)
+                {
+                    <p class="mb-2">Чтобы оставить отзыв, войдите как студент академии.</p>
+                    <a class="btn btn-primary" href="@LoginUrl">Войти и оставить отзыв</a>
+                }
+                else if (!IsStudent)
+                {
+                    <div class="alert alert-info py-2 mb-2">Отзывы могут оставлять только студенты академии.</div>
+                }
+                else if (HasReviewedTeacher)
+                {
+                    @if (ReviewJustSubmitted)
+                    {
+                        <div class="alert alert-success py-2 mb-2">Спасибо! Ваш отзыв опубликован.</div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info py-2 mb-2">Вы уже оставили отзыв этому преподавателю.</div>
+                    }
+                }
+                else if (!CanWriteReview)
+                {
+                    <div class="alert alert-warning py-2 mb-2">@ReviewDenyReason</div>
+                }
+                else
+                {
+                    <EditForm Model="reviewModel" OnValidSubmit="SubmitReviewAsync">
+                        <DataAnnotationsValidator />
+                        <div class="rev-form">
+                            <div class="rev-form-label">Оценка преподавателя</div>
+                            <div class="rev-stars-input">
+                                @for (var i = 1; i <= 5; i++)
+                                {
+                                    var value = i;
+                                    <button type="button" class="rev-star @(reviewModel.Rating >= value ? "active" : "")" title="@value из 5" @onclick='() => SetRating(value)' aria-label="Оценка @value">★</button>
+                                }
+                            </div>
+                            <ValidationMessage For="() => reviewModel.Rating" />
+                            <textarea class="form-control mt-2" rows="3" maxlength="1000" placeholder="Расскажите о занятиях у преподавателя..." @bind="reviewModel.Text"></textarea>
+                            <ValidationMessage For="() => reviewModel.Text" />
+                            @if (!string.IsNullOrWhiteSpace(ReviewFormError))
+                            {
+                                <div class="alert alert-danger py-2 mt-2 mb-0">@ReviewFormError</div>
+                            }
+                            <button type="submit" class="btn btn-primary mt-2">Оставить отзыв</button>
+                        </div>
+                    </EditForm>
+                }
+
+                <div class="mt-3">
+                    @if (ReviewTotal == 0)
+                    {
+                        <div class="section-empty">Отзывов пока нет</div>
+                    }
+                    else
+                    {
+                        <QuickGrid Class="table table-sm rev-table" Items="reviewQuery" ItemKey="r => r.ReviewId" Pagination="ReviewPager">
+                            <TemplateColumn Title="Отзыв" Context="r">
+                                <div class="rev-row">
+                                    <div class="rev-head">
+                                        <span class="rev-author">@AuthorName(r)</span>
+                                        <span class="rev-stars" aria-hidden="true" title="@r.Rating из 5">@Stars(r.Rating)</span>
+                                        <span class="rev-date">@r.CreatedAt.ToString("dd.MM.yyyy")</span>
+                                        @if (IsAdminMod)
+                                        {
+                                            <button type="button" class="btn btn-outline-danger btn-sm rev-delete" @onclick='() => DeleteReviewAsync(r.ReviewId)'>Удалить</button>
+                                        }
+                                    </div>
+                                    <div class="rev-text">@r.Text</div>
+                                </div>
+                            </TemplateColumn>
+                        </QuickGrid>
+                        <div class="paginator">
+                            <span class="badge bg-secondary total-badge">Всего: @ReviewTotal</span>
+                            <AppPaginator State="ReviewPager" OnPageSizeChanged="HandleReviewPageSizeChanged" />
+                        </div>
+                    }
+                </div>
+            </div>
         </div>
     </div>
 }
@@ -145,8 +245,24 @@ else if (loaded)
     private sealed class ApplyModel { }
     private sealed record SubjectRow(string Name, int Lessons);
     private sealed record AchievementRow(string Title, string Detail);
+    private sealed record ReviewRow(int ReviewId, int Rating, string Text, DateTime CreatedAt, string AuthorFirst, string AuthorLast);
+
+    private sealed class ReviewModel
+    {
+        [Range(1, 5, ErrorMessage = "Поставьте оценку от 1 до 5.")]
+        public int Rating { get; set; }
+
+        [Required(ErrorMessage = "Напишите текст отзыва.")]
+        [StringLength(1000, ErrorMessage = "Отзыв не должен превышать 1000 символов.")]
+        public string Text { get; set; } = string.Empty;
+    }
+
+    private readonly PaginationState ReviewPager = new() { ItemsPerPage = 25 };
 
     private ApplyModel applyModel = new();
+    private ReviewModel reviewModel = new();
+    private List<ReviewRow> reviews = new();
+    private IQueryable<ReviewRow> reviewQuery = Enumerable.Empty<ReviewRow>().AsQueryable();
 
     [SupplyParameterFromForm]
     private ApplyModel? Post { get; set; }
@@ -168,8 +284,21 @@ else if (loaded)
 
     private bool IsAuthenticated;
     private bool IsCandidate;
+    private bool IsStudent;
+    private bool IsAdminMod;
     private bool CanSeeContacts;
     private bool AlreadyApplied;
+
+    private int ReviewCount;
+    private int ReviewTotal;
+    private string AverageRatingText = "—";
+    private string RatingStars = "☆☆☆☆☆";
+
+    private bool CanWriteReview;
+    private bool HasReviewedTeacher;
+    private string ReviewDenyReason = string.Empty;
+    private string ReviewFormError = string.Empty;
+    private bool ReviewJustSubmitted;
 
     private bool ShowApply => !IsAuthenticated || IsCandidate;
     private string LoginUrl => $"/login?returnUrl={Uri.EscapeDataString($"/teachers/card/{id}")}";
@@ -182,7 +311,9 @@ else if (loaded)
         var currentName = authState.User.Identity?.Name;
         IsAuthenticated = authState.User.Identity?.IsAuthenticated == true;
         IsCandidate = authState.User.IsInRole("candidate");
-        CanSeeContacts = authState.User.IsInRole("admin") || authState.User.IsInRole("moderator");
+        IsStudent = authState.User.IsInRole("student");
+        IsAdminMod = authState.User.IsInRole("admin") || authState.User.IsInRole("moderator");
+        CanSeeContacts = IsAdminMod;
 
         var teacher = await context.Teachers.AsNoTracking()
             .FirstOrDefaultAsync(t => t.teacher_id == id);
@@ -230,9 +361,12 @@ else if (loaded)
             .Distinct()
             .ToList();
 
-        LessonCount = await context.Schedule.AsNoTracking().CountAsync(s => s.teacher == id);
+        LessonCount = await context.Schedule.AsNoTracking().CountAsync(s => s.teacher == id && s.spent);
 
         Achievements = BuildAchievements();
+
+        await LoadReviewsAsync(context);
+        await LoadReviewAccessAsync(context, currentName);
 
         if (IsCandidate && currentName is not null)
         {
@@ -245,6 +379,198 @@ else if (loaded)
         }
 
         loaded = true;
+    }
+
+    private async Task LoadReviewsAsync(AcademyAgainContext context)
+    {
+        reviews = await (from r in context.Reviews.AsNoTracking().Where(r => r.teacher_id == id)
+                         join s in context.Students.AsNoTracking() on r.student_id equals s.stud_id
+                         orderby r.created_at descending
+                         select new ReviewRow(r.review_id, r.rating, r.text, r.created_at, s.first_name ?? "", s.last_name ?? ""))
+            .ToListAsync();
+        reviewQuery = reviews.AsQueryable();
+        ReviewCount = reviews.Count;
+        ReviewTotal = reviews.Count;
+        if (ReviewCount > 0)
+        {
+            AverageRatingText = (reviews.Average(r => r.Rating)).ToString("0.0");
+            RatingStars = new string('★', (int)Math.Round(reviews.Average(r => r.Rating))) + new string('☆', 5 - (int)Math.Round(reviews.Average(r => r.Rating)));
+        }
+    }
+
+    private async Task LoadReviewAccessAsync(AcademyAgainContext context, string? currentName)
+    {
+        if (!IsStudent || currentName is null)
+        {
+            return;
+        }
+        var me = await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.username == currentName);
+        if (me?.linked_id is not int sid)
+        {
+            return;
+        }
+        var check = await CheckReviewAccessAsync(context, id, sid);
+        HasReviewedTeacher = check.HasReviewed;
+        CanWriteReview = !check.HasReviewed && string.IsNullOrEmpty(check.DenyReason);
+        ReviewDenyReason = check.DenyReason;
+    }
+
+    private static async Task<(bool HasReviewed, string DenyReason)> CheckReviewAccessAsync(AcademyAgainContext context, int teacherId, int studentId)
+    {
+        var student = await context.Students.AsNoTracking().FirstOrDefaultAsync(s => s.stud_id == studentId);
+        if (student?.group is not int groupId)
+        {
+            return (false, "К вашему аккаунту не привязана группа. Обратитесь к администратору.");
+        }
+        if (await context.Reviews.AsNoTracking().AnyAsync(r => r.teacher_id == teacherId && r.student_id == studentId))
+        {
+            return (true, "");
+        }
+        var group = await context.Groups.AsNoTracking().FirstOrDefaultAsync(g => g.group_id == groupId);
+        if (group?.start_date is not DateTime start || start > DateTime.Today.AddMonths(-2))
+        {
+            return (false, "Отзывы можно оставлять после 2 месяцев обучения. Ваша группа начала занятия позже этого срока.");
+        }
+        var contact = await context.Schedule.AsNoTracking().AnyAsync(s => s.teacher == teacherId && s.group == groupId && s.spent);
+        if (!contact)
+        {
+            return (false, "Вы можете оставить отзыв, только если занимались у этого преподавателя: его проведённых занятий с вашей группой пока нет.");
+        }
+        return (false, "");
+    }
+
+    private async Task SubmitReviewAsync()
+    {
+        ReviewFormError = string.Empty;
+        var authState = await Auth.GetAuthenticationStateAsync();
+        if (!authState.User.IsInRole("student"))
+        {
+            ReviewFormError = "Отзывы могут оставлять только студенты академии.";
+            return;
+        }
+        var currentName = authState.User.Identity?.Name;
+        if (currentName is null)
+        {
+            Navigation.NavigateTo(LoginUrl, forceLoad: true);
+            return;
+        }
+
+        await using var context = DbFactory.CreateDbContext();
+        var me = await context.Users.FirstOrDefaultAsync(u => u.username == currentName);
+        if (me?.linked_id is not int sid)
+        {
+            ReviewFormError = "К вашему аккаунту не привязана карточка студента.";
+            return;
+        }
+        var check = await CheckReviewAccessAsync(context, id, sid);
+        if (check.HasReviewed)
+        {
+            ReviewFormError = "Вы уже оставили отзыв этому преподавателю.";
+            return;
+        }
+        if (!string.IsNullOrEmpty(check.DenyReason))
+        {
+            ReviewFormError = check.DenyReason;
+            return;
+        }
+        if (reviewModel.Rating < 1 || reviewModel.Rating > 5)
+        {
+            ReviewFormError = "Поставьте оценку от 1 до 5.";
+            return;
+        }
+        var text = reviewModel.Text?.Trim();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            ReviewFormError = "Напишите текст отзыва.";
+            return;
+        }
+        if (text.Length > 1000)
+        {
+            ReviewFormError = "Отзыв не должен превышать 1000 символов.";
+            return;
+        }
+
+        context.Reviews.Add(new TeacherReview
+        {
+            teacher_id = id,
+            student_id = sid,
+            rating = reviewModel.Rating,
+            text = text,
+            created_at = DateTime.Now,
+            is_deleted = false
+        });
+        await context.SaveChangesAsync();
+
+        reviewModel = new ReviewModel();
+        ReviewJustSubmitted = true;
+        HasReviewedTeacher = true;
+        CanWriteReview = false;
+
+        await LoadReviewsAsync(context);
+        StateHasChanged();
+    }
+
+    private async Task DeleteReviewAsync(int reviewId)
+    {
+        if (!IsAdminMod)
+        {
+            return;
+        }
+        if (!await JSRuntime.InvokeAsync<bool>("confirm", "Удалить отзыв? Действие будет записано в аудит."))
+        {
+            return;
+        }
+        await using var context = DbFactory.CreateDbContext();
+        var review = await context.Reviews.FirstOrDefaultAsync(r => r.review_id == reviewId);
+        if (review is not null)
+        {
+            review.is_deleted = true;
+            var userId = await Audit.ResolveUserIdAsync();
+            await Audit.LogAsync(context, userId, "delete", "teacher_review", reviewId.ToString(), newValue: $"rating={review.rating}; teacher={id}");
+            await context.SaveChangesAsync();
+        }
+        await LoadReviewsAsync(context);
+        await ReviewPager.SetCurrentPageIndexAsync(0);
+        StateHasChanged();
+    }
+
+    private void SetRating(int rating)
+    {
+        reviewModel.Rating = rating;
+        StateHasChanged();
+    }
+
+    private string AuthorName(ReviewRow r)
+    {
+        var first = (r.AuthorFirst ?? "").Trim();
+        var lastInitial = !string.IsNullOrWhiteSpace(r.AuthorLast) ? char.ToUpperInvariant(r.AuthorLast.Trim()[0]) + "." : "";
+        var name = $"{first} {lastInitial}".Trim();
+        return string.IsNullOrWhiteSpace(name) ? "Студент" : name;
+    }
+
+    private static string Stars(int rating)
+        => new string('★', Math.Clamp(rating, 0, 5)) + new string('☆', Math.Clamp(5 - rating, 0, 5));
+
+    private static string Plural(int n, string one, string few, string many)
+    {
+        var tens = n % 100;
+        if (tens >= 11 && tens <= 14)
+        {
+            return $"{n} {many}";
+        }
+        return (n % 10) switch
+        {
+            1 => $"{n} {one}",
+            2 or 3 or 4 => $"{n} {few}",
+            _ => $"{n} {many}"
+        };
+    }
+
+    private async Task HandleReviewPageSizeChanged(int newSize)
+    {
+        ReviewPager.ItemsPerPage = newSize;
+        await ReviewPager.SetCurrentPageIndexAsync(0);
+        StateHasChanged();
     }
 
     private List<AchievementRow> BuildAchievements()

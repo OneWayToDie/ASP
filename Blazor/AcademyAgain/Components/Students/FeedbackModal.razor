@@ -1,0 +1,118 @@
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@using AcademyAgain.Helpers
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject AuthenticationStateProvider Auth
+@inject IJSRuntime JSRuntime
+
+@if (Visible && Pending.Count > 0)
+{
+    <div class="fb-overlay" @onclick="DismissAsync">
+        <div class="fb-modal" role="dialog" aria-modal="true" @onclick:stopPropagation="true">
+            <button type="button" class="fb-close" @onclick="DismissAsync" aria-label="Закрыть">✕</button>
+            <div class="fb-modal-title">Оцените занятие</div>
+            <p class="fb-modal-sub">Оставьте оценку преподавателю за прошедшее занятие.</p>
+            <FeedbackCard Item="Pending[current]" OnSubmitted="OnItemSubmitted" />
+        </div>
+    </div>
+}
+
+@code {
+    private List<FeedbackRow> Pending = new();
+    private int current;
+    private bool Visible;
+    private bool _jsChecked;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await Auth.GetAuthenticationStateAsync();
+        if (!authState.User.IsInRole("student"))
+        {
+            return;
+        }
+        var currentName = authState.User.Identity?.Name;
+
+        await using var context = DbFactory.CreateDbContext();
+        var user = currentName is null
+            ? null
+            : await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.username == currentName);
+        if (user?.linked_id is not int studentId)
+        {
+            return;
+        }
+        var student = await context.Students.AsNoTracking().FirstOrDefaultAsync(s => s.stud_id == studentId);
+        if (student?.group is not int groupId)
+        {
+            return;
+        }
+
+        Pending = await LessonFeedbackHelper.GetPendingAsync(context, studentId, groupId);
+        if (Pending.Count == 0)
+        {
+            return;
+        }
+        current = 0;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_jsChecked)
+        {
+            return;
+        }
+        if (Pending.Count == 0)
+        {
+            return;
+        }
+        _jsChecked = true;
+        try
+        {
+            var dismissed = await JSRuntime.InvokeAsync<bool>("academyFeedback.dismissed");
+            if (dismissed)
+            {
+                return;
+            }
+        }
+        catch
+        {
+            // JS недоступно (например, pre-render) — показываем окошко.
+        }
+        Visible = true;
+        StateHasChanged();
+    }
+
+    private async Task OnItemSubmitted(long lessonId)
+    {
+        var idx = Pending.FindIndex(p => p.LessonId == lessonId);
+        if (idx >= 0)
+        {
+            Pending.RemoveAt(idx);
+            if (current >= Pending.Count)
+            {
+                current = Math.Max(0, Pending.Count - 1);
+            }
+        }
+        if (Pending.Count == 0)
+        {
+            await FinishAsync();
+        }
+        StateHasChanged();
+    }
+
+    private async Task DismissAsync() => await FinishAsync();
+
+    private async Task FinishAsync()
+    {
+        Visible = false;
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("academyFeedback.dismiss");
+        }
+        catch
+        {
+            // окошко закрыто и без хранилища
+        }
+        StateHasChanged();
+    }
+}

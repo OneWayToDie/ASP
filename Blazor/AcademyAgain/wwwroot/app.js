@@ -45,6 +45,15 @@
 
     window.AcademyTheme = {
         key: 'academyTheme',
+        accentKey: 'academyAccent',
+        cookieName: 'academy_ui',
+        syncCookie() {
+            try {
+                const accent = this.accent();
+                const mode = this.current();
+                document.cookie = `${this.cookieName}=${accent}:${mode}; path=/; max-age=31536000; SameSite=Lax`;
+            } catch { /* cookie недоступен — localStorage продолжает работать */ }
+        },
         current() {
             return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';  
         },
@@ -57,10 +66,45 @@
             try {
                 localStorage.setItem(this.key, value);
             } catch { /* хранилище недоступно — игнорируем */ }
+            this.syncCookie();
             return value === 'light';
         },
         toggle() {
             return this.set(this.isLight() ? 'dark' : 'light');
+        },
+        accent() {
+            const value = document.documentElement.getAttribute('data-accent');
+            return value === 'brand' ? 'classic' : (value || 'classic');
+        },
+        setAccent(name) {
+            const value = name === 'brand' ? 'classic' : name;
+            document.documentElement.setAttribute('data-accent', value);
+            try {
+                localStorage.setItem(this.accentKey, value);
+            } catch { /* хранилище недоступно — игнорируем */ }
+            this.syncCookie();
+            return value;
+        },
+        applyTheme(accent, isLight) {
+            this.set(isLight ? 'light' : 'dark');
+            return this.setAccent(accent);
+        },
+        restore() {
+            try {
+                if (localStorage.getItem(this.key) === 'light') {
+                    document.documentElement.setAttribute('data-theme', 'light');
+                } else {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                }
+                const accent = localStorage.getItem(this.accentKey);
+                const names = ['classic', 'mint', 'lavender', 'peach'];
+                if (names.indexOf(accent) !== -1) {
+                    document.documentElement.setAttribute('data-accent', accent);
+                } else {
+                    document.documentElement.setAttribute('data-accent', 'classic');
+                }
+            } catch { /* хранилище недоступно — остаёмся в значениях по умолчанию */ }
+            this.syncCookie();
         },
     };
 
@@ -189,5 +233,11 @@
 
         pupil.style.transform =
             `translate(${dx * factor}px, ${dy * factor}px)`;
+    });
+
+    // Enhanced-навигация Blazor синхронизирует атрибуты <html> обратно в серверные дефолты.
+    // После каждого клиентского перехода восстанавливаем сохранённую тему и акцент.
+    window.addEventListener('blazor:enhancedload', () => {
+        window.AcademyTheme.restore();
     });
 })();

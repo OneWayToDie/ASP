@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="academyGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3a4150"/>
+      <stop offset="1" stop-color="#161a22"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#academyGrad)"/>
+  <path fill-rule="evenodd" d="M32 12 L48 52 H16 Z M32 28 L43 48 H21 Z" fill="#ffffff"/>
+  <rect x="24" y="39" width="16" height="6.5" rx="3.25" fill="#ffffff"/>
+</svg>

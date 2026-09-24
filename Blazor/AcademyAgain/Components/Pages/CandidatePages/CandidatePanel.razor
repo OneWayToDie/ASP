@@ -43,10 +43,12 @@ else if (Ready)
     <h2 class="section-title" id="requests">Мои заявки к преподавателям</h2>
     @if (Requests.Count == 0)
     {
-        <div class="cand-empty">
-            <div>Вы пока ни к кому не записались.</div>
-            <a class="btn btn-primary" href="teachers/catalog">Выбрать преподавателя</a>
-        </div>
+        <EmptyState Title="Вы пока ни к кому не записались"
+                    Message="Запись к преподавателю начинается с его визитки в каталоге.">
+            <ActionContent>
+                <a class="btn btn-primary" href="teachers/catalog">Выбрать преподавателя</a>
+            </ActionContent>
+        </EmptyState>
     }
     else
     {

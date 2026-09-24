@@ -1,0 +1,35 @@
+/* ===== Пустое состояние (EmptyState) ===== */
+.empty-state {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 1.75rem 1.5rem;
+    border: 1px dashed var(--app-border-strong);
+    border-radius: 12px;
+    background: var(--app-surface-2);
+    color: var(--app-text-secondary);
+}
+
+.empty-state-icon {
+    width: 2rem;
+    height: 2rem;
+    color: var(--app-accent-warn);
+    flex: none;
+    opacity: 0.85;
+}
+
+.empty-state-title {
+    font-weight: 600;
+    color: var(--app-text);
+    font-size: 1rem;
+}
+
+.empty-state-hint {
+    margin-top: 0.15rem;
+    font-size: 0.9rem;
+}
+
+.empty-state-action {
+    margin-left: auto;
+}

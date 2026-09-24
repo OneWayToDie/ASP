@@ -376,6 +376,51 @@ namespace AcademyAgain.Migrations
                     b.ToTable("Holidays");
                 });
 
+            modelBuilder.Entity("AcademyAgain.Models.LessonFeedback", b =>
+                {
+                    b.Property<int>("feedback_id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("feedback_id"));
+
+                    b.Property<DateTime>("created_at")
+                        .HasColumnType("DATETIME");
+
+                    b.Property<long>("lesson_id")
+                        .HasColumnType("BIGINT");
+
+                    b.Property<byte>("rating")
+                        .HasColumnType("TINYINT");
+
+                    b.Property<int>("student_id")
+                        .HasColumnType("int");
+
+                    b.HasKey("feedback_id");
+
+                    b.HasIndex("student_id");
+
+                    b.HasIndex("lesson_id", "student_id")
+                        .IsUnique();
+
+                    b.ToTable("LessonFeedbacks");
+                });
+
+            modelBuilder.Entity("AcademyAgain.Models.LessonFeedbackTag", b =>
+                {
+                    b.Property<int>("feedback_id")
+                        .HasColumnType("int");
+
+                    b.Property<int>("template_id")
+                        .HasColumnType("int");
+
+                    b.HasKey("feedback_id", "template_id");
+
+                    b.HasIndex("template_id");
+
+                    b.ToTable("LessonFeedbackTags");
+                });
+
             modelBuilder.Entity("AcademyAgain.Models.News", b =>
                 {
                     b.Property<int>("news_id")
@@ -404,6 +449,34 @@ namespace AcademyAgain.Migrations
                     b.HasKey("news_id");
 
                     b.ToTable("News");
+                });
+
+            modelBuilder.Entity("AcademyAgain.Models.PraiseTemplate", b =>
+                {
+                    b.Property<int>("template_id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("template_id"));
+
+                    b.Property<byte>("category")
+                        .HasColumnType("TINYINT");
+
+                    b.Property<bool>("is_active")
+                        .HasColumnType("BIT");
+
+                    b.Property<int?>("sort_order")
+                        .HasColumnType("INT");
+
+                    b.Property<string>("text")
+                        .IsRequired()
+                        .HasColumnType("NVARCHAR(200)");
+
+                    b.HasKey("template_id");
+
+                    b.HasIndex("category");
+
+                    b.ToTable("PraiseTemplates");
                 });
 
             modelBuilder.Entity("AcademyAgain.Models.Project", b =>
@@ -759,6 +832,44 @@ namespace AcademyAgain.Migrations
                     b.ToTable("Teachers");
                 });
 
+            modelBuilder.Entity("AcademyAgain.Models.TeacherReview", b =>
+                {
+                    b.Property<int>("review_id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("review_id"));
+
+                    b.Property<DateTime>("created_at")
+                        .HasColumnType("DATETIME");
+
+                    b.Property<bool>("is_deleted")
+                        .HasColumnType("BIT");
+
+                    b.Property<byte>("rating")
+                        .HasColumnType("TINYINT");
+
+                    b.Property<int>("student_id")
+                        .HasColumnType("int");
+
+                    b.Property<int>("teacher_id")
+                        .HasColumnType("int");
+
+                    b.Property<string>("text")
+                        .IsRequired()
+                        .HasColumnType("NVARCHAR(1000)");
+
+                    b.HasKey("review_id");
+
+                    b.HasIndex("teacher_id");
+
+                    b.HasIndex("teacher_id", "student_id")
+                        .IsUnique()
+                        .HasFilter("[is_deleted] = 0");
+
+                    b.ToTable("Reviews");
+                });
+
             modelBuilder.Entity("AcademyAgain.Models.TeachersDisciplinesRelation", b =>
                 {
                     b.Property<short>("teacher")
@@ -770,6 +881,19 @@ namespace AcademyAgain.Migrations
                     b.HasKey("teacher", "discipline");
 
                     b.ToTable("TeachersDisciplinesRelation");
+                });
+
+            modelBuilder.Entity("AcademyAgain.Models.TeachersGroupsRelation", b =>
+                {
+                    b.Property<short>("teacher")
+                        .HasColumnType("SMALLINT");
+
+                    b.Property<int>("group")
+                        .HasColumnType("int");
+
+                    b.HasKey("teacher", "group");
+
+                    b.ToTable("TeachersGroupsRelation");
                 });
 
             modelBuilder.Entity("AcademyAgain.Models.User", b =>

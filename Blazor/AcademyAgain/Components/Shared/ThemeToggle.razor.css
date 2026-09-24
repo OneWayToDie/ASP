@@ -1,9 +1,14 @@
-/* ===== Тумблер темы (светлая/тёмная) ===== */
+/* ===== Выбор темы оформления ===== */
+.theme-tools {
+    position: relative;
+    display: inline-flex;
+}
+
 .theme-toggle {
-    display: inline-flex;          /* иконка по центру кнопки */
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 2.25rem;                /* удобный размер для клика */
+    width: 2.25rem;
     height: 2.25rem;
     padding: 0;
     margin-left: 0.75rem;
@@ -28,4 +33,98 @@
 .theme-toggle:focus-visible {
     outline: 2px solid var(--app-accent);
     outline-offset: 2px;
+}
+
+.accent-backdrop {
+    position: fixed;
+    inset: 0;
+    border: 0;
+    background: transparent;
+    z-index: 30;
+}
+
+.accent-popover {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    margin-left: 0.75rem;
+    z-index: 40;
+    min-width: 230px;
+    padding: 0.5rem;
+    background: var(--app-surface);
+    border: 1px solid var(--app-border-strong);
+    border-radius: 10px;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+}
+
+html[data-theme="light"] .accent-popover {
+    box-shadow: 0 10px 24px rgba(30, 41, 59, 0.18);
+}
+
+.accent-popover-title {
+    display: block;
+    padding: 0.2rem 0.5rem 0.4rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--app-text-secondary);
+}
+
+.accent-option {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    padding: 0.45rem 0.5rem;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--app-text);
+    cursor: pointer;
+    font-size: 0.9rem;
+    text-align: left;
+}
+
+.accent-option:hover {
+    background: var(--app-accent-soft);
+}
+
+.accent-option.active {
+    background: var(--app-accent-soft);
+    color: var(--app-accent);
+    font-weight: 600;
+}
+
+.accent-option:focus-visible {
+    outline: 2px solid var(--app-accent);
+    outline-offset: 2px;
+}
+
+.accent-swatch {
+    width: 1.4rem;
+    height: 1.4rem;
+    border-radius: 5px;
+    border: 1px solid var(--app-border-strong);
+    flex: none;
+}
+
+.swatch-classic-dark {
+    background: conic-gradient(from 210deg, #7ee0a0 0 33%, #ffca7a 33% 66%, #6ea8fe 66% 100%);
+}
+
+.swatch-classic-light {
+    background: conic-gradient(from 210deg, #bff0cd 0 33%, #ffe1a1 33% 66%, #a9c9ff 66% 100%);
+}
+
+.swatch-mint {
+    background: linear-gradient(135deg, #5fd4bd 0%, #0d9488 100%);
+}
+
+.swatch-lavender {
+    background: linear-gradient(135deg, #b8a0f2 0%, #7c5fd0 100%);
+}
+
+.swatch-peach {
+    background: linear-gradient(135deg, #ffb48a 0%, #dd6e42 100%);
 }

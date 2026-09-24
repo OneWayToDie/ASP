@@ -1,0 +1,72 @@
+@page "/student/feedback"
+@attribute [Authorize(Roles = "student")]
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.Authorization
+@using AcademyAgain.Models
+@using AcademyAgain.Helpers
+@using AcademyAgain.Components.Students
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject AuthenticationStateProvider Auth
+
+<PageTitle>Оценка занятий — кабинет студента</PageTitle>
+
+<div class="page-header">
+    <h1>Оценка занятий</h1>
+    <p class="page-subtitle">Оцените прошедшие занятия преподавателей — от 1 до 5 звёзд и отметьте шаблонами, как всё прошло.</p>
+</div>
+
+@if (Loaded && Items.Count == 0)
+{
+    <EmptyState Title="Нет занятий для оценки"
+                Message="Когда преподаватель отметит ваше присутствие на прошедшем занятии, здесь появится карточка для оценки." />
+}
+else if (Loaded)
+{
+    <div class="fb-list">
+        @foreach (var item in Items)
+        {
+            <FeedbackCard Item="item" OnSubmitted="OnItemSubmitted" />
+        }
+    </div>
+}
+
+@code {
+    private List<FeedbackRow> Items = new();
+    private bool Loaded;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var context = DbFactory.CreateDbContext();
+
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var name = authState.User.Identity?.Name;
+        var user = name is null
+            ? null
+            : await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.username == name);
+        if (user?.linked_id is not int studentId)
+        {
+            Loaded = true;
+            return;
+        }
+        var student = await context.Students.AsNoTracking().FirstOrDefaultAsync(s => s.stud_id == studentId);
+        if (student?.group is not int groupId)
+        {
+            Loaded = true;
+            return;
+        }
+        Items = await LessonFeedbackHelper.GetPendingAsync(context, studentId, groupId);
+        Loaded = true;
+    }
+
+    private Task OnItemSubmitted(long lessonId)
+    {
+        var idx = Items.FindIndex(i => i.LessonId == lessonId);
+        if (idx >= 0)
+        {
+            Items.RemoveAt(idx);
+            StateHasChanged();
+        }
+        return Task.CompletedTask;
+    }
+}

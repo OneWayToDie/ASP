@@ -73,6 +73,10 @@ else
             <span class="quick-title">Допуск к сессии</span>
             <span class="quick-desc">Статус допуска к экзаменам</span>
         </a>
+        <a class="quick-card" href="student/feedback">
+            <span class="quick-title">Оценка занятий</span>
+            <span class="quick-desc">Оцените прошедшие пары преподавателей</span>
+        </a>
     </div>
 
     @if (LinkedStudent.group is int groupId)
@@ -87,7 +91,8 @@ else
     <h2 class="section-title">Ближайшее</h2>
     @if (UpcomingLessons.Count == 0 && UpcomingExams.Count == 0)
     {
-        <div class="section-empty">Ближайших занятий и экзаменов нет</div>
+        <EmptyState Title="Ближайших занятий и экзаменов нет"
+                    Message="Когда появятся занятия или экзамены, они будут показаны здесь." />
     }
     else
     {

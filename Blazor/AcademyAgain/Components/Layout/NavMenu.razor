@@ -3,7 +3,10 @@
 @inject AuthenticationStateProvider Auth
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">Академия</a>
+        <a class="navbar-brand" href="">
+        <img class="brand-logo" src="/images/logo.svg" alt="" aria-hidden="true" />
+        <span>Академия</span>
+    </a>
     </div>
 </div>
 
@@ -71,13 +74,6 @@
                     <span class="nav-label">Контакты</span>
                 </NavLink>
             </div>
-
-            <div class="nav-item px-3">
-                <NavLink class="nav-link" href="schedule">
-                    <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11.5" rx="1.5"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>
-                    <span class="nav-label">Расписание</span>
-                </NavLink>
-            </div>
         }
 
         @if (IsAuthenticated && !IsExternalUser)
@@ -98,10 +94,13 @@
                     <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h3v3H3ZM10 3h3v3h-3ZM3 10h3v3H3ZM10 10h3v3h-3"/></svg>
                     <span class="nav-label">Группы</span>
                 </NavLink>
-                <NavLink class="group-btn" href="@(IsTeaching ? "schedules" : "schedule")">
-                    <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11.5" rx="1.5"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>
-                    <span class="nav-label">Расписание</span>
-                </NavLink>
+                @if (IsTeaching)
+                {
+                    <NavLink class="group-btn" href="schedules">
+                        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11.5" rx="1.5"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>
+                        <span class="nav-label">Расписание</span>
+                    </NavLink>
+                }
                 <NavLink class="group-btn" href="attendances">
                     <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="1.5" width="8" height="13" rx="1"/><path d="M6 1.5h4v2H6ZM5.5 9.5l2 1.5 3-3.5"/></svg>
                     <span class="nav-label">Посещаемость</span>
@@ -122,6 +121,13 @@
                     <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11.5" rx="1.5"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/><path d="m5.5 10 1.5 1.5 3-3.5"/></svg>
                     <span class="nav-label">Ведомость сессии</span>
                 </NavLink>
+                @if (IsStudent)
+                {
+                    <NavLink class="group-btn" href="student/feedback">
+                        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 2.5 13.5 7 6.5 14H2V9.5ZM12 3.5l1 1M11 8l1 1"/></svg>
+                        <span class="nav-label">Оценка занятий</span>
+                    </NavLink>
+                }
             </div>
         </div>
 

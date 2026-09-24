@@ -1,5 +1,6 @@
 @page "/teachers/catalog"
 @attribute [AllowAnonymous]
+@rendermode InteractiveServer
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
 @using AcademyAgain.Helpers
@@ -16,7 +17,7 @@
 
 @if (Teachers.Count == 0)
 {
-    <div class="section-empty">Преподаватели пока не добавлены.</div>
+    <EmptyState Title="Преподаватели пока не добавлены" Message="Каталог преподавателей пополнится после добавления данных." />
 }
 else
 {
@@ -37,10 +38,18 @@ else
 
                 <h3>@t.FullName</h3>
 
-                <div class="catalog-rating" title="Рейтинг 5.0 — отзывов пока нет">
-                    <span class="catalog-stars" aria-hidden="true">★★★★★</span>
-                    <span class="catalog-rating-value">5.0</span>
-                    <span class="catalog-rating-empty">нет отзывов</span>
+                <div class="catalog-rating">
+                    @if (t.ReviewCount == 0)
+                    {
+                        <span class="catalog-stars" aria-hidden="true">☆☆☆☆☆</span>
+                        <span class="catalog-rating-empty">нет отзывов</span>
+                    }
+                    else
+                    {
+                        <span class="catalog-stars" aria-hidden="true">@t.RatingStars</span>
+                        <span class="catalog-rating-value">@t.RatingAverageText</span>
+                        <span class="catalog-rating-empty">@Plural(t.ReviewCount)</span>
+                    }
                 </div>
 
                 @if (t.Subjects.Count > 0)
@@ -85,6 +94,9 @@ else
         public List<string> Subjects = new();
         public int SubjectCount;
         public List<string> Directions = new();
+        public int ReviewCount;
+        public string RatingAverageText = string.Empty;
+        public string RatingStars = string.Empty;
     }
 
     private List<TeacherCard> Teachers = new();
@@ -120,6 +132,13 @@ else
             .ToListAsync();
         var disciplineDirections = await context.DisciplinesDirectionsRelation.AsNoTracking().ToListAsync();
 
+        var reviewAggs = await context.Reviews.AsNoTracking()
+            .Where(r => teacherIds.Contains(r.teacher_id))
+            .GroupBy(r => r.teacher_id)
+            .Select(g => new { g.Key, Avg = g.Average(x => (double)x.rating), Cnt = g.Count() })
+            .ToListAsync();
+        var reviewsByTeacher = reviewAggs.ToDictionary(a => a.Key);
+
         foreach (var teacher in teachers)
         {
             var disciplineIds = relations
@@ -149,7 +168,8 @@ else
 
             var fullName = ComposeName(teacher.last_name, teacher.first_name, teacher.middle_name);
 
-            Teachers.Add(new TeacherCard
+            var reviewAgg = reviewsByTeacher.TryGetValue(teacher.teacher_id, out var ra) ? ra : null;
+            var card = new TeacherCard
             {
                 Id = teacher.teacher_id,
                 FullName = fullName,
@@ -158,8 +178,17 @@ else
                 WorkSince = teacher.work_since,
                 Subjects = subjects,
                 SubjectCount = subjects.Count,
-                Directions = dirs
-            });
+                Directions = dirs,
+                ReviewCount = reviewAgg?.Cnt ?? 0
+            };
+            if (reviewAgg is not null && reviewAgg.Cnt > 0)
+            {
+                card.RatingAverageText = reviewAgg.Avg.ToString("0.0");
+                var rounded = (int)Math.Round(reviewAgg.Avg);
+                card.RatingStars = new string('★', rounded) + new string('☆', 5 - rounded);
+            }
+
+            Teachers.Add(card);
         }
     }
 
@@ -170,5 +199,20 @@ else
     {
         var parts = name.Split(new[] { ' ', '-', '.' }, StringSplitOptions.RemoveEmptyEntries).Take(2).ToList();
         return parts.Count == 0 ? "?" : string.Concat(parts.Select(p => char.ToUpperInvariant(p[0])));
+    }
+
+    private static string Plural(int n)
+    {
+        var tens = n % 100;
+        if (tens >= 11 && tens <= 14)
+        {
+            return $"{n} отзывов";
+        }
+        return (n % 10) switch
+        {
+            1 => $"{n} отзыв",
+            2 or 3 or 4 => $"{n} отзыва",
+            _ => $"{n} отзывов"
+        };
     }
 }

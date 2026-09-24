@@ -2,8 +2,8 @@
 {
     margin-bottom: 1.75rem;
     padding: 3.25rem 1.5rem 3rem;
-    background: radial-gradient(circle at 15% 20%, rgba(110, 168, 254, 0.22), transparent 55%),
-                radial-gradient(circle at 85% 0%, rgba(27, 110, 194, 0.28), transparent 50%),
+    background: radial-gradient(circle at 15% 20%, var(--app-hero-glow-a), transparent 55%),
+                radial-gradient(circle at 85% 0%, var(--app-hero-glow-b), transparent 50%),
                 linear-gradient(160deg, var(--app-surface-2), var(--app-bg));
     border: 1px solid var(--app-border);
     border-radius: 18px;

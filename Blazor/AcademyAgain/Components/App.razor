@@ -1,25 +1,42 @@
-﻿<!DOCTYPE html>
-<html lang="ru" data-theme="dark">
+﻿@inject IHttpContextAccessor HttpAccessor
+
+<!DOCTYPE html>
+<html lang="ru" data-theme="@ThemeAttr" data-accent="@AccentAttr">
 
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
     <script>
-        // Применяем сохранённую тему до первого отрисовки — чтобы не «мигала» тёмная тема
+        // Применяем сохранённую тему и палитру до первой отрисовки — чтобы не «мигала» тема.
+        // Cookie актуально только для этой страницы — иначе Blazor enhanced-навигацией история
+        // затёрлась. Тема ещё недоступна (app.js грузится позже), поэтому формируем cookie здесь же.
         (function () {
             try {
+                var theme = 'dark';
+                var accent = 'classic';
                 if (localStorage.getItem('academyTheme') === 'light') {
                     document.documentElement.setAttribute('data-theme', 'light');
+                    theme = 'light';
                 }
-            } catch (e) { /* хранилище недоступно — остаёмся в тёмной теме по умолчанию */ }
+                var stored = localStorage.getItem('academyAccent');
+                var names = ['classic', 'mint', 'lavender', 'peach'];
+                if (names.indexOf(stored) !== -1) {
+                    document.documentElement.setAttribute('data-accent', stored);
+                    accent = stored;
+                }
+                document.cookie = 'academy_ui=' + accent + ':' + theme + '; path=/; max-age=31536000; SameSite=Lax';
+            } catch (e) { /* хранилище недоступно — остаёмся в значениях по умолчанию */ }
         })();
     </script>
     <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap.min.css"]" />
     <link rel="stylesheet" href="@Assets["app.css"]" />
+    <link rel="stylesheet" href="fonts.css" />
     <link rel="stylesheet" href="@Assets["AcademyAgain.styles.css"]" />
     <ImportMap />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <link rel="icon" type="image/png" href="favicon.png" />
+    <link rel="apple-touch-icon" href="images/favicon-180.png" />
     <HeadOutlet />
 </head>
 
@@ -29,6 +46,34 @@
     <script src="@Assets["lib/signalr/signalr.min.js"]"></script>
     <script src="@Assets["app.js"]"></script>
     <script src="@Assets["support.js"]"></script>
+    <script src="@Assets["feedback.js"]"></script>
 </body>
 
 </html>
+
+@code {
+    private string ThemeAttr = "dark";
+    private string AccentAttr = "classic";
+
+    /* Сервер отдаёт сохранённую тему прямо в разметке <html>, чтобы enhanced-навигация Blazor
+       не затирала выбор атрибутами по умолчанию при каждом переходе между страницами. */
+    protected override void OnInitialized()
+    {
+        var cookie = HttpAccessor.HttpContext?.Request.Cookies["academy_ui"];
+        if (string.IsNullOrWhiteSpace(cookie))
+        {
+            return;
+        }
+
+        var parts = cookie.Split(':', 2);
+        if (parts.Length != 2)
+        {
+            return;
+        }
+
+        ThemeAttr = parts[1] == "light" ? "light" : "dark";
+        AccentAttr = Array.IndexOf(new[] { "classic", "mint", "lavender", "peach" }, parts[0]) >= 0
+            ? parts[0]
+            : "classic";
+    }
+}

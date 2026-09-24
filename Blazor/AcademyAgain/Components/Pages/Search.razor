@@ -22,7 +22,8 @@
     }
     else if (TotalCount == 0)
     {
-        <div class="section-empty">Ничего не найдено по запросу «@Query».</div>
+        <EmptyState Title="Ничего не найдено"
+                    Message="@($"По запросу «{Query}» ничего не найдено. Попробуйте изменить или сократить запрос.")" />
     }
     else
     {

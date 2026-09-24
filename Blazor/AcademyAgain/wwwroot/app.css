@@ -11,6 +11,12 @@
     --app-border-strong: #3a4150;      /* заметные границы: рамка фокусов, разделители */
     --app-accent: #6ea8fe;             /* акцентный (синий) — кнопки-ссылки, активные значения */
     --app-accent-dim: #1b6ec2;         /* приглушённый акцент: сама кнопка «Создать», активная страница пагинации */
+    --app-accent-strong: #5b96f0;      /* насыщенный акцент: активная навигация, заголовки */
+    --app-accent-soft: rgba(110, 168, 254, 0.14); /* мягкая подложка акцента: бейджи, hover */
+    --app-hero-glow-a: rgba(110, 168, 254, 0.22); /* лендинг: мягкое акцентное пятно */
+    --app-hero-glow-b: rgba(27, 110, 194, 0.28);  /* лендинг: плотный акцентный ореол */
+    --app-font-sans: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;   /* основной текст (self-hosted) */
+    --app-font-display: 'Golos Text', 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif; /* заголовки */
     --app-text: #e6eaf2;               /* основной цвет текста (светлый на тёмном) */
     --app-text-secondary: #98a2b3;     /* вторичный текст: подписи, дефолтные значения */
     --app-danger: #ff7b7b;             /* опасный/красный: кнопка удаления, пункт «Удалить» */
@@ -59,6 +65,8 @@ html[data-theme="light"]
     --app-border-strong: #b6bfcc;      /* заметные границы */
     --app-accent: #2563eb;             /* акцентный синий */
     --app-accent-dim: #1d4ed8;         /* приглушённый акцент */
+    --app-accent-strong: #1d4ed8;      /* насыщенный акцент */
+    --app-accent-soft: rgba(37, 99, 235, 0.10); /* мягкая подложка акцента */
     --app-text: #1b2432;               /* основной цвет текста (тёмный на светлом) */
     --app-text-secondary: #5a6472;     /* вторичный текст */
     --app-danger: #d92d20;             /* опасный/красный */
@@ -152,10 +160,229 @@ html[data-theme="light"] .row-menu-item.danger:hover
     color: #b91c1c;
 }
 
+/* ===== Темы оформления (акценты) ===== */
+/* Цветные темы включаются атрибутом html[data-accent="..."] и задают единый спокойный
+   акцент для ссылок, кнопок, навигации и статистики. Заголовки таблиц в этих темах —
+   нейтральные (без зелёного/жёлтого/синего из «Классики»). Каждая тема имеет и светлый
+   вариант (html[data-theme="light"]). Классика = значение по умолчанию, не зависит от блоков. */
+
+/* ——— Мята (спа-бирюза) ——— */
+html[data-accent="mint"] 
+{
+    --app-accent: #5fd4bd;
+    --app-accent-dim: #2aa896;
+    --app-accent-strong: #8fe7d6;
+    --app-accent-soft: rgba(95, 212, 189, 0.15);
+    --app-link: #6fe0c9;
+    --app-link-hover: #a5f3e4;
+
+    --app-bg: #10221f;
+    --app-surface: #17302b;
+    --app-surface-2: #1f4039;
+    --app-border: #2a4a42;
+    --app-border-strong: #3a5f55;
+    --app-form-bg: #0c1c19;
+    --app-sidebar-top: #10221f;
+    --app-sidebar-bg: linear-gradient(180deg, rgba(9, 30, 27, 0.9) 0%, rgba(6, 22, 19, 0.7) 100%);
+
+    --app-table-header: #dfe6f0;
+    --app-accent-warn: #89e0cd;
+
+    --app-nav-hover-bg: rgba(95, 212, 189, 0.14);
+    --app-nav-group-title: rgba(95, 212, 189, 0.78);
+    --app-nav-active-bg: #63d8c2;
+    --app-nav-active-text: #062b26;
+    --app-nav-active-bar: #2aa896;
+    --app-nav-scroll: rgba(95, 212, 189, 0.4);
+    --app-nav-scroll-hover: rgba(95, 212, 189, 0.65);
+
+    --app-hero-glow-a: rgba(95, 212, 189, 0.22);
+    --app-hero-glow-b: rgba(42, 168, 150, 0.30);
+
+    --app-sort-arrow: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M 2 3.25 L 12 20.75 L 22 3.25 L 12 10 z" fill="%235fd4bd"/></svg>');
+}
+
+html[data-accent="mint"][data-theme="light"] 
+{
+    --app-accent: #0d9488;
+    --app-accent-dim: #0f766e;
+    --app-accent-strong: #115e59;
+    --app-accent-soft: rgba(13, 148, 136, 0.12);
+    --app-link: #0d9488;
+    --app-link-hover: #115e59;
+
+    --app-bg: #eef7f4;
+    --app-surface: #ffffff;
+    --app-surface-2: #e2f1ed;
+    --app-border: #c9e6df;
+    --app-border-strong: #a2d2c7;
+    --app-form-bg: #ffffff;
+    --app-sidebar-top: #ffffff;
+    --app-sidebar-bg: linear-gradient(180deg, #eaf6f4 0%, #cfe9e2 100%);
+
+    --app-table-header: #1b2432;
+    --app-accent-warn: #0f766e;
+
+    --app-nav-hover-bg: rgba(13, 148, 136, 0.12);
+    --app-nav-group-title: rgba(15, 118, 110, 0.78);
+    --app-nav-active-bg: #0d9488;
+    --app-nav-active-text: #ffffff;
+    --app-nav-active-bar: #115e59;
+    --app-nav-scroll: rgba(13, 148, 136, 0.35);
+    --app-nav-scroll-hover: rgba(13, 148, 136, 0.6);
+
+    --app-hero-glow-a: rgba(13, 148, 136, 0.16);
+    --app-hero-glow-b: rgba(15, 118, 110, 0.20);
+
+    --app-sort-arrow: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M 2 3.25 L 12 20.75 L 22 3.25 L 12 10 z" fill="%230d9488"/></svg>');
+}
+
+/* ——— Лаванда (мягкий фиолет) ——— */
+html[data-accent="lavender"] 
+{
+    --app-accent: #b8a0f2;
+    --app-accent-dim: #8f6bd8;
+    --app-accent-strong: #cdbcfa;
+    --app-accent-soft: rgba(184, 160, 242, 0.15);
+    --app-link: #b8a0f2;
+    --app-link-hover: #d6c8fc;
+
+    --app-bg: #1a1430;
+    --app-surface: #251c44;
+    --app-surface-2: #2e234f;
+    --app-border: #3b2f61;
+    --app-border-strong: #4a3c77;
+    --app-form-bg: #140f2a;
+    --app-sidebar-top: #1a1430;
+    --app-sidebar-bg: linear-gradient(180deg, rgba(24, 16, 46, 0.9) 0%, rgba(17, 11, 36, 0.7) 100%);
+
+    --app-table-header: #dfe6f0;
+    --app-accent-warn: #c3b2f5;
+
+    --app-nav-hover-bg: rgba(184, 160, 242, 0.14);
+    --app-nav-group-title: rgba(184, 160, 242, 0.78);
+    --app-nav-active-bg: #a98ef0;
+    --app-nav-active-text: #150d2e;
+    --app-nav-active-bar: #8f6bd8;
+    --app-nav-scroll: rgba(184, 160, 242, 0.4);
+    --app-nav-scroll-hover: rgba(184, 160, 242, 0.65);
+
+    --app-hero-glow-a: rgba(184, 160, 242, 0.22);
+    --app-hero-glow-b: rgba(127, 90, 210, 0.28);
+
+    --app-sort-arrow: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M 2 3.25 L 12 20.75 L 22 3.25 L 12 10 z" fill="%23b8a0f2"/></svg>');
+}
+
+html[data-accent="lavender"][data-theme="light"] 
+{
+    --app-accent: #7c5fd0;
+    --app-accent-dim: #6d4fc0;
+    --app-accent-strong: #5b439e;
+    --app-accent-soft: rgba(124, 95, 208, 0.12);
+    --app-link: #6d4fc0;
+    --app-link-hover: #5b439e;
+
+    --app-bg: #f5f2fc;
+    --app-surface: #ffffff;
+    --app-surface-2: #ece6fa;
+    --app-border: #dcd2f5;
+    --app-border-strong: #bfb0ea;
+    --app-form-bg: #ffffff;
+    --app-sidebar-top: #ffffff;
+    --app-sidebar-bg: linear-gradient(180deg, #f3f0fc 0%, #ddd5fb 100%);
+
+    --app-table-header: #1b2432;
+    --app-accent-warn: #6d4fc0;
+
+    --app-nav-hover-bg: rgba(124, 95, 208, 0.12);
+    --app-nav-group-title: rgba(109, 79, 192, 0.78);
+    --app-nav-active-bg: #7c5fd0;
+    --app-nav-active-text: #ffffff;
+    --app-nav-active-bar: #5b439e;
+    --app-nav-scroll: rgba(124, 95, 208, 0.35);
+    --app-nav-scroll-hover: rgba(124, 95, 208, 0.6);
+
+    --app-hero-glow-a: rgba(124, 95, 208, 0.16);
+    --app-hero-glow-b: rgba(91, 67, 158, 0.20);
+
+    --app-sort-arrow: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M 2 3.25 L 12 20.75 L 22 3.25 L 12 10 z" fill="%237c5fd0"/></svg>');
+}
+
+/* ——— Персик (тёплый абрикос) ——— */
+html[data-accent="peach"] 
+{
+    --app-accent: #ffb48a;
+    --app-accent-dim: #e5885a;
+    --app-accent-strong: #ffcba8;
+    --app-accent-soft: rgba(255, 180, 138, 0.15);
+    --app-link: #ffb48a;
+    --app-link-hover: #ffd6b8;
+
+    --app-bg: #291810;
+    --app-surface: #382014;
+    --app-surface-2: #472a19;
+    --app-border: #57351f;
+    --app-border-strong: #6b4430;
+    --app-form-bg: #220f08;
+    --app-sidebar-top: #291810;
+    --app-sidebar-bg: linear-gradient(180deg, rgba(43, 23, 12, 0.9) 0%, rgba(33, 17, 9, 0.7) 100%);
+
+    --app-table-header: #dfe6f0;
+    --app-accent-warn: #ffc99e;
+
+    --app-nav-hover-bg: rgba(255, 180, 138, 0.14);
+    --app-nav-group-title: rgba(255, 180, 138, 0.78);
+    --app-nav-active-bg: #ffb48a;
+    --app-nav-active-text: #2b1506;
+    --app-nav-active-bar: #e5885a;
+    --app-nav-scroll: rgba(255, 180, 138, 0.4);
+    --app-nav-scroll-hover: rgba(255, 180, 138, 0.65);
+
+    --app-hero-glow-a: rgba(255, 180, 138, 0.22);
+    --app-hero-glow-b: rgba(229, 136, 90, 0.26);
+
+    --app-sort-arrow: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M 2 3.25 L 12 20.75 L 22 3.25 L 12 10 z" fill="%23ffb48a"/></svg>');
+}
+
+html[data-accent="peach"][data-theme="light"] 
+{
+    --app-accent: #dd6e42;
+    --app-accent-dim: #c25530;
+    --app-accent-strong: #a34323;
+    --app-accent-soft: rgba(221, 110, 66, 0.12);
+    --app-link: #c25530;
+    --app-link-hover: #a34323;
+
+    --app-bg: #fff7f2;
+    --app-surface: #ffffff;
+    --app-surface-2: #fcefe5;
+    --app-border: #f6dcc8;
+    --app-border-strong: #ecc0a2;
+    --app-form-bg: #ffffff;
+    --app-sidebar-top: #ffffff;
+    --app-sidebar-bg: linear-gradient(180deg, #fff6f0 0%, #f8e0d0 100%);
+
+    --app-table-header: #1b2432;
+    --app-accent-warn: #c25530;
+
+    --app-nav-hover-bg: rgba(221, 110, 66, 0.12);
+    --app-nav-group-title: rgba(194, 85, 48, 0.78);
+    --app-nav-active-bg: #dd6e42;
+    --app-nav-active-text: #ffffff;
+    --app-nav-active-bar: #b25330;
+    --app-nav-scroll: rgba(221, 110, 66, 0.35);
+    --app-nav-scroll-hover: rgba(221, 110, 66, 0.6);
+
+    --app-hero-glow-a: rgba(221, 110, 66, 0.16);
+    --app-hero-glow-b: rgba(163, 67, 35, 0.20);
+
+    --app-sort-arrow: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M 2 3.25 L 12 20.75 L 22 3.25 L 12 10 z" fill="%23dd6e42"/></svg>');
+}
+
 /* ===== База документа ===== */
 html, body 
 {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; /* системный стек шрифтов */
+    font-family: var(--app-font-sans);
     background-color: var(--app-bg);                               /* тёмный запасной фон, пока не прогрузится картинка */
     color: var(--app-text);                                      /* основной цвет текста из переменной */
     background-image:                                            /* фон = фото + тёмная шторка поверх него */
@@ -164,6 +391,141 @@ html, body
     background-size: cover;                                      /* масштабируем фото, чтобы закрыло весь экран */
     background-attachment: fixed;                                /* фон не скроллится вместе со страницей */
     background-position: center;                                 /* центрируем фото */
+}
+
+/* Цветные темы: фото-шторка тонируется в цвет темы, чтобы вся подложка интерфейса читалась цветной.
+   Селектор специфичнее базового «html, body» за счёт двух атрибутов. */
+html[data-accent="mint"][data-theme="dark"] body 
+{
+    background-image: linear-gradient(rgba(10, 34, 30, 0.6), rgba(7, 26, 23, 0.85)), url("/images/background.jpg");
+}
+
+html[data-accent="mint"][data-theme="light"] body 
+{
+    background-image: linear-gradient(rgba(233, 246, 244, 0.85), rgba(240, 250, 248, 0.95)), url("/images/background.jpg");
+}
+
+html[data-accent="lavender"][data-theme="dark"] body 
+{
+    background-image: linear-gradient(rgba(24, 16, 46, 0.62), rgba(17, 11, 36, 0.85)), url("/images/background.jpg");
+}
+
+html[data-accent="lavender"][data-theme="light"] body 
+{
+    background-image: linear-gradient(rgba(243, 240, 252, 0.85), rgba(246, 244, 253, 0.95)), url("/images/background.jpg");
+}
+
+html[data-accent="peach"][data-theme="dark"] body 
+{
+    background-image: linear-gradient(rgba(45, 24, 13, 0.62), rgba(34, 17, 9, 0.85)), url("/images/background.jpg");
+}
+
+html[data-accent="peach"][data-theme="light"] body 
+{
+    background-image: linear-gradient(rgba(255, 246, 240, 0.85), rgba(255, 250, 246, 0.95)), url("/images/background.jpg");
+}
+
+/* ===== Типографика: шкала заголовков (flex-якоря) ===== */
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6 
+{
+    font-family: var(--app-font-display);
+    line-height: 1.25;
+    text-wrap: balance; /* заголовки переносятся красиво, без «висячих» строк */
+}
+
+h1, .h1 { font-size: clamp(1.6rem, 2.6vw + 0.8rem, 2.15rem); font-weight: 700; }
+h2, .h2 { font-size: clamp(1.35rem, 1.8vw + 0.8rem, 1.7rem);  font-weight: 700; }
+h3, .h3 { font-size: clamp(1.15rem, 1vw + 0.85rem, 1.35rem);  font-weight: 600; }
+h4, .h4, h5, .h5, h6, .h6 { font-weight: 600; }
+
+.section-title { font-family: var(--app-font-display); }
+
+/* ===== Бренд-логотип (монограмма на акцентном градиенте) ===== */
+.brand-logo 
+{
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.5rem;
+    flex: none;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
+}
+
+.navbar-brand .brand-logo { width: 1.6rem; height: 1.6rem; }
+
+.brand-logo-lg { width: 3rem; height: 3rem; }
+
+.auth-brand 
+{
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.about-header 
+{
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+}
+
+.about-header h1 { margin: 0; }
+
+/* ===== Полировка и доступность (глобальная) ===== */
+main .content 
+{
+    max-width: 1340px;
+    margin-inline: auto;
+    width: 100%;
+}
+
+:focus-visible 
+{
+    outline: 2px solid var(--app-accent);
+    outline-offset: 2px;
+}
+
+a:focus-visible { outline-offset: 3px; }
+
+.card:hover 
+{
+    border-color: var(--app-border-strong);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
+}
+
+html[data-theme="light"] .card:hover 
+{
+    box-shadow: 0 4px 14px rgba(30, 41, 59, 0.10);
+}
+
+/* Кастомный скроллбар в тон темы */
+* 
+{
+    scrollbar-width: thin;
+    scrollbar-color: var(--app-border-strong) var(--app-surface-2);
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--app-surface-2); }
+::-webkit-scrollbar-thumb
+{
+    background: var(--app-border-strong);
+    border-radius: 8px;
+    border: 2px solid var(--app-surface-2);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--app-accent); }
+::-webkit-scrollbar-corner { background: var(--app-surface-2); }
+
+@media (prefers-reduced-motion: reduce) 
+{
+    *, *::before, *::after 
+    {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
 }
 
 /* ===== Ссылки ===== */
@@ -368,6 +730,7 @@ a:hover, .btn-link:hover
 .content 
 {
     padding-top: 1.1rem; /* небольшой отступ сверху, чтобы контент не «прилипал» к шапке */
+    padding-bottom: 2.5rem; /* нижний отступ: последние карточки/кнопки не «прилипают» к краю окна */
 }
 
 h1:focus 
@@ -2193,6 +2556,7 @@ html[data-theme="dark"] .cal-holiday-col
     {
         padding-left: 0 !important;
         padding-right: 0 !important;
+        padding-bottom: 0 !important;
     }
 
     h1
@@ -2509,6 +2873,19 @@ html[data-theme="dark"] .cal-holiday-col
     background: var(--app-surface);
     border: 1px solid var(--app-border);
     border-radius: 14px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.pub-card:hover
+{
+    border-color: var(--app-border-strong);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+    transform: translateY(-2px);
+}
+
+html[data-theme="light"] .pub-card:hover
+{
+    box-shadow: 0 6px 18px rgba(30, 41, 59, 0.10);
 }
 
 .pub-card h3

@@ -26,7 +26,10 @@
 
 <div class="d-flex justify-content-center">
     <div class="auth-card" style="width: 100%; max-width: 400px">
-        <h1 class="mb-4">Вход</h1>
+        <div class="auth-brand">
+            <img class="brand-logo" src="/images/logo.svg" alt="" aria-hidden="true" />
+            <h1 class="mb-0">Вход</h1>
+        </div>
 
         <h2 class="form-section-title">По паролю</h2>
         <EditForm Model="Model" OnValidSubmit="SubmitPasswordAsync" FormName="LoginForm">

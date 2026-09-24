@@ -1,0 +1,197 @@
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@using AcademyAgain.Helpers
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject AuthenticationStateProvider Auth
+
+<div class="fb-card">
+    <div class="fb-head">
+        <span class="fb-teacher">@Item.TeacherName</span>
+        <span class="fb-meta">@Item.DisciplineName · @Item.DateText @Item.TimeText</span>
+    </div>
+
+    <div class="fb-stars">
+        @for (var i = 1; i <= 5; i++)
+        {
+            var value = i;
+            <button type="button" class="fb-star @(Rating >= value ? "active" : "")" @onclick='() => SetRating(value)' title="@value из 5" aria-label="Оценка @value">★</button>
+        }
+    </div>
+
+    @foreach (var group in TemplatesByCategory)
+    {
+        <div class="fb-group-title">@group.Title</div>
+        <div class="fb-pills">
+            @foreach (var t in group.Templates)
+            {
+                <button type="button" class="fb-pill @(SelectedTemplates.Contains(t.template_id) ? "active" : "")" @onclick='() => ToggleTemplate(t.template_id)'>@t.text</button>
+            }
+        </div>
+    }
+
+    <div class="fb-actions">
+        @if (IsSubmitting)
+        {
+            <span class="text-secondary">Отправка...</span>
+        }
+        else
+        {
+            <button type="button" class="btn btn-primary" @onclick="SubmitAsync">Отправить</button>
+        }
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Error))
+    {
+        <div class="alert alert-danger py-2 mb-0 mt-2">@Error</div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public FeedbackRow Item { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback<long> OnSubmitted { get; set; }
+
+    private sealed record TemplateGroup(string Title, List<PraiseTemplate> Templates);
+
+    private int Rating;
+    private readonly HashSet<int> SelectedTemplates = new();
+    private List<TemplateGroup> TemplatesByCategory = new();
+    private bool IsSubmitting;
+    private string Error = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var context = DbFactory.CreateDbContext();
+        var templates = await context.PraiseTemplates.AsNoTracking()
+            .Where(t => t.is_active)
+            .OrderBy(t => t.category)
+            .ThenBy(t => t.sort_order)
+            .ToListAsync();
+        TemplatesByCategory = templates
+            .GroupBy(t => t.category)
+            .OrderBy(g => g.Key)
+            .Select(g => new TemplateGroup(CategoryTitle(g.Key), g.ToList()))
+            .ToList();
+    }
+
+    private void SetRating(int rating)
+    {
+        Rating = rating;
+        Error = string.Empty;
+    }
+
+    private void ToggleTemplate(int templateId)
+    {
+        if (!SelectedTemplates.Remove(templateId))
+        {
+            SelectedTemplates.Add(templateId);
+        }
+        Error = string.Empty;
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (Rating < 1 || Rating > 5)
+        {
+            Error = "Поставьте оценку от 1 до 5 звёзд.";
+            return;
+        }
+
+        Error = string.Empty;
+        IsSubmitting = true;
+        try
+        {
+            var authState = await Auth.GetAuthenticationStateAsync();
+            if (!authState.User.IsInRole("student"))
+            {
+                Error = "Оценку можно оставить только от имени студента академии.";
+                return;
+            }
+            var currentName = authState.User.Identity?.Name;
+
+            await using var context = DbFactory.CreateDbContext();
+            var user = currentName is null
+                ? null
+                : await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.username == currentName);
+            if (user?.linked_id is not int studentId)
+            {
+                Error = "К вашему аккаунту не привязана карточка студента.";
+                return;
+            }
+
+            var studentGroup = await context.Students.AsNoTracking()
+                .Where(s => s.stud_id == studentId)
+                .Select(s => s.group)
+                .FirstOrDefaultAsync();
+
+            var lesson = await context.Schedule.AsNoTracking().FirstOrDefaultAsync(s => s.lesson_id == Item.LessonId);
+            if (lesson is null || !lesson.spent)
+            {
+                Error = "Занятие не найдено или ещё не проведено.";
+                return;
+            }
+            if (lesson.group != studentGroup)
+            {
+                Error = "Занятие не относится к вашей группе.";
+                return;
+            }
+
+            var attended = await context.Attendance.AsNoTracking()
+                .AnyAsync(a => a.student == studentId && a.lesson == Item.LessonId && a.present);
+            if (!attended)
+            {
+                Error = "Вы можете оценить занятие, только если преподаватель отметил ваше присутствие на нём.";
+                return;
+            }
+
+            var alreadyRated = await context.LessonFeedbacks.AsNoTracking()
+                .AnyAsync(f => f.lesson_id == Item.LessonId && f.student_id == studentId);
+            if (alreadyRated)
+            {
+                Error = "Вы уже оценили это занятие.";
+                return;
+            }
+
+            var feedback = new LessonFeedback
+            {
+                lesson_id = Item.LessonId,
+                student_id = studentId,
+                rating = Rating,
+                created_at = DateTime.Now
+            };
+            context.LessonFeedbacks.Add(feedback);
+            await context.SaveChangesAsync();
+
+            foreach (var templateId in SelectedTemplates)
+            {
+                context.LessonFeedbackTags.Add(new LessonFeedbackTag
+                {
+                    feedback_id = feedback.feedback_id,
+                    template_id = templateId
+                });
+            }
+            await context.SaveChangesAsync();
+
+            await OnSubmitted.InvokeAsync(Item.LessonId);
+        }
+        catch (Exception)
+        {
+            Error = "Не удалось отправить оценку. Попробуйте ещё раз.";
+        }
+        finally
+        {
+            IsSubmitting = false;
+        }
+    }
+
+    private static string CategoryTitle(int category) => category switch
+    {
+        1 => "Что понравилось",
+        2 => "Прошло нормально",
+        3 => "Можно улучшить",
+        _ => "Другое"
+    };
+}

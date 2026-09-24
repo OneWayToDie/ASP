@@ -38,6 +38,8 @@ public class AcademyAgainContext(DbContextOptions<AcademyAgainContext> options) 
     { get; set; } = default!;
     public DbSet<AcademyAgain.Models.TeachersDisciplinesRelation> TeachersDisciplinesRelation
     { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.TeachersGroupsRelation> TeachersGroupsRelation
+    { get; set; } = default!;
     public DbSet<AcademyAgain.Models.DaysOFF> DaysOFF
     { get; set; } = default!;
     public DbSet<AcademyAgain.Models.User> Users
@@ -70,6 +72,14 @@ public class AcademyAgainContext(DbContextOptions<AcademyAgainContext> options) 
     { get; set; } = default!;
     public DbSet<AcademyAgain.Models.AuditLog> AuditLogs
     { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.TeacherReview> Reviews
+    { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.PraiseTemplate> PraiseTemplates
+    { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.LessonFeedback> LessonFeedbacks
+    { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.LessonFeedbackTag> LessonFeedbackTags
+    { get; set; } = default!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -97,6 +107,31 @@ public class AcademyAgainContext(DbContextOptions<AcademyAgainContext> options) 
             .HasKey(r => new { r.discipline, r.required_discipline });
         modelBuilder.Entity<AcademyAgain.Models.TeachersDisciplinesRelation>()
             .HasKey(t => new { t.teacher, t.discipline });
+        modelBuilder.Entity<AcademyAgain.Models.TeachersGroupsRelation>()
+            .HasKey(t => new { t.teacher, t.group });
+
+        modelBuilder.Entity<AcademyAgain.Models.TeacherReview>()
+            .HasIndex(r => new { r.teacher_id, r.student_id })
+            .IsUnique()
+            .HasFilter("[is_deleted] = 0");
+        modelBuilder.Entity<AcademyAgain.Models.TeacherReview>()
+            .HasIndex(r => r.teacher_id);
+        modelBuilder.Entity<AcademyAgain.Models.TeacherReview>()
+            .HasQueryFilter(r => !r.is_deleted);
+
+        modelBuilder.Entity<AcademyAgain.Models.LessonFeedback>()
+            .HasIndex(f => new { f.lesson_id, f.student_id })
+            .IsUnique();
+        modelBuilder.Entity<AcademyAgain.Models.LessonFeedback>()
+            .HasIndex(f => f.student_id);
+
+        modelBuilder.Entity<AcademyAgain.Models.LessonFeedbackTag>()
+            .HasKey(t => new { t.feedback_id, t.template_id });
+        modelBuilder.Entity<AcademyAgain.Models.LessonFeedbackTag>()
+            .HasIndex(t => t.template_id);
+
+        modelBuilder.Entity<AcademyAgain.Models.PraiseTemplate>()
+            .HasIndex(t => t.category);
 
         modelBuilder.Entity<AcademyAgain.Models.SupportChat>()
             .HasIndex(c => c.user_id);

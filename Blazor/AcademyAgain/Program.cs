@@ -53,6 +53,7 @@ await using (var scope = app.Services.CreateAsyncScope())
     await db.Database.MigrateAsync();
     await AuthStore.SeedAsync(db);
     await SupportSeeder.SeedAsync(db);
+    await PraiseSeeder.SeedAsync(db);
 }
 
 // Configure the HTTP request pipeline.

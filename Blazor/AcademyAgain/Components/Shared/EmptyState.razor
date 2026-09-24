@@ -1,0 +1,38 @@
+@namespace AcademyAgain.Components.Shared
+
+<div class="empty-state">
+    <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        @if (Icon is not null)
+        {
+            @Icon
+        }
+        else
+        {
+            <path d="M3 3.5h18l1.5 6v8a2 2 0 0 1-2 2h-17a2 2 0 0 1-2-2v-8Z" />
+            <path d="M3.5 9.5h17" />
+            <path d="M9.5 13.5h5" />
+        }
+    </svg>
+    <div>
+        <div class="empty-state-title">@Title</div>
+        @if (!string.IsNullOrWhiteSpace(Message))
+        {
+            <div class="empty-state-hint">@Message</div>
+        }
+    </div>
+    @if (ActionContent is not null)
+    {
+        <div class="empty-state-action">@ActionContent</div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "Нет записей";
+
+    [Parameter] public string? Message { get; set; }
+
+    [Parameter] public RenderFragment? Icon { get; set; }
+
+    [Parameter] public RenderFragment? ActionContent { get; set; }
+}
