@@ -1,0 +1,175 @@
+@page "/admin/vacancies/create"
+@page "/admin/vacancies/edit"
+@attribute [Authorize(Policy = "ManageData")]
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@using AcademyAgain.Helpers
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>@(existing is null ? "Новая вакансия" : "Редактирование вакансии")</PageTitle>
+
+<h1>@(existing is null ? "Новая вакансия" : "Редактирование вакансии")</h1>
+
+<hr />
+
+@if (loading)
+{
+    <p><em>Загрузка...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-8 col-lg-7">
+            <EditForm Model="form" OnValidSubmit="SaveAsync">
+                <DataAnnotationsValidator />
+                <ValidationSummary role="alert" />
+                @if (SaveError is not null)
+                {
+                    <div class="alert alert-danger py-2">@SaveError</div>
+                }
+
+                <div class="mb-3">
+                    <label for="v_title" class="form-label">Название:</label>
+                    <InputText id="v_title" @bind-Value="form.title" class="form-control" maxlength="200" />
+                    <ValidationMessage For="() => form.title" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="v_description" class="form-label">Описание:</label>
+                    <InputTextArea id="v_description" @bind-Value="form.description" class="form-control" rows="8" />
+                </div>
+                <div class="mb-3">
+                    <label for="v_discipline" class="form-label">Дисциплина <span class="text-secondary">(необязательно)</span>:</label>
+                    <select id="v_discipline" class="form-select" value="@form.discipline_id" @onchange='e => form.discipline_id = ParseInt(e.Value)'>
+                        <option value="">— Не выбрано —</option>
+                        @foreach (var d in Disciplines)
+                        {
+                            <option value="@d.discipline_id">@(string.IsNullOrWhiteSpace(d.discipline_name) ? $"Дисциплина №{d.discipline_id}" : d.discipline_name)</option>
+                        }
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="v_role" class="form-label">Тип должности:</label>
+                    <select id="v_role" class="form-select" value="@form.target_role_id" @onchange='e => form.target_role_id = ParseInt(e.Value)'>
+                        @foreach (var rid in AcademyAgain.Helpers.VacancyPosition.FunnelRoleIds)
+                        {
+                            <option value="@rid" selected="@(form.target_role_id == rid)">@AcademyAgain.Helpers.VacancyPosition.LabelFor(rid)</option>
+                        }
+                    </select>
+                    <div class="form-text">Должность, на которую принимают через эту вакансию.</div>
+                </div>
+                <div class="mb-3 form-check">
+                    <InputCheckbox id="v_open" @bind-Value="form.is_open" class="form-check-input" />
+                    <label for="v_open" class="form-check-label">Открыта (видна в публичном разделе)</label>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+                <a class="btn btn-outline-secondary" href="admin/vacancies">Отмена</a>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    private sealed class VacancyForm
+    {
+        [Required(ErrorMessage = "Укажите название.")]
+        [StringLength(200, ErrorMessage = "Не более 200 символов.")]
+        public string title { get; set; } = string.Empty;
+
+        public string? description { get; set; }
+        public int? discipline_id { get; set; }
+        public int? target_role_id { get; set; }
+        public bool is_open { get; set; }
+    }
+
+    [SupplyParameterFromQuery(Name = "vacancy_id")]
+    private int? vacancy_id { get; set; }
+
+    private VacancyForm form = new();
+    private Vacancy? existing;
+    private bool loading = true;
+    private string? SaveError;
+    private List<Discipline> Disciplines = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var context = DbFactory.CreateDbContext();
+        Disciplines = await context.Disciplines.AsNoTracking()
+            .OrderBy(d => d.discipline_name)
+            .ToListAsync();
+
+        if (vacancy_id is int id)
+        {
+            existing = await context.Vacancies.AsNoTracking().FirstOrDefaultAsync(v => v.vacancy_id == id);
+            if (existing is null)
+            {
+                NavigationManager.NavigateTo("notfound");
+                return;
+            }
+            form = new VacancyForm
+            {
+                title = existing.title,
+                description = existing.description,
+                discipline_id = existing.discipline_id,
+                target_role_id = existing.target_role_id ?? VacancyPosition.DefaultRoleId,
+                is_open = existing.is_open
+            };
+        }
+        else
+        {
+            form = new VacancyForm { is_open = true, target_role_id = VacancyPosition.DefaultRoleId };
+        }
+
+        loading = false;
+    }
+
+    private async Task SaveAsync()
+    {
+        SaveError = null;
+        var title = form.title.Trim();
+        if (title.Length == 0)
+        {
+            SaveError = "Укажите название вакансии.";
+            return;
+        }
+
+        await using var context = DbFactory.CreateDbContext();
+
+        if (existing is null)
+        {
+            context.Vacancies.Add(new Vacancy
+            {
+                title = title,
+                description = string.IsNullOrWhiteSpace(form.description) ? null : form.description.Trim(),
+                discipline_id = form.discipline_id,
+                target_role_id = form.target_role_id ?? VacancyPosition.DefaultRoleId,
+                is_open = form.is_open,
+                created_at = DateTime.Now,
+                is_deleted = false
+            });
+        }
+        else
+        {
+            var entity = await context.Vacancies.FirstOrDefaultAsync(v => v.vacancy_id == existing.vacancy_id);
+            if (entity is null)
+            {
+                NavigationManager.NavigateTo("notfound");
+                return;
+            }
+            entity.title = title;
+            entity.description = string.IsNullOrWhiteSpace(form.description) ? null : form.description.Trim();
+            entity.discipline_id = form.discipline_id;
+            entity.target_role_id = form.target_role_id ?? VacancyPosition.DefaultRoleId;
+            entity.is_open = form.is_open;
+        }
+
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/admin/vacancies");
+    }
+
+    private static int? ParseInt(object? value)
+        => int.TryParse(value?.ToString(), out var result) ? result : null;
+}

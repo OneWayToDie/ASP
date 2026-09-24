@@ -15,7 +15,7 @@
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
     <nav class="nav flex-column">
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="@(IsCandidate ? "candidate" : "")" Match="NavLinkMatch.All">
+            <NavLink class="nav-link" href="@PanelLink" Match="NavLinkMatch.All">
                 <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7.5 8 2.5l6 5V14a1 1 0 0 1-1 1H9v-4H7v4H3a1 1 0 0 1-1-1Z"/></svg>
                 <span class="nav-label">@(IsAuthenticated ? "Панель" : "Главная")</span>
             </NavLink>
@@ -65,6 +65,13 @@
                 <NavLink class="nav-link" href="admission">
                     <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="2" width="10" height="12" rx="1.5"/><path d="M6 5.5h4M6 8h4M6 10.5h2.5"/></svg>
                     <span class="nav-label">Поступление</span>
+                </NavLink>
+            </div>
+
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="vacancies">
+                    <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3.5" width="12" height="9" rx="1.5"/><path d="M6 3.5v1a2 2 0 0 0 4 0v-1M5.5 6.5h.01M10.5 6.5h.01"/></svg>
+                    <span class="nav-label">Вакансии</span>
                 </NavLink>
             </div>
 
@@ -202,6 +209,12 @@
                 </NavLink>
             </div>
             <div class="nav-item px-3">
+                <NavLink class="nav-link" href="admin/vacancies">
+                    <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3.5" width="12" height="9" rx="1.5"/><path d="M6 3.5v1a2 2 0 0 0 4 0v-1M5.5 6.5h.01M10.5 6.5h.01"/></svg>
+                    <span class="nav-label">Вакансии</span>
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
                 <NavLink class="nav-link" href="admin/semesters">
                     <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11.5" rx="1.5"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>
                     <span class="nav-label">Семестры</span>
@@ -318,9 +331,14 @@
     private bool IsAuthenticated;
     private bool IsExternalUser;
     private bool IsCandidate;
+    private bool IsTeacherCandidate;
     private bool IsTeaching;
     private bool IsStudent;
     private bool IsTeacher;
+
+    private string PanelLink => IsCandidate
+        ? "candidate"
+        : (IsTeacherCandidate ? "aspirant" : "");
 
     protected override async Task OnInitializedAsync()
     {
@@ -328,6 +346,7 @@
         IsAuthenticated = authState.User.Identity?.IsAuthenticated == true;
         IsExternalUser = authState.User.IsInRole("candidate") || authState.User.IsInRole("teacher_candidate");
         IsCandidate = authState.User.IsInRole("candidate");
+        IsTeacherCandidate = authState.User.IsInRole("teacher_candidate");
         IsTeaching = authState.User.IsInRole("admin") || authState.User.IsInRole("moderator") || authState.User.IsInRole("teacher");
         IsStudent = authState.User.IsInRole("student");
         IsTeacher = authState.User.IsInRole("teacher");

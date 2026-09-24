@@ -1,0 +1,207 @@
+@page "/vacancies"
+@attribute [AllowAnonymous]
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject AuthenticationStateProvider Auth
+@inject NavigationManager Navigation
+
+<PageTitle>Вакансии</PageTitle>
+
+<div class="page-header">
+    <h1>Вакансии</h1>
+    <p class="page-subtitle">Работайте в академии — открытые вакансии для преподавателей.</p>
+</div>
+
+@if (Message is not null)
+{
+    <div class="alert alert-success">@Message</div>
+}
+@if (Error is not null)
+{
+    <div class="alert alert-danger">@Error</div>
+}
+
+<div class="pub-cta">
+    <div class="pub-cta-text">
+        <h3>Хотите преподавать в академии?</h3>
+        <p>
+            @(Role switch
+            {
+                "teacher_candidate" => "Откликнитесь на подходящую вакансию — статус отклика можно отслеживать в личном кабинете.",
+                "student" or "teacher" => "Для поступления на работу зарегистрируйтесь как соискатель.",
+                "admin" or "moderator" or "support" => "Вакансии публикуются администрацией в разделе администрирования.",
+                _ => "Создайте аккаунт соискателя и откликнитесь на подходящую вакансию."
+            })
+        </p>
+    </div>
+    @if (Role == "teacher_candidate")
+    {
+        <a class="btn btn-outline-secondary" href="aspirant">Мои отклики</a>
+    }
+    else if (!DashboardRole)
+    {
+        <a class="btn btn-primary" href="register">Создать аккаунт соискателя</a>
+    }
+</div>
+
+@if (Rows.Count == 0)
+{
+    <EmptyState Title="Открытых вакансий пока нет"
+                Message="Объявления о работе появятся здесь, когда их разместит администрация." />
+}
+else
+{
+    <div class="pub-cards">
+        @foreach (var v in Rows)
+        {
+            var applied = AppliedIds.Contains(v.VacancyId);
+            <div class="pub-card">
+                <h3 class="mb-2">
+                    @v.Title
+                    @if (applied)
+                    {
+                        <span class="badge text-bg-success">Вы откликнулись</span>
+                    }
+                </h3>
+                <p class="pub-lead">@(string.IsNullOrWhiteSpace(v.Description) ? "Описание появится при обсуждении условий работы." : v.Description)</p>
+                @if (!string.IsNullOrEmpty(v.Discipline))
+                {
+                    <div><span class="badge text-bg-secondary me-2">Дисциплина</span>@v.Discipline</div>
+                }
+                <div class="mt-3">
+                    @if (applied)
+                    {
+                        <a class="btn btn-outline-secondary" href="aspirant">Статус отклика</a>
+                    }
+                    else if (Role == "teacher_candidate")
+                    {
+                        <button type="button" class="btn btn-primary" @onclick="() => ApplyAsync(v.VacancyId)">Откликнуться</button>
+                    }
+                    else
+                    {
+                        <span class="text-secondary small">@(Role is "student" or "teacher" ? "Для отклика нужен аккаунт соискателя." : "Для отклика необходимо зарегистрироваться как соискатель.")</span>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private sealed record VacancyRow(int VacancyId, string Title, string? Description, string? Discipline);
+
+    private List<VacancyRow> Rows = new();
+    private HashSet<int> AppliedIds = new();
+    private string Role = "";
+    private string? Message;
+    private string? Error;
+
+    private bool DashboardRole => Role is "candidate" or "teacher_candidate" or "student" or "teacher" or "admin" or "moderator" or "support";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var authenticated = authState.User.Identity?.IsAuthenticated == true;
+        Role = authenticated
+            ? authState.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? ""
+            : "";
+        Username = authenticated ? authState.User.Identity?.Name : null;
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        await using var context = DbFactory.CreateDbContext();
+
+        var disciplines = await context.Disciplines.AsNoTracking()
+            .ToDictionaryAsync(d => d.discipline_id, d => d.discipline_name);
+
+        Rows = (await context.Vacancies.AsNoTracking()
+                .Where(v => v.is_open)
+                .OrderByDescending(v => v.created_at)
+                .ToListAsync())
+            .Select(v => new VacancyRow(
+                v.vacancy_id,
+                string.IsNullOrWhiteSpace(v.title) ? $"Вакансия №{v.vacancy_id}" : v.title,
+                v.description,
+                v.discipline_id is int did && disciplines.TryGetValue(did, out var dn) && !string.IsNullOrWhiteSpace(dn)
+                    ? dn
+                    : null))
+            .ToList();
+
+        if (Role == "teacher_candidate")
+        {
+            var me = await CurrentUserAsync(context);
+            if (me is not null)
+            {
+                var ids = await context.VacancyApplications.AsNoTracking()
+                    .Where(a => a.candidate_user_id == me.user_id)
+                    .Select(a => a.vacancy_id)
+                    .ToListAsync();
+                AppliedIds = ids.ToHashSet();
+            }
+        }
+    }
+
+    private async Task ApplyAsync(int vacancyId)
+    {
+        Message = null;
+        Error = null;
+        await using var context = DbFactory.CreateDbContext();
+
+        var me = await CurrentUserAsync(context);
+        if (me is null)
+        {
+            Navigation.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        var exists = await context.VacancyApplications.AnyAsync(a => a.candidate_user_id == me.user_id && a.vacancy_id == vacancyId);
+        if (exists)
+        {
+            Error = "Вы уже откликнулись на эту вакансию.";
+            await LoadAsync();
+            StateHasChanged();
+            return;
+        }
+
+        try
+        {
+            context.VacancyApplications.Add(new VacancyApplication
+            {
+                candidate_user_id = me.user_id,
+                vacancy_id = vacancyId,
+                status = 0,
+                created_at = DateTime.Now,
+                is_deleted = false
+            });
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            Error = "Вы уже откликнулись на эту вакансию.";
+            await LoadAsync();
+            StateHasChanged();
+            return;
+        }
+
+        Message = "Отклик отправлен. Статус можно отслеживать в кабинете соискателя.";
+        await LoadAsync();
+        StateHasChanged();
+    }
+
+    private string? Username;
+
+    private async Task<User?> CurrentUserAsync(AcademyAgainContext context)
+    {
+        if (string.IsNullOrWhiteSpace(Username))
+        {
+            return null;
+        }
+        return await context.Users.AsNoTracking()
+            .FirstOrDefaultAsync(u => u.username == Username);
+    }
+}

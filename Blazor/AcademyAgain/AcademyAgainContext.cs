@@ -159,6 +159,12 @@ public class AcademyAgainContext(DbContextOptions<AcademyAgainContext> options) 
             .HasQueryFilter(a => !a.is_deleted);
         modelBuilder.Entity<AcademyAgain.Models.VacancyApplication>()
             .HasQueryFilter(v => !v.is_deleted);
+        modelBuilder.Entity<AcademyAgain.Models.VacancyApplication>()
+            .HasIndex(v => new { v.candidate_user_id, v.vacancy_id })
+            .IsUnique()
+            .HasFilter("[is_deleted] = 0");
+        modelBuilder.Entity<AcademyAgain.Models.Vacancy>()
+            .HasQueryFilter(v => !v.is_deleted);
     }
 
     #region Аудит (автоперехват SaveChanges)

@@ -1,0 +1,64 @@
+@page "/admin/vacancies/delete"
+@attribute [Authorize(Policy = "ManageData")]
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Удаление вакансии</PageTitle>
+
+<h1>Удаление вакансии</h1>
+
+<p class="text-danger">Вы уверены, что хотите удалить эту вакансию?</p>
+<div>
+    <hr />
+    @if (vacancy is null)
+    {
+        <p><em>Загрузка...</em></p>
+    }
+    else
+    {
+        <dl class="row">
+            <dt class="col-sm-2">Название</dt>
+            <dd class="col-sm-10">@(string.IsNullOrWhiteSpace(vacancy.title) ? $"Вакансия №{vacancy.vacancy_id}" : vacancy.title)</dd>
+            <dt class="col-sm-2">Статус</dt>
+            <dd class="col-sm-10">@(vacancy.is_open ? "Открыта" : "Закрыта")</dd>
+        </dl>
+        <EditForm method="post" Model="vacancy" OnValidSubmit="DeleteVacancy" FormName="delete-vacancy" Enhance>
+            <input type="hidden" name="Vacancy.vacancy_id" value="@vacancy.vacancy_id" />
+            <button type="submit" class="btn btn-danger">Удалить</button> |
+            <a href="/admin/vacancies">Назад к списку</a>
+        </EditForm>
+    }
+</div>
+
+@code {
+    private Vacancy? vacancy;
+
+    [SupplyParameterFromQuery]
+    private int vacancy_id { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        vacancy = await context.Vacancies.FirstOrDefaultAsync(v => v.vacancy_id == vacancy_id);
+
+        if (vacancy is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+
+    private async Task DeleteVacancy()
+    {
+        using var context = DbFactory.CreateDbContext();
+        var entity = await context.Vacancies.FirstOrDefaultAsync(v => v.vacancy_id == vacancy_id);
+        if (entity is not null)
+        {
+            entity.is_deleted = true;
+            await context.SaveChangesAsync();
+        }
+        NavigationManager.NavigateTo("/admin/vacancies");
+    }
+}

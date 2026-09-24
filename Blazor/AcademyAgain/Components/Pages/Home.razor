@@ -500,6 +500,19 @@ private static double IntAxisMax(double maxVal)
             return;
         }
 
+        if (authState.User.IsInRole("teacher_candidate"))
+        {
+            Redirecting = true;
+            try
+            {
+                Navigation.NavigateTo("/aspirant", forceLoad: true);
+            }
+            catch (InvalidOperationException)
+            {
+            }
+            return;
+        }
+
         await LoadChartsAsync();
 
         await using var context = DbFactory.CreateDbContext();

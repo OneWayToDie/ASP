@@ -1,0 +1,125 @@
+@page "/admin/vacancies"
+@attribute [Authorize(Policy = "ManageData")]
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@using AcademyAgain.Helpers
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+
+<PageTitle>Вакансии</PageTitle>
+
+<div class="list-header">
+    <h1>Вакансии</h1>
+    <div class="list-actions">
+        <a class="btn btn-primary" href="admin/vacancies/create">Создать</a>
+    </div>
+</div>
+
+@if (Message is not null)
+{
+    <div class="alert alert-success">@Message</div>
+}
+@if (Error is not null)
+{
+    <div class="alert alert-danger">@Error</div>
+}
+
+@if (loaded)
+{
+    @if (Rows.Count == 0)
+    {
+        <EmptyState Title="Вакансий пока нет" Message="Создайте вакансию — она появится в публичном разделе «Вакансии»." />
+    }
+    else
+    {
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Название</th>
+                    <th>Должность</th>
+                    <th>Дисциплина</th>
+                    <th>Статус</th>
+                    <th>Создана</th>
+                    <th style="width:220px"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Rows)
+                {
+                    <tr>
+                        <td class="fw-semibold">@row.Title</td>
+                        <td>@(string.IsNullOrWhiteSpace(row.Discipline) ? "—" : row.Discipline)</td>
+                        <td>
+                            <button type="button" class="btn btn-sm @(row.IsOpen ? "btn-success" : "btn-outline-secondary")"
+                                    title="@(row.IsOpen ? "Скрыть вакансию" : "Опубликовать вакансию")"
+                                    @onclick="() => ToggleOpenAsync(row)">@(row.IsOpen ? "Открыта" : "Закрыта")</button>
+                        </td>
+                        <td>@row.CreatedAt</td>
+                        <td class="text-end text-nowrap">
+                            <a class="btn btn-sm btn-outline-secondary" href="admin/vacancies/edit?vacancy_id=@row.Id">Изменить</a>
+                            <a class="btn btn-sm btn-outline-danger" href="admin/vacancies/delete?vacancy_id=@row.Id">Удалить</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <a class="btn btn-outline-secondary" href="vacancies">Публичная страница</a>
+    }
+}
+else
+{
+    <p class="text-secondary">Загрузка…</p>
+}
+
+@code {
+    private sealed record VacancyRow(int Id, string Title, string? Discipline, bool IsOpen, string CreatedAt);
+
+    private bool loaded;
+    private List<VacancyRow> Rows = new();
+    private string? Message;
+    private string? Error;
+
+    protected override async Task OnInitializedAsync() => await ReloadAsync();
+
+    private async Task ReloadAsync()
+    {
+        Message = null;
+        Error = null;
+        await using var context = DbFactory.CreateDbContext();
+
+        var disciplines = await context.Disciplines.AsNoTracking()
+            .ToDictionaryAsync(d => d.discipline_id, d => d.discipline_name);
+
+        Rows = (await context.Vacancies.AsNoTracking()
+                .OrderByDescending(v => v.created_at)
+                .ToListAsync())
+            .Select(v => new VacancyRow(
+                v.vacancy_id,
+                string.IsNullOrWhiteSpace(v.title) ? $"Вакансия №{v.vacancy_id}" : v.title,
+                v.discipline_id is int did && disciplines.TryGetValue(did, out var dn) ? dn : null,
+                v.is_open,
+                v.created_at?.ToString("dd.MM.yyyy") ?? "—"))
+            .ToList();
+
+        loaded = true;
+        StateHasChanged();
+    }
+
+    private async Task ToggleOpenAsync(VacancyRow row)
+    {
+        Message = null;
+        Error = null;
+        await using var context = DbFactory.CreateDbContext();
+        var vacancy = await context.Vacancies.FindAsync(row.Id);
+        if (vacancy is null)
+        {
+            Error = "Вакансия не найдена.";
+            await ReloadAsync();
+            return;
+        }
+        vacancy.is_open = !vacancy.is_open;
+        await context.SaveChangesAsync();
+        Message = vacancy.is_open ? $"Вакансия «{vacancy.title}» опубликована." : $"Вакансия «{vacancy.title}» скрыта.";
+        await ReloadAsync();
+    }
+}

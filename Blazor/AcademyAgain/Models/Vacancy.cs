@@ -19,10 +19,17 @@ namespace AcademyAgain.Models
 		[Column(TypeName = "INT")]
 		public int? discipline_id { get; set; }
 
+		[Column(TypeName = "TINYINT")]
+		public int? target_role_id { get; set; }
+
 		[Column(TypeName = "BIT")]
 		public bool is_open { get; set; }
 
 		[Column(TypeName = "DATETIME")]
 		public DateTime? created_at { get; set; }
+
+		[Required]
+		[Column(TypeName = "BIT")]
+		public bool is_deleted { get; set; }
 	}
 }

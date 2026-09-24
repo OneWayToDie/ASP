@@ -345,7 +345,8 @@
             first_name = Limit(user.first_name, 50),
             middle_name = Limit(user.middle_name, 50),
             email = Limit(user.email, 50),
-            phone = Limit(user.contact, 16)
+            phone = Limit(user.contact, 16),
+            work_since = DateTime.Today
         };
         context.Teachers.Add(teacher);
         await context.SaveChangesAsync();

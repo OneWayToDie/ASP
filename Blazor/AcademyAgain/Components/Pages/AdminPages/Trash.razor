@@ -100,7 +100,7 @@ else
     private static readonly List<string> AllEntities = new()
     {
         "Student", "Teacher", "Schedule", "Exam", "Grade",
-        "CandidateRequest", "AdmissionRequest", "VacancyApplication"
+        "CandidateRequest", "AdmissionRequest", "VacancyApplication", "Vacancy"
     };
 
     private IEnumerable<TrashItem> FilteredItems =>
@@ -158,6 +158,10 @@ else
         {
             Items.Add(new TrashItem("VacancyApplication", v.id, 0, $"пользователь #{v.candidate_user_id}"));
         }
+        foreach (var va in await context.Vacancies.IgnoreQueryFilters().Where(x => x.is_deleted).ToListAsync())
+        {
+            Items.Add(new TrashItem("Vacancy", va.vacancy_id, 0, va.title));
+        }
 
         loaded = true;
     }
@@ -206,6 +210,10 @@ else
                 case "VacancyApplication":
                     var va = await context.VacancyApplications.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.id == item.Id1);
                     if (va is not null) { va.is_deleted = false; await context.SaveChangesAsync(); }
+                    break;
+                case "Vacancy":
+                    var vac = await context.Vacancies.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.vacancy_id == item.Id1);
+                    if (vac is not null) { vac.is_deleted = false; await context.SaveChangesAsync(); }
                     break;
             }
         }
@@ -260,6 +268,10 @@ else
                 case "VacancyApplication":
                     var va = await context.VacancyApplications.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.id == item.Id1);
                     if (va is not null) { context.Remove(va); await context.SaveChangesAsync(); }
+                    break;
+                case "Vacancy":
+                    var vac = await context.Vacancies.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.vacancy_id == item.Id1);
+                    if (vac is not null) { context.Remove(vac); await context.SaveChangesAsync(); }
                     break;
             }
         }

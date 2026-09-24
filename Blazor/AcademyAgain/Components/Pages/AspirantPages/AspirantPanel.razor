@@ -1,0 +1,227 @@
+@page "/aspirant"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider Auth
+@inject IJSRuntime JS
+
+<PageTitle>Кабинет соискателя</PageTitle>
+
+@if (Redirecting)
+{
+    <div class="section-empty">Переход к панели управления…</div>
+}
+else if (Ready)
+{
+    <div class="page-header">
+        <h1>Здравствуйте, @Greeting!</h1>
+        <p class="page-subtitle">Здесь вы можете откликаться на вакансии и следить за статусами своих откликов.</p>
+    </div>
+
+    <div class="dashboard-stats">
+        <div class="stat-card">
+            <div class="stat-value">@Sent</div>
+            <div class="stat-label">Отправлено откликов</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">@Pending</div>
+            <div class="stat-label">Ожидают ответа</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">@Accepted</div>
+            <div class="stat-label">Принято</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">@Rejected</div>
+            <div class="stat-label">Отклонено</div>
+        </div>
+    </div>
+
+    <h2 class="section-title" id="applications">Мои отклики на вакансии</h2>
+    @if (Applications.Count == 0)
+    {
+        <EmptyState Title="Вы пока никуда не откликнулись"
+                    Message="Список открытых вакансий доступен в разделе «Вакансии».">
+            <ActionContent>
+                <a class="btn btn-primary" href="vacancies">Смотреть вакансии</a>
+            </ActionContent>
+        </EmptyState>
+    }
+    else
+    {
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Вакансия</th>
+                    <th>Дата отклика</th>
+                    <th>Статус</th>
+                    <th style="width:120px"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var a in Applications)
+                {
+                    <tr>
+                        <td class="fw-semibold">@a.VacancyTitle</td>
+                        <td>@a.Date</td>
+                        <td><span class="badge @StatusCss(a.Status)">@StatusText(a.Status)</span></td>
+                        <td>
+                            @if (a.Status == 0)
+                            {
+                                <button type="button" class="btn btn-sm btn-outline-danger"
+                                        @onclick="() => CancelAsync(a.Id)">Отменить</button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    <h2 class="section-title">Быстрый доступ</h2>
+    <div class="quick-grid">
+        <a class="quick-card" href="vacancies">
+            <span class="quick-title">Вакансии</span>
+            <span class="quick-desc">Посмотреть открытые вакансии и откликнуться</span>
+        </a>
+        <a class="quick-card" href="#applications">
+            <span class="quick-title">Мои отклики</span>
+            <span class="quick-desc">Статусы откликов на вакансии</span>
+        </a>
+        <a class="quick-card" href="portfolio">
+            <span class="quick-title">Портфолио</span>
+            <span class="quick-desc">Рассказать о себе и своих проектах</span>
+        </a>
+        <a class="quick-card" href="profile">
+            <span class="quick-title">Профиль</span>
+            <span class="quick-desc">Анкета, фото и доступ в академию</span>
+        </a>
+    </div>
+
+    <h2 class="section-title">Новости академии</h2>
+    <NewsList Take="4" />
+}
+
+@code {
+    private sealed record ApplicationRow(int Id, string VacancyTitle, string Date, int Status);
+
+    private bool Ready;
+    private bool Redirecting;
+    private string Greeting = "соискатель";
+
+    private List<ApplicationRow> Applications = new();
+
+    private int Sent;
+    private int Pending;
+    private int Accepted;
+    private int Rejected;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await Auth.GetAuthenticationStateAsync();
+        if (!authState.User.IsInRole("teacher_candidate"))
+        {
+            Redirecting = true;
+            try
+            {
+                Navigation.NavigateTo("/", forceLoad: true);
+            }
+            catch (InvalidOperationException)
+            {
+            }
+            Ready = true;
+            return;
+        }
+
+        await LoadDataAsync();
+        Ready = true;
+    }
+
+    private async Task LoadDataAsync()
+    {
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var currentName = authState.User.Identity?.Name;
+        await using var context = DbFactory.CreateDbContext();
+
+        User? me = null;
+        if (currentName is not null)
+        {
+            me = await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.username == currentName);
+        }
+        Greeting = me is { first_name: not null and not "" } && !string.IsNullOrWhiteSpace(me.first_name)
+            ? me.first_name.Trim()
+            : (string.IsNullOrWhiteSpace(currentName) ? "соискатель" : currentName);
+
+        var myApplications = me is null
+            ? new List<VacancyApplication>()
+            : await context.VacancyApplications.AsNoTracking()
+                .Where(a => a.candidate_user_id == me.user_id)
+                .OrderByDescending(a => a.created_at)
+                .ToListAsync();
+
+        var vacancies = await context.Vacancies.AsNoTracking()
+            .IgnoreQueryFilters()
+            .ToDictionaryAsync(v => v.vacancy_id);
+        Applications = myApplications
+            .Select(a =>
+            {
+                vacancies.TryGetValue(a.vacancy_id, out var v);
+                var title = v is null
+                    ? $"Вакансия №{a.vacancy_id}"
+                    : (string.IsNullOrWhiteSpace(v.title) ? $"Вакансия №{a.vacancy_id}" : v.title);
+                return new ApplicationRow(a.id, title, a.created_at?.ToString("dd.MM.yyyy") ?? "—", a.status);
+            })
+            .ToList();
+
+        Sent = myApplications.Count;
+        Pending = myApplications.Count(a => a.status == 0);
+        Accepted = myApplications.Count(a => a.status == 1);
+        Rejected = myApplications.Count(a => a.status == 2);
+    }
+
+    private async Task CancelAsync(int applicationId)
+    {
+        var ok = await JS.InvokeAsync<bool>("confirm", "Отменить отклик? После отмены вы сможете откликнуться заново.");
+        if (!ok) return;
+
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var currentName = authState.User.Identity?.Name;
+        await using var context = DbFactory.CreateDbContext();
+
+        var me = currentName is null
+            ? null
+            : await context.Users.FirstOrDefaultAsync(u => u.username == currentName);
+        if (me is null)
+        {
+            return;
+        }
+
+        var row = await context.VacancyApplications
+            .FirstOrDefaultAsync(a => a.id == applicationId && a.candidate_user_id == me.user_id && a.status == 0);
+        if (row is not null)
+        {
+            context.VacancyApplications.Remove(row);
+            await context.SaveChangesAsync();
+        }
+
+        await LoadDataAsync();
+        StateHasChanged();
+    }
+
+    private static string StatusText(int status) => status switch
+    {
+        1 => "Принято",
+        2 => "Отклонено",
+        _ => "Ожидает"
+    };
+
+    private static string StatusCss(int status) => status switch
+    {
+        1 => "text-bg-success",
+        2 => "text-bg-danger",
+        _ => "text-bg-secondary"
+    };
+}
