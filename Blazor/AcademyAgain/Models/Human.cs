@@ -16,7 +16,7 @@ namespace AcademyAgain.Models
 
 		[Required]
 		[DataType(DataType.Date)]
-		public DateOnly birth_date  {get; set; }
+		public DateOnly? birth_date  {get; set; }
 		[EmailAddress]
 		public string? email { get; set; }
 		[Phone]

@@ -10,5 +10,7 @@ public class AcademyAgainContext(DbContextOptions<AcademyAgainContext> options) 
     { get; set; } = default!;
     public DbSet<AcademyAgain.Models.Student> Students
     { get; set; } = default!;
+    public DbSet<AcademyAgain.Models.Teacher> Teachers
+    { get; set; } = default!;
 }
 
