@@ -2,10 +2,12 @@
 @attribute [AllowAnonymous]
 @rendermode InteractiveServer
 @using System.Globalization
+@using System.Security.Claims
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.AspNetCore.Components.Authorization
 @using AcademyAgain.Components.Pages.PublicPages
+@using AcademyAgain.Helpers
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider Auth
@@ -14,7 +16,7 @@
 
 @if (Redirecting)
 {
-    <div class="section-empty">Переход к панели абитуриента…</div>
+    <div class="section-empty">Переход к панели…</div>
 }
 else if (!IsAuthenticated)
 {
@@ -452,6 +454,9 @@ private static double IntAxisMax(double maxVal)
     private string AccruedTotal = "—";
     private int TodayCount;
 
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
     protected override async Task OnInitializedAsync()
     {
         var authState = await Auth.GetAuthenticationStateAsync();
@@ -461,51 +466,50 @@ private static double IntAxisMax(double maxVal)
             return;
         }
 
-        if (authState.User.IsInRole("candidate"))
+        var username = authState.User.Identity?.Name;
+        int? roleId = null;
+        string? roleName = null;
+        if (!string.IsNullOrWhiteSpace(username))
         {
-            Redirecting = true;
-            try
+            await using var roleContext = DbFactory.CreateDbContext();
+            var user = await roleContext.Users.AsNoTracking()
+                .FirstOrDefaultAsync(u => u.username == username);
+            if (user is not null)
             {
-                Navigation.NavigateTo("/candidate", forceLoad: true);
+                roleId = user.role_id;
+                roleName = await roleContext.Roles.AsNoTracking()
+                    .Where(r => r.role_id == user.role_id)
+                    .Select(r => r.role_name)
+                    .FirstOrDefaultAsync();
             }
-            catch (InvalidOperationException)
-            {
-            }
-            return;
         }
 
-        if (authState.User.IsInRole("student"))
+        var cookieRoleName = authState.User.FindFirst(ClaimTypes.Role)?.Value;
+        var httpContext = HttpContext;
+        if (httpContext is not null &&
+            !string.IsNullOrWhiteSpace(username) &&
+            !string.IsNullOrWhiteSpace(roleName) &&
+            !string.Equals(cookieRoleName, roleName, StringComparison.Ordinal))
         {
-            Redirecting = true;
-            try
-            {
-                Navigation.NavigateTo("/student", forceLoad: true);
-            }
-            catch (InvalidOperationException)
-            {
-            }
-            return;
+            await AuthStore.ReissueRoleAsync(httpContext, username, roleName);
         }
 
-        if (authState.User.IsInRole("teacher"))
+        var destination = roleId switch
+        {
+            2 => "/teacher",
+            11 => "/engineer",
+            7 => "/support",
+            3 => "/student",
+            5 => "/candidate",
+            6 => "/aspirant",
+            _ => null
+        };
+        if (destination is not null)
         {
             Redirecting = true;
             try
             {
-                Navigation.NavigateTo("/teacher", forceLoad: true);
-            }
-            catch (InvalidOperationException)
-            {
-            }
-            return;
-        }
-
-        if (authState.User.IsInRole("teacher_candidate"))
-        {
-            Redirecting = true;
-            try
-            {
-                Navigation.NavigateTo("/aspirant", forceLoad: true);
+                Navigation.NavigateTo(destination, forceLoad: true);
             }
             catch (InvalidOperationException)
             {

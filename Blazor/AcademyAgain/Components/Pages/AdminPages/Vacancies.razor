@@ -48,6 +48,7 @@
                 {
                     <tr>
                         <td class="fw-semibold">@row.Title</td>
+                        <td><span class="badge text-bg-secondary">Должность: @row.Position</span></td>
                         <td>@(string.IsNullOrWhiteSpace(row.Discipline) ? "—" : row.Discipline)</td>
                         <td>
                             <button type="button" class="btn btn-sm @(row.IsOpen ? "btn-success" : "btn-outline-secondary")"
@@ -72,7 +73,7 @@ else
 }
 
 @code {
-    private sealed record VacancyRow(int Id, string Title, string? Discipline, bool IsOpen, string CreatedAt);
+    private sealed record VacancyRow(int Id, string Title, int? TargetRoleId, string Position, string? Discipline, bool IsOpen, string CreatedAt);
 
     private bool loaded;
     private List<VacancyRow> Rows = new();
@@ -96,6 +97,8 @@ else
             .Select(v => new VacancyRow(
                 v.vacancy_id,
                 string.IsNullOrWhiteSpace(v.title) ? $"Вакансия №{v.vacancy_id}" : v.title,
+                v.target_role_id,
+                VacancyPosition.LabelFor(v.target_role_id),
                 v.discipline_id is int did && disciplines.TryGetValue(did, out var dn) ? dn : null,
                 v.is_open,
                 v.created_at?.ToString("dd.MM.yyyy") ?? "—"))

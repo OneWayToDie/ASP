@@ -1,8 +1,10 @@
 @page "/candidate"
 @attribute [Authorize]
 @rendermode InteractiveServer
+@using System.Security.Claims
 @using Microsoft.EntityFrameworkCore
 @using AcademyAgain.Models
+@using AcademyAgain.Helpers
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider Auth
@@ -135,10 +137,33 @@ else if (Ready)
     private int Accepted;
     private int Rejected;
 
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
     protected override async Task OnInitializedAsync()
     {
         var authState = await Auth.GetAuthenticationStateAsync();
-        if (!authState.User.IsInRole("candidate"))
+        var currentName = authState.User.Identity?.Name;
+        await using var context = DbFactory.CreateDbContext();
+
+        var me = string.IsNullOrWhiteSpace(currentName)
+            ? null
+            : await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.username == currentName);
+        var roleName = me is null
+            ? null
+            : await context.Roles.AsNoTracking()
+                .Where(r => r.role_id == me.role_id)
+                .Select(r => r.role_name)
+                .FirstOrDefaultAsync();
+        var httpContext = HttpContext;
+        if (httpContext is not null && me is not null &&
+            !string.IsNullOrWhiteSpace(roleName) &&
+            !string.Equals(authState.User.FindFirst(ClaimTypes.Role)?.Value, roleName, StringComparison.Ordinal))
+        {
+            await AuthStore.ReissueRoleAsync(httpContext, me.username, roleName);
+        }
+
+        if (me is null || me.role_id != 5)
         {
             Redirecting = true;
             try
@@ -148,25 +173,15 @@ else if (Ready)
             catch (InvalidOperationException)
             {
             }
-            Ready = true;
             return;
         }
 
-        await LoadDataAsync();
+        await LoadDataAsync(context, currentName, me);
         Ready = true;
     }
 
-    private async Task LoadDataAsync()
+    private async Task LoadDataAsync(AcademyAgainContext context, string? currentName, User me)
     {
-        var authState = await Auth.GetAuthenticationStateAsync();
-        var currentName = authState.User.Identity?.Name;
-        await using var context = DbFactory.CreateDbContext();
-
-        User? me = null;
-        if (currentName is not null)
-        {
-            me = await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.username == currentName);
-        }
         Greeting = me is { first_name: not null and not "" } && !string.IsNullOrWhiteSpace(me.first_name)
             ? me.first_name.Trim()
             : (string.IsNullOrWhiteSpace(currentName) ? "абитуриент" : currentName);
@@ -228,7 +243,7 @@ else if (Ready)
             await context.SaveChangesAsync();
         }
 
-        await LoadDataAsync();
+        await LoadDataAsync(context, me.username, me);
         StateHasChanged();
     }
 

@@ -254,6 +254,15 @@
             </AuthorizeView>
         </AuthorizeView>
 
+        <AuthorizeView Roles="admin,engineer">
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="engineer">
+                    <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v2M8 11.5v2M2.5 8h2M11.5 8h2M4 4l1.4 1.4M10.6 10.6 12 12M12 4l-1.4 1.4M5.4 10.6 4 12"/><circle cx="8" cy="8" r="2.2"/></svg>
+                    <span class="nav-label">Тех. эксплуатация</span>
+                </NavLink>
+            </div>
+        </AuthorizeView>
+
         @if (IsAuthenticated && !IsExternalUser)
         {
             <div class="nav-group px-3">
@@ -335,10 +344,18 @@
     private bool IsTeaching;
     private bool IsStudent;
     private bool IsTeacher;
+    private bool IsEngineer;
+    private bool IsSupport;
 
     private string PanelLink => IsCandidate
         ? "candidate"
-        : (IsTeacherCandidate ? "aspirant" : "");
+        : IsTeacherCandidate
+            ? "aspirant"
+            : IsEngineer
+                ? "engineer"
+                : IsSupport
+                    ? "support"
+                    : "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -350,6 +367,8 @@
         IsTeaching = authState.User.IsInRole("admin") || authState.User.IsInRole("moderator") || authState.User.IsInRole("teacher");
         IsStudent = authState.User.IsInRole("student");
         IsTeacher = authState.User.IsInRole("teacher");
+        IsEngineer = authState.User.IsInRole("engineer");
+        IsSupport = authState.User.IsInRole("support");
     }
 
     private static string RoleText(string? role) => role switch
@@ -361,6 +380,10 @@
         "candidate" => "Абитуриент",
         "teacher_candidate" => "Соискатель",
         "support" => "Поддержка",
+        "accountant" => "Бухгалтер",
+        "marketing" => "Маркетинг",
+        "tutor" => "Тьютор",
+        "engineer" => "Инженер",
         _ => role ?? string.Empty
     };
 
@@ -373,6 +396,10 @@
         "candidate" => "text-bg-warning",
         "teacher_candidate" => "text-bg-secondary",
         "support" => "text-bg-info",
+        "accountant" => "text-bg-secondary",
+        "marketing" => "text-bg-warning",
+        "tutor" => "text-bg-primary",
+        "engineer" => "text-bg-success",
         _ => "text-bg-secondary"
     };
 }

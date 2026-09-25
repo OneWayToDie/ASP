@@ -1,0 +1,530 @@
+@page "/engineer"
+@attribute [Authorize(Policy = "PlatformOps")]
+@rendermode InteractiveServer
+@using System.Diagnostics
+@using System.Globalization
+@using System.Text
+@using Microsoft.AspNetCore.Hosting
+@using Microsoft.EntityFrameworkCore
+@using AcademyAgain.Models
+@using AcademyAgain.Components.Admin
+@inject IDbContextFactory<AcademyAgainContext> DbFactory
+@inject IWebHostEnvironment HostEnvironment
+
+<PageTitle>Кабинет инженера</PageTitle>
+
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+        <div>
+            <h1>Кабинет инженера</h1>
+            <p class="page-subtitle">Диагностика базы данных, журналов и состояния приложения.</p>
+        </div>
+        <button type="button" class="btn btn-outline-secondary" @onclick="RefreshAsync" disabled="@Loading">Обновить</button>
+    </div>
+</div>
+
+@if (Loading && !Loaded)
+{
+    <p class="text-secondary">Сбор диагностических данных…</p>
+}
+@if (Error is not null)
+{
+    <div class="alert alert-danger" role="alert">@Error</div>
+}
+@if (DatabaseError is not null)
+{
+    <div class="alert alert-warning" role="alert">@DatabaseError</div>
+}
+
+<div class="dashboard-stats">
+    <div class="stat-card">
+        <div class="stat-value">@DatabaseStatus</div>
+        <div class="stat-label">Доступность БД</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">@DatabaseResponse</div>
+        <div class="stat-label">Время ответа БД</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">@PendingMigrations</div>
+        <div class="stat-label">Ожидающие миграции EF</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">@ProcessUptime</div>
+        <div class="stat-label">Uptime процесса</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">@LogErrorCount</div>
+        <div class="stat-label">Ошибки в последних строках Logs</div>
+    </div>
+</div>
+
+<h2 class="section-title">Последние записи аудита</h2>
+<div class="card mb-3">
+    <div class="card-header">Последние 20 записей AuditLog</div>
+    <div class="card-body">
+        @if (AuditError is not null)
+        {
+            <div class="alert alert-warning mb-0" role="alert">@AuditError</div>
+        }
+        else if (Loading && AuditRows.Count == 0)
+        {
+            <p class="text-secondary mb-0">Загрузка…</p>
+        }
+        else if (AuditRows.Count == 0)
+        {
+            <div class="section-empty mb-0">Записей аудита пока нет.</div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>Дата</th>
+                            <th>ID</th>
+                            <th>Пользователь</th>
+                            <th>Сущность</th>
+                            <th>Действие</th>
+                            <th>ID записи</th>
+                            <th>Прежнее значение</th>
+                            <th>Новое значение</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in AuditRows)
+                        {
+                            <tr>
+                                <td class="text-nowrap">@row.CreatedAt</td>
+                                <td>@row.AuditId</td>
+                                <td>@row.User</td>
+                                <td>@row.Entity</td>
+                                <td><span class="badge @AuditActionCss(row.Action)">@row.Action</span></td>
+                                <td>@row.EntityId</td>
+                                <td class="small text-break">@row.OldValue</td>
+                                <td class="small text-break">@row.NewValue</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+<h2 class="section-title">Активные правила сессии</h2>
+<div class="card mb-3">
+    <div class="card-header">Активные SessionRules</div>
+    <div class="card-body">
+        @if (SessionError is not null)
+        {
+            <div class="alert alert-warning mb-0" role="alert">@SessionError</div>
+        }
+        else if (Loading && ActiveSessionRules.Count == 0)
+        {
+            <p class="text-secondary mb-0">Загрузка…</p>
+        }
+        else if (ActiveSessionRules.Count == 0)
+        {
+            <div class="section-empty mb-0">Активных правил сессии нет.</div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Название</th>
+                            <th>Посещаемость, %</th>
+                            <th>Средний балл</th>
+                            <th>Пропуски (мех.)</th>
+                            <th>Активно</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var rule in ActiveSessionRules)
+                        {
+                            <tr>
+                                <td>@rule.Id</td>
+                                <td>@rule.Name</td>
+                                <td>@rule.MinAttendance</td>
+                                <td>@(rule.MinAverageGrade.ToString("0.00", CultureInfo.InvariantCulture))</td>
+                                <td>@rule.RequiredMakeups</td>
+                                <td><span class="badge @RuleStatusCss(rule.IsActive)">@(rule.IsActive ? "Да" : "Нет")</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+<h2 class="section-title">Резервное копирование и восстановление</h2>
+<BackupPanel />
+
+<h2 class="section-title">Последние строки приложения</h2>
+<div class="card">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+            <span>Хвост журнала, до @MaxLogLines строк</span>
+            @if (!string.IsNullOrWhiteSpace(LogFileName))
+            {
+                <span class="badge text-bg-secondary">@LogFileName</span>
+            }
+        </div>
+    </div>
+    <div class="card-body">
+        @if (LogError is not null)
+        {
+            <div class="alert alert-warning mb-0" role="alert">@LogError</div>
+        }
+        else if (Loading && string.IsNullOrWhiteSpace(LogTail) && string.IsNullOrWhiteSpace(LogHint))
+        {
+            <p class="text-secondary mb-0">Загрузка…</p>
+        }
+        else if (!string.IsNullOrWhiteSpace(LogHint))
+        {
+            <div class="section-empty mb-0">@LogHint</div>
+        }
+        else if (string.IsNullOrWhiteSpace(LogTail))
+        {
+            <div class="section-empty mb-0">В выбранном журнале нет строк для отображения.</div>
+        }
+        else
+        {
+            <pre class="mb-0" style="max-height: 28rem; overflow: auto; white-space: pre-wrap; word-break: break-word;">@LogTail</pre>
+        }
+    </div>
+</div>
+
+@code {
+    private const int MaxLogLines = 200;
+    private const int MaxLogBytes = 256 * 1024;
+    private const int MaxLogLineLength = 4000;
+
+    private static readonly string[] ErrorLevels = { "Error", "Critical", "Fatal", "Exception" };
+
+    private bool Loading;
+    private bool Loaded;
+    private string? Error;
+    private string? DatabaseError;
+    private string? AuditError;
+    private string? SessionError;
+    private string? LogError;
+
+    private string DatabaseStatus = "—";
+    private string DatabaseResponse = "—";
+    private string PendingMigrations = "—";
+    private string ProcessUptime = "—";
+    private string LogErrorCount = "—";
+
+    private List<AuditRow> AuditRows = new();
+    private List<SessionRuleRow> ActiveSessionRules = new();
+    private string LogFileName = string.Empty;
+    private string LogHint = string.Empty;
+    private string LogTail = string.Empty;
+
+    private sealed record AuditRow(string CreatedAt, long AuditId, string User, string Entity, string Action, string EntityId, string OldValue, string NewValue);
+    private sealed record SessionRuleRow(int Id, string Name, int MinAttendance, decimal MinAverageGrade, int RequiredMakeups, bool IsActive);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+    }
+
+    private async Task RefreshAsync()
+    {
+        if (Loading)
+        {
+            return;
+        }
+
+        Loading = true;
+        Loaded = false;
+        Error = null;
+        DatabaseError = null;
+        AuditError = null;
+        SessionError = null;
+        LogError = null;
+        DatabaseStatus = "—";
+        DatabaseResponse = "—";
+        PendingMigrations = "—";
+        ProcessUptime = GetUptimeText();
+        LogErrorCount = "—";
+        AuditRows = new();
+        ActiveSessionRules = new();
+        LogFileName = string.Empty;
+        LogHint = string.Empty;
+        LogTail = string.Empty;
+
+        try
+        {
+            await LoadDatabaseAsync();
+            await LoadLogAsync();
+        }
+        catch
+        {
+            Error = "Не удалось обновить диагностические данные.";
+        }
+        finally
+        {
+            Loaded = true;
+            Loading = false;
+        }
+    }
+
+    private async Task LoadDatabaseAsync()
+    {
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            await using var context = DbFactory.CreateDbContext();
+            var canConnect = await context.Database.CanConnectAsync();
+            stopwatch.Stop();
+
+            DatabaseResponse = FormatResponseTime(stopwatch.Elapsed);
+            if (!canConnect)
+            {
+                DatabaseStatus = "Недоступна";
+                PendingMigrations = "—";
+                DatabaseError = "База данных недоступна.";
+                AuditError = "База данных недоступна.";
+                SessionError = "База данных недоступна.";
+                return;
+            }
+
+            DatabaseStatus = "Доступна";
+            await LoadPendingMigrationsAsync(context);
+            await LoadAuditAsync(context);
+            await LoadSessionRulesAsync(context);
+        }
+        catch
+        {
+            stopwatch.Stop();
+            DatabaseStatus = "Недоступна";
+            DatabaseResponse = "—";
+            PendingMigrations = "—";
+            DatabaseError = "Не удалось проверить доступность базы данных.";
+            AuditError = "Не удалось прочитать данные аудита.";
+            SessionError = "Не удалось прочитать правила сессии.";
+        }
+    }
+
+    private async Task LoadPendingMigrationsAsync(AcademyAgainContext context)
+    {
+        try
+        {
+            var migrations = (await context.Database.GetPendingMigrationsAsync()).ToList();
+            PendingMigrations = migrations.Count.ToString(CultureInfo.InvariantCulture);
+        }
+        catch
+        {
+            PendingMigrations = "—";
+            DatabaseError = "Не удалось получить список ожидающих миграций EF.";
+        }
+    }
+
+    private async Task LoadAuditAsync(AcademyAgainContext context)
+    {
+        try
+        {
+            var logs = await context.AuditLogs.AsNoTracking()
+                .OrderByDescending(a => a.created_at)
+                .ThenByDescending(a => a.audit_id)
+                .Take(20)
+                .ToListAsync();
+
+            var userIds = logs.Where(a => a.user_id.HasValue).Select(a => a.user_id!.Value).Distinct().ToList();
+            var users = new Dictionary<int, string>();
+            if (userIds.Count > 0)
+            {
+                users = await context.Users.AsNoTracking()
+                    .Where(u => userIds.Contains(u.user_id))
+                    .ToDictionaryAsync(u => u.user_id, u => u.username);
+            }
+
+            AuditRows = logs.Select(a => new AuditRow(
+                a.created_at.ToString("dd.MM.yyyy HH:mm:ss", CultureInfo.InvariantCulture),
+                a.audit_id,
+                a.user_id.HasValue && users.TryGetValue(a.user_id.Value, out var username) ? username : "—",
+                a.entity,
+                a.action,
+                string.IsNullOrWhiteSpace(a.entity_id) ? "—" : a.entity_id,
+                FormatAuditValue(a.old_value),
+                FormatAuditValue(a.new_value))).ToList();
+            AuditError = null;
+        }
+        catch
+        {
+            AuditRows = new();
+            AuditError = "Не удалось прочитать последние записи аудита.";
+        }
+    }
+
+    private async Task LoadSessionRulesAsync(AcademyAgainContext context)
+    {
+        try
+        {
+            var rules = await context.SessionRules.AsNoTracking()
+                .Where(r => r.is_active)
+                .OrderBy(r => r.name)
+                .ToListAsync();
+
+            ActiveSessionRules = rules.Select(r => new SessionRuleRow(
+                r.session_rule_id,
+                r.name,
+                r.min_attendance_pct,
+                r.min_average_grade,
+                r.required_makeups,
+                r.is_active)).ToList();
+            SessionError = null;
+        }
+        catch
+        {
+            ActiveSessionRules = new();
+            SessionError = "Не удалось прочитать активные правила сессии.";
+        }
+    }
+
+    private async Task LoadLogAsync()
+    {
+        try
+        {
+            var logsDirectory = Path.Combine(HostEnvironment.ContentRootPath, "Logs");
+            if (!Directory.Exists(logsDirectory))
+            {
+                LogHint = "Каталог Logs не найден. Разместите файлы *.log в ContentRootPath/Logs.";
+                return;
+            }
+
+            var latest = Directory.GetFiles(logsDirectory, "*.log", SearchOption.TopDirectoryOnly)
+                .Select(path => new FileInfo(path))
+                .OrderByDescending(file => file.LastWriteTimeUtc)
+                .ThenByDescending(file => file.Name, StringComparer.OrdinalIgnoreCase)
+                .FirstOrDefault();
+            if (latest is null)
+            {
+                LogHint = "В ContentRootPath/Logs нет файлов *.log.";
+                return;
+            }
+
+            LogFileName = latest.Name;
+            var lines = await ReadLogTailAsync(latest.FullName);
+            LogTail = string.Join(Environment.NewLine, lines.Select(TrimLogLine));
+            LogErrorCount = CountErrorLines(lines).ToString(CultureInfo.InvariantCulture);
+            if (lines.Count == 0)
+            {
+                LogHint = "Выбранный журнал пуст.";
+            }
+        }
+        catch
+        {
+            LogFileName = string.Empty;
+            LogTail = string.Empty;
+            LogHint = string.Empty;
+            LogErrorCount = "—";
+            LogError = "Не удалось прочитать последние строки журнала.";
+        }
+    }
+
+    private static async Task<IReadOnlyList<string>> ReadLogTailAsync(string path)
+    {
+        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 4096, useAsync: true);
+        var start = stream.Length > MaxLogBytes ? stream.Length - MaxLogBytes : 0;
+        stream.Seek(start, SeekOrigin.Begin);
+
+        var bytesToRead = (int)Math.Min(stream.Length - start, MaxLogBytes);
+        var buffer = new byte[bytesToRead];
+        var offset = 0;
+        while (offset < buffer.Length)
+        {
+            var read = await stream.ReadAsync(buffer.AsMemory(offset, buffer.Length - offset));
+            if (read == 0)
+            {
+                break;
+            }
+            offset += read;
+        }
+
+        var text = Encoding.UTF8.GetString(buffer, 0, offset);
+        if (start > 0)
+        {
+            var firstLineEnd = text.IndexOf('\n');
+            text = firstLineEnd >= 0 ? text[(firstLineEnd + 1)..] : text;
+        }
+
+        return text.Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.RemoveEmptyEntries)
+            .TakeLast(MaxLogLines)
+            .ToList();
+    }
+
+    private static string TrimLogLine(string line)
+    {
+        line = line.TrimEnd();
+        return line.Length > MaxLogLineLength ? line[..MaxLogLineLength] + "…" : line;
+    }
+
+    private static int CountErrorLines(IEnumerable<string> lines)
+    {
+        return lines.Count(line => ErrorLevels.Any(level => line.Contains(level, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private static string FormatResponseTime(TimeSpan elapsed)
+    {
+        var milliseconds = Math.Max(0, elapsed.TotalMilliseconds);
+        return milliseconds >= 1000
+            ? string.Format(CultureInfo.InvariantCulture, "{0:0.##} с", milliseconds / 1000)
+            : string.Format(CultureInfo.InvariantCulture, "{0:0.#} мс", milliseconds);
+    }
+
+    private static string GetUptimeText()
+    {
+        try
+        {
+            using var process = Process.GetCurrentProcess();
+            return FormatUptime(DateTime.UtcNow - process.StartTime.ToUniversalTime());
+        }
+        catch
+        {
+            return "—";
+        }
+    }
+
+    private static string FormatUptime(TimeSpan uptime)
+    {
+        if (uptime < TimeSpan.Zero)
+        {
+            uptime = TimeSpan.Zero;
+        }
+        if (uptime.TotalDays >= 1)
+        {
+            return string.Format(CultureInfo.InvariantCulture, "{0} д {1} ч {2} мин", uptime.Days, uptime.Hours, uptime.Minutes);
+        }
+        if (uptime.TotalHours >= 1)
+        {
+            return string.Format(CultureInfo.InvariantCulture, "{0} ч {1} мин", uptime.Hours, uptime.Minutes);
+        }
+        return string.Format(CultureInfo.InvariantCulture, "{0} мин {1} с", uptime.Minutes, uptime.Seconds);
+    }
+
+    private static string FormatAuditValue(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "—";
+        }
+        return value.Length > 1200 ? value[..1200] + "…" : value;
+    }
+
+    private static string AuditActionCss(string action) => action switch
+    {
+        "create" => "text-bg-success",
+        "delete" or "trash.purge" or "support.ban" => "text-bg-danger",
+        "update" or "trash.restore" or "support.unban" or "semester.set_current" or "session_rule.set_active" => "text-bg-warning",
+        _ => "text-bg-secondary"
+    };
+
+    private static string RuleStatusCss(bool isActive) => isActive ? "text-bg-success" : "text-bg-secondary";
+}

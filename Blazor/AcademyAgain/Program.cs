@@ -38,6 +38,7 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("Teaching", policy => policy.RequireRole("admin", "moderator", "teacher"));
     options.AddPolicy("AdminOnly", policy => policy.RequireRole("admin"));
     options.AddPolicy("SupportOnly", policy => policy.RequireRole("admin", "moderator", "support"));
+    options.AddPolicy("PlatformOps", policy => policy.RequireRole("admin", "engineer"));
 });
 builder.Services.AddCascadingAuthenticationState();
 

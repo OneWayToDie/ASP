@@ -136,6 +136,13 @@ else
             return;
         }
 
+        var targetRoleId = form.target_role_id ?? VacancyPosition.DefaultRoleId;
+        if (!VacancyPosition.FunnelRoleIds.Contains(targetRoleId))
+        {
+            SaveError = "Выберите допустимый тип должности.";
+            return;
+        }
+
         await using var context = DbFactory.CreateDbContext();
 
         if (existing is null)
@@ -145,7 +152,7 @@ else
                 title = title,
                 description = string.IsNullOrWhiteSpace(form.description) ? null : form.description.Trim(),
                 discipline_id = form.discipline_id,
-                target_role_id = form.target_role_id ?? VacancyPosition.DefaultRoleId,
+                target_role_id = targetRoleId,
                 is_open = form.is_open,
                 created_at = DateTime.Now,
                 is_deleted = false

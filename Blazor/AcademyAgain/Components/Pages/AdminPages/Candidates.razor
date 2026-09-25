@@ -2,7 +2,9 @@
 @attribute [Authorize(Policy = "ManageData")]
 @rendermode InteractiveServer
 @using Microsoft.EntityFrameworkCore
+@using System.Data
 @using AcademyAgain.Models
+@using AcademyAgain.Helpers
 
 <PageTitle>Заявки абитуриентов</PageTitle>
 
@@ -330,34 +332,73 @@
         Message = null;
         Error = null;
         await using var context = DbFactory.CreateDbContext();
-        var user = await context.Users.FindAsync(row.CandidateUserId);
-        var application = await context.VacancyApplications.FindAsync(row.Id);
-        if (user is null || application is null)
+        try
         {
-            Error = "Заявка или пользователь не найдены.";
-            await ReloadAsync();
-            return;
+            await using var transaction = await context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+            var application = await context.VacancyApplications.FindAsync(row.Id);
+            var user = application is null
+                ? null
+                : await context.Users.FindAsync(application.candidate_user_id);
+            var vacancy = application is null
+                ? null
+                : await context.Vacancies.FindAsync(application.vacancy_id);
+            if (user is null || application is null || vacancy is null)
+            {
+                Error = "Заявка, пользователь или вакансия не найдены.";
+            }
+            else if (application.status != 0)
+            {
+                Error = "Заявка уже обработана.";
+            }
+            else
+            {
+                var targetRoleId = vacancy.target_role_id ?? VacancyPosition.DefaultRoleId;
+                if (!VacancyPosition.FunnelRoleIds.Contains(targetRoleId))
+                {
+                    Error = "Для вакансии указана недопустимая должность.";
+                }
+                else
+                {
+                    if (targetRoleId == 2)
+                    {
+                        var teacher = new Teacher
+                        {
+                            last_name = Limit(user.last_name, 50),
+                            first_name = Limit(user.first_name, 50),
+                            middle_name = Limit(user.middle_name, 50),
+                            email = Limit(user.email, 50),
+                            phone = Limit(user.contact, 16),
+                            work_since = DateTime.Today
+                        };
+                        context.Teachers.Add(teacher);
+                        await context.SaveChangesAsync();
+                        user.linked_id = teacher.teacher_id;
+                    }
+
+                    user.role_id = targetRoleId;
+                    user.status = 1;
+                    application.status = 1;
+
+                    var otherApplications = await context.VacancyApplications
+                        .IgnoreQueryFilters()
+                        .Where(a => a.candidate_user_id == user.user_id && a.id != application.id && a.status == 0)
+                        .ToListAsync();
+                    foreach (var otherApplication in otherApplications)
+                    {
+                        otherApplication.status = 2;
+                    }
+
+                    await context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    Message = $"Соискатель «{user.username}» принят на должность {VacancyPosition.LabelFor(targetRoleId)}";
+                }
+            }
+        }
+        catch (Exception)
+        {
+            Error = "Не удалось принять соискателя на работу. Попробуйте ещё раз.";
         }
 
-        var teacher = new Teacher
-        {
-            last_name = Limit(user.last_name, 50),
-            first_name = Limit(user.first_name, 50),
-            middle_name = Limit(user.middle_name, 50),
-            email = Limit(user.email, 50),
-            phone = Limit(user.contact, 16),
-            work_since = DateTime.Today
-        };
-        context.Teachers.Add(teacher);
-        await context.SaveChangesAsync();
-
-        user.role_id = 2;
-        user.status = 1;
-        user.linked_id = teacher.teacher_id;
-        application.status = 1;
-        await context.SaveChangesAsync();
-
-        Message = $"Соискатель «{user.username}» принят на работу.";
         await ReloadAsync();
     }
 

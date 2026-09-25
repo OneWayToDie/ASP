@@ -2,7 +2,9 @@
 @attribute [AllowAnonymous]
 @rendermode InteractiveServer
 @using Microsoft.EntityFrameworkCore
+@using Microsoft.Data.SqlClient
 @using AcademyAgain.Models
+@using AcademyAgain.Helpers
 @inject IDbContextFactory<AcademyAgainContext> DbFactory
 @inject AuthenticationStateProvider Auth
 @inject NavigationManager Navigation
@@ -11,7 +13,7 @@
 
 <div class="page-header">
     <h1>Вакансии</h1>
-    <p class="page-subtitle">Работайте в академии — открытые вакансии для преподавателей.</p>
+    <p class="page-subtitle">Работайте в академии — открытые вакансии для специалистов.</p>
 </div>
 
 @if (Message is not null)
@@ -25,13 +27,13 @@
 
 <div class="pub-cta">
     <div class="pub-cta-text">
-        <h3>Хотите преподавать в академии?</h3>
+        <h3>Ищете работу в академии?</h3>
         <p>
             @(Role switch
             {
                 "teacher_candidate" => "Откликнитесь на подходящую вакансию — статус отклика можно отслеживать в личном кабинете.",
                 "student" or "teacher" => "Для поступления на работу зарегистрируйтесь как соискатель.",
-                "admin" or "moderator" or "support" => "Вакансии публикуются администрацией в разделе администрирования.",
+                "admin" or "moderator" or "support" or "accountant" or "marketing" or "tutor" or "engineer" => "Вакансии публикуются администрацией и доступны в общем разделе.",
                 _ => "Создайте аккаунт соискателя и откликнитесь на подходящую вакансию."
             })
         </p>
@@ -66,6 +68,7 @@ else
                     }
                 </h3>
                 <p class="pub-lead">@(string.IsNullOrWhiteSpace(v.Description) ? "Описание появится при обсуждении условий работы." : v.Description)</p>
+                <div><span class="badge text-bg-secondary me-2">Должность: @v.Position</span></div>
                 @if (!string.IsNullOrEmpty(v.Discipline))
                 {
                     <div><span class="badge text-bg-secondary me-2">Дисциплина</span>@v.Discipline</div>
@@ -90,7 +93,7 @@ else
 }
 
 @code {
-    private sealed record VacancyRow(int VacancyId, string Title, string? Description, string? Discipline);
+    private sealed record VacancyRow(int VacancyId, string Title, int? TargetRoleId, string Position, string? Description, string? Discipline);
 
     private List<VacancyRow> Rows = new();
     private HashSet<int> AppliedIds = new();
@@ -98,7 +101,7 @@ else
     private string? Message;
     private string? Error;
 
-    private bool DashboardRole => Role is "candidate" or "teacher_candidate" or "student" or "teacher" or "admin" or "moderator" or "support";
+    private bool DashboardRole => Role is "candidate" or "teacher_candidate" or "student" or "teacher" or "admin" or "moderator" or "support" or "accountant" or "marketing" or "tutor" or "engineer";
 
     protected override async Task OnInitializedAsync()
     {
@@ -126,6 +129,8 @@ else
             .Select(v => new VacancyRow(
                 v.vacancy_id,
                 string.IsNullOrWhiteSpace(v.title) ? $"Вакансия №{v.vacancy_id}" : v.title,
+                v.target_role_id,
+                VacancyPosition.LabelFor(v.target_role_id),
                 v.description,
                 v.discipline_id is int did && disciplines.TryGetValue(did, out var dn) && !string.IsNullOrWhiteSpace(dn)
                     ? dn
@@ -159,6 +164,23 @@ else
             return;
         }
 
+        if (me.role_id != 6)
+        {
+            Error = "Войдите под учётной записью соискателя.";
+            return;
+        }
+
+        var vacancyIsOpen = await context.Vacancies
+            .AsNoTracking()
+            .AnyAsync(v => v.vacancy_id == vacancyId && v.is_open);
+        if (!vacancyIsOpen)
+        {
+            Error = "Вакансия закрыта, новые отклики не принимаются";
+            await LoadAsync();
+            StateHasChanged();
+            return;
+        }
+
         var exists = await context.VacancyApplications.AnyAsync(a => a.candidate_user_id == me.user_id && a.vacancy_id == vacancyId);
         if (exists)
         {
@@ -180,9 +202,16 @@ else
             });
             await context.SaveChangesAsync();
         }
-        catch (DbUpdateException)
+        catch (DbUpdateException ex) when (ex.InnerException is SqlException { Number: 2601 or 2627 })
         {
             Error = "Вы уже откликнулись на эту вакансию.";
+            await LoadAsync();
+            StateHasChanged();
+            return;
+        }
+        catch (DbUpdateException)
+        {
+            Error = "Не удалось отправить отклик. Попробуйте ещё раз.";
             await LoadAsync();
             StateHasChanged();
             return;

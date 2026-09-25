@@ -931,6 +931,7 @@ RoleText = user.role_id switch
         {
             1 => "Админ", 4 => "Модератор",
             2 => "Преподаватель", 3 => "Студент", 5 => "Абитуриент", 6 => "Соискатель",
+            7 or 8 or 9 or 10 or 11 => VacancyPosition.LabelFor(user.role_id),
             _ => user.role_id.ToString()
         };
         RoleCss = user.role_id switch
@@ -1677,7 +1678,7 @@ private Task EnterSearch(KeyboardEventArgs e)
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         var authResult = await HttpContext!.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         var isPersistent = authResult.Properties?.IsPersistent ?? true;
-        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity), new AuthenticationProperties { IsPersistent = isPersistent });
+        await HttpContext!.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity), new AuthenticationProperties { IsPersistent = isPersistent });
         Navigation.NavigateTo("/profile", forceLoad: true);
     }
 

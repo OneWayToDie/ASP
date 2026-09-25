@@ -1,6 +1,8 @@
 using AcademyAgain.Models;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -20,6 +22,16 @@ namespace AcademyAgain.Helpers
 			};
 			var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
 			return new ClaimsPrincipal(identity);
+		}
+
+		public static async Task ReissueRoleAsync(HttpContext httpContext, string username, string roleName)
+		{
+			var authResult = await httpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+			var isPersistent = authResult.Properties?.IsPersistent ?? true;
+			await httpContext.SignInAsync(
+				CookieAuthenticationDefaults.AuthenticationScheme,
+				CreatePrincipal(username, roleName),
+				new AuthenticationProperties { IsPersistent = isPersistent });
 		}
 
 		public static string HashPassword(string password)
