@@ -12,5 +12,17 @@ public class AcademyAgainContext(DbContextOptions<AcademyAgainContext> options) 
     { get; set; } = default!;
     public DbSet<AcademyAgain.Models.Teacher> Teachers
     { get; set; } = default!;
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        // Teachers.birth_date is nullable in the DB, Students.birth_date is NOT NULL.
+        // [Required] cannot be used on the shared Human.birth_date: it would make EF read
+        // the column as non-nullable and throw SqlNullValueException on the NULL teacher row.
+        modelBuilder.Entity<AcademyAgain.Models.Student>()
+            .Property(s => s.birth_date)
+            .IsRequired();
+    }
 }
 

@@ -14,7 +14,6 @@ namespace AcademyAgain.Models
 		public string first_name {get; set; }
 		public string? middle_name {get; set; }
 
-		[Required]
 		[DataType(DataType.Date)]
 		public DateOnly? birth_date  {get; set; }
 		[EmailAddress]
