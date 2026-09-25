@@ -15,5 +15,8 @@ namespace AcademyAgain.Models
 		[Column(TypeName = "SMALLMONEY")]
 		public decimal? rate { get; set; }
 
+		//NAvigation properties:
+		public ICollection<TeachersDisciplinesRelations> DisciplinesRelations { get; set; } = default!;
+
 	}
 }

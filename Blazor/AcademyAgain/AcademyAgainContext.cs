@@ -23,6 +23,20 @@ public class AcademyAgainContext(DbContextOptions<AcademyAgainContext> options) 
         modelBuilder.Entity<AcademyAgain.Models.Student>()
             .Property(s => s.birth_date)
             .IsRequired();
-    }
+
+		modelBuilder.Entity<AcademyAgain.Models.TeachersDisciplinesRelations>(e =>
+		{
+			e.ToTable("TeachersDisciplinesRelation");
+			e.HasKey(t => new { t.teacher, t.discipline });
+
+			e.HasOne(t => t.Teacher)
+				.WithMany(t => t.DisciplinesRelations)
+				.HasForeignKey(t => t.teacher);
+
+			e.HasOne(t => t.Discipline)
+				.WithMany()
+				.HasForeignKey(t => t.discipline);
+		});
+	}
 }
 
